@@ -6,10 +6,10 @@ import * as yup from 'yup'
 const reviewSchema = yup.object({
   title: yup.string()
     .required()
-    .min(4),
+    .min(1),
   body: yup.string()
     .required()
-    .min(8),
+    .min(1),
 });
 
 export default function Form({ addReview }) {

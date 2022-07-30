@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Button, FlatList, TouchableOpacity, ImageBackground, Modal,
-  KeyboardAvoidingView, ScrollView
+  KeyboardAvoidingView, ScrollView, Alert
 } from 'react-native';
 import { globalStyles } from '../shared/globalStyles';
 import Card from '../shared/Card';
@@ -15,13 +15,10 @@ import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-
 // component
 export default function Home({ navigation }) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [reviews, setReviews] = useState([]);
+  const [conversations, setConversations] = useState([]);
 
   const db = getFirestore();
-
-  // { title: 'Zelda, Breath of Fresh Air', rating: 5, body: 'lorem ipsum', key: '1' },
   
-
   useEffect(() => {
     const colRef = collection(db, 'Posts');
     const q = query(colRef, orderBy('dateCreated'));
@@ -32,12 +29,32 @@ export default function Home({ navigation }) {
         result.push({id: doc.id, ...doc.data(), dateCreated: empty});
       })
       
-      setReviews(result);
+      setConversations(result);
     })
   }, [])
 
   const deletePost = (id) => {
     deleteDoc(doc(db, 'Posts', id));
+  }
+
+  const showAlert = (id) => {
+    Alert.alert(
+      'Delete Post?',
+      'Are you sure you want to delete this post?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: "confirm",
+          onPress: () => deletePost(id)
+        }
+      ],
+      {
+        cancelable: true
+      }
+    )
   }
 
   const addReview = (review) => {
@@ -55,9 +72,9 @@ export default function Home({ navigation }) {
   };
 
   return (
-    <ImageBackground source={require('../assets/Imgs/bk.jpg')} imageStyle={{opacity: 0.9}} style={globalStyles.container}>
+    <View style={{...globalStyles.container, backgroundColor:'#806b96'}}>
       
-      <Modal visible={modalOpen} animationType='fade'>
+      <Modal visible={modalOpen} animationType='fade' style={styles.modal}>
         <View style={styles.modalContent}>
 
           <MaterialIcons name='close' size={24} 
@@ -71,31 +88,39 @@ export default function Home({ navigation }) {
 
         </View>
       </Modal>
+      
+      <View style={styles.homeHeader}>
+        <Text style={{fontSize:18, color:'white'}}>Public Conversations</Text>
 
-      <MaterialIcons name='add' size={24} 
-      style={styles.modalToggle} 
-      color="white"
-      onPress={() => setModalOpen(true)}
-      />
+        <TouchableOpacity onPress={() => setModalOpen(true)} style={styles.newConv}>
+          <View style={styles.modalToggle}>
+            <MaterialIcons name='add' size={18} color="white" />
+            <Text style={{color:'white', fontSize:15, marginLeft:5}}>New Conversation</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
       <View style={{flex: 1}}>
-        <FlatList data={reviews} renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => navigation.navigate('Details', { item })}>
+        <FlatList data={conversations} renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => navigation.navigate('Details', { id: item.id })} style={styles.item}>
             <Card>
               <View style={styles.content}>
                 <View style={styles.header}>
                   <Text style={globalStyles.titleText}>{ item.title }</Text>
-
-                  <Menu>
-                    <MenuTrigger>
-                      <MaterialIcons name='more-horiz' size={24} color="grey"/>
-                    </MenuTrigger>
-                    <MenuOptions>
-                      <MenuOption onSelect={() => deletePost(item.id)}>
-                        <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
-                      </MenuOption>
-                    </MenuOptions>
-                  </Menu>
-
+                  
+                  {(getAuth().currentUser.uid == item.authorID) &&
+                    <Menu>
+                      <MenuTrigger>
+                        <MaterialIcons name='more-horiz' size={24} color="grey"/>
+                      </MenuTrigger>
+                      <MenuOptions>
+                        <MenuOption onSelect={() => showAlert(item.id)}>
+                          <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
+                        </MenuOption>
+                      </MenuOptions>
+                    </Menu>
+                  }
+                  
                 </View>
                 <Text style={styles.body} numberOfLines={2}>{ item.body }</Text>
               </View>
@@ -108,7 +133,7 @@ export default function Home({ navigation }) {
         )}/>
       </View>
       
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -116,13 +141,13 @@ const styles = StyleSheet.create({
   modalToggle: {
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#f2f2f2',
     padding: 10,
     borderRadius: 10,
     alignSelf: 'center',
-    
+    flexDirection: 'row',
+    borderStyle: 'dashed'
   },
   modalClose: {
     marginTop: 20,
@@ -130,7 +155,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     flex: 1,
-    backgroundColor: '#d5ccd9'
+    backgroundColor: '#d5ccd9',
   },
   modalBody: {
     flex: 1,
@@ -146,13 +171,24 @@ const styles = StyleSheet.create({
   createdView: {
     flexDirection: 'row',
     marginTop: 30,
-    backgroundColor: '#c5f5fc',
+    backgroundColor: '#cebce0',
     padding: 10,
     marginHorizontal: 0
   },
+  newConv: {
+    justifyContent:'center'
+  },
+  homeHeader: {
+    flexDirection: 'row', 
+    justifyContent:'space-between', 
+    alignItems:'center',
+    marginBottom: 15,
+    backgroundColor: '#524d57',
+    padding: 10
+  },
   createdAuthor: {
     fontSize: 15,
-    color: '#a1a30b',
+    color: '#545303',
   },
   createdTime: {
     fontSize: 15,
@@ -160,11 +196,15 @@ const styles = StyleSheet.create({
   },
   body: {
     marginTop: 15,
-    fontSize: 20
+    fontSize: 20,
   },
   header: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between'
+  },
+  item: {
+    marginHorizontal: 10,
+    marginBottom: 10
   }
 });

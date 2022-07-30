@@ -8,7 +8,10 @@ import Details from './screens/Details'
 import About from './screens/About'
 import Login from './screens/Login'
 import Register from './screens/Register'
-import { StyleSheet, Text, View, Button } from 'react-native';
+import ByMe from './screens/ByMe';
+import Conversations from './screens/Conversations';
+import Private from './screens/Private';
+import { StyleSheet, Text, View, Button, TouchableOpacity} from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as SplashScreen from 'expo-splash-screen';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
@@ -16,6 +19,7 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { onAuthStateChanged, getAuth, signOut } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
 import { MenuProvider } from 'react-native-popup-menu';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzFP5s0WoP9MKd8Dk13QTDwNln7UXOoOs",
@@ -36,10 +40,16 @@ const HomeStack = createNativeStackNavigator();
 
 const MainStack = createNativeStackNavigator();
 
+const ByMeStack = createNativeStackNavigator();
+
+const ConversationsStack = createNativeStackNavigator();
+
+const Tabs = createBottomTabNavigator()
+
 function HomeStackScreens() {
   return(
     <HomeStack.Navigator>
-      <HomeStack.Screen name="Home" component={Home} options={({ navigation }) => ({
+      <HomeStack.Screen name="All" component={Home} options={({ navigation }) => ({
         headerRight: () => <Button title="Log Out" onPress={() => {
           signOut(getAuth())
             .then(() => {
@@ -49,13 +59,17 @@ function HomeStackScreens() {
               console.log(error)
             })
         }}/>,
-        headerLeft: () => <MaterialIcons name='menu' size={25} color='black' 
-        onPress={() => navigation.dispatch(DrawerActions.toggleDrawer)} style={styles.menu} />
+        headerLeft: () => 
+          <TouchableOpacity>
+            <MaterialIcons name='menu' size={25} color='black' 
+            onPress={() => navigation.dispatch(DrawerActions.toggleDrawer)} style={styles.menu} />
+          </TouchableOpacity>
         })}/>
       <HomeStack.Screen name="Details" component={Details} />
     </HomeStack.Navigator>
   );
 }
+
 
 function DrawerScreens() {
   return(
@@ -66,12 +80,104 @@ function DrawerScreens() {
         headerTitle: getHeaderTitles(route),
         headerRight: () => <Button onPress={navigation.goBack} title="X" />,
         })} /> */}
-      <Drawer.Screen name="HomeScreens" component={HomeStackScreens}/>
+      <Drawer.Screen name="Feed" component={TabScreens}/>
       <Drawer.Screen name="About" component={About} />
+      {/* <Drawer.Screen name="Tabs" component={TabScreens} /> */}
     </Drawer.Navigator>
   );
 }
 
+function TabScreens() {
+  return(
+    <Tabs.Navigator screenOptions={({route}) => ({
+      tabBarIcon: ({focused}) => {
+        let iconName;
+        let iconColor;
+
+        if(route.name =='Home'){
+          iconName = focused
+            ? 'person'
+            : 'person-outline';
+          iconColor = focused
+            ? '#f55fd2'
+            : '#f2f2f2';
+        } else if(route.name == 'By Me') {
+          iconName = focused
+            ? 'lock'
+            : 'lock-outline';
+          iconColor = focused
+            ? '#f55fd2'
+            : '#f2f2f2';
+        } else if(route.name == 'Conversations') {
+          iconName = focused
+            ? 'comment'
+            : 'mode-comment';
+          iconColor = focused
+            ? '#f55fd2'
+            : '#f2f2f2';
+        }
+
+        return <MaterialIcons name={iconName} size={35} color={iconColor} />;
+      },
+      tabBarStyle: {backgroundColor: '#58387a'},
+      tabBarActiveTintColor: '#f55fd2',
+      tabBarInactiveTintColor: '#f2f2f2',
+      headerShown: false
+    })}>
+      <Tabs.Screen name="Home" component={HomeStackScreens}/>
+      <Tabs.Screen name="By Me" component={ByMeScreens}/>
+      <Tabs.Screen name="Conversations" component={ConversationsStackScreens}/>
+    </Tabs.Navigator>
+  )
+}
+
+function ByMeScreens() {
+  return(
+    <ByMeStack.Navigator>
+      <ByMeStack.Screen name="All" component={ByMe} options={({ navigation }) => ({
+        headerRight: () => <Button title="Log Out" onPress={() => {
+          signOut(getAuth())
+            .then(() => {
+              console.log('signed out')
+            })
+            .catch(error => {
+              console.log(error)
+            })
+        }}/>,
+        headerLeft: () => 
+          <TouchableOpacity>
+            <MaterialIcons name='menu' size={25} color='black' 
+            onPress={() => navigation.dispatch(DrawerActions.toggleDrawer)} style={styles.menu} />
+          </TouchableOpacity>
+        })}/>
+      <ByMeStack.Screen name="Details" component={Details} />
+    </ByMeStack.Navigator>
+  );
+}
+
+function ConversationsStackScreens() {
+  return(
+    <ByMeStack.Navigator>
+      <ByMeStack.Screen name="All" component={Conversations} options={({ navigation }) => ({
+        headerRight: () => <Button title="Log Out" onPress={() => {
+          signOut(getAuth())
+            .then(() => {
+              console.log('signed out')
+            })
+            .catch(error => {
+              console.log(error)
+            })
+        }}/>,
+        headerLeft: () => 
+          <TouchableOpacity>
+            <MaterialIcons name='menu' size={25} color='black' 
+            onPress={() => navigation.dispatch(DrawerActions.toggleDrawer)} style={styles.menu} />
+          </TouchableOpacity>
+        })}/>
+      <ByMeStack.Screen name="Details" component={Details} />
+    </ByMeStack.Navigator>
+  );
+}
 
 function getHeaderTitles(route) {
   const routeName = getFocusedRouteNameFromRoute(route) ?? 'Home';
@@ -150,7 +256,6 @@ export default function App() {
 const styles = StyleSheet.create({
   menu: {
     marginRight: 20,
-
   },
 
 })
