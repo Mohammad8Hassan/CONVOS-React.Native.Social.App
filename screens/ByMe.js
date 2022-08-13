@@ -10,6 +10,7 @@ import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, o
    doc, deleteDoc, setDoc, Timestamp } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ByMe({ navigation }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -20,7 +21,7 @@ export default function ByMe({ navigation }) {
   useEffect(() => {
     const colRef = collection(db, 'Posts');
     const q = query(colRef, orderBy('dateCreated'));
-    onSnapshot(q, snapShot => {
+    const unsubscribe = onSnapshot(q, snapShot => {
       let result = [];
       snapShot.forEach(doc => {
         if(getAuth().currentUser.uid == doc.data().authorID) {
@@ -31,6 +32,11 @@ export default function ByMe({ navigation }) {
       
       setReviews(result);
     })
+
+    return () => {
+      unsubscribe();
+    }
+
   }, [])
 
   const deletePost = (id) => {
@@ -72,64 +78,70 @@ export default function ByMe({ navigation }) {
   };
 
   return (
-    <View style={{...globalStyles.container, backgroundColor:'#bca5d4'}}>
-      
-      <Modal visible={modalOpen} animationType='fade'>
-        <View style={styles.modalContent}>
+    <SafeAreaView style={{flex:1}}>
+      <View style={{...globalStyles.container, backgroundColor:'#806b96'}}>
+        
+        <Modal visible={modalOpen} animationType='fade'>
+          <View style={styles.modalContent}>
 
-          <MaterialIcons name='close' size={24} 
-          style={{...styles.modalToggle, ...styles.modalClose}} onPress={() => setModalOpen(false)} />
+            <MaterialIcons name='close' size={24} 
+            style={{...styles.modalToggle, ...styles.modalClose}} onPress={() => setModalOpen(false)} />
 
-          <KeyboardAvoidingView style={styles.modalBody}>
-            <ScrollView>
-              <Form addReview={addReview} />
-            </ScrollView>
-          </KeyboardAvoidingView>
+            <KeyboardAvoidingView style={styles.modalBody}>
+              <ScrollView>
+                <Form addReview={addReview} />
+              </ScrollView>
+            </KeyboardAvoidingView>
 
-        </View>
-      </Modal>
-      
-      <TouchableOpacity onPress={() => setModalOpen(true)}>
-        <View style={styles.modalToggle}>
-          <MaterialIcons name='add' size={22} color="white" />
-          <Text style={{color:'white', fontSize:15, marginLeft:5}}>New Post</Text>
-        </View>
-      </TouchableOpacity>
+          </View>
+        </Modal>
+        
+        <View style={styles.homeHeader}>
+          <Text style={{fontSize:18, color:'white'}}>By me</Text>
 
-      <View style={{flex: 1}}>
-        <FlatList data={reviews} renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => navigation.navigate('Details', { id: item.id })}>
-            <Card>
-              <View style={styles.content}>
-                <View style={styles.header}>
-                  <Text style={globalStyles.titleText}>{ item.title }</Text>
-                  
-                  {(getAuth().currentUser.uid == item.authorID) &&
-                    <Menu>
-                      <MenuTrigger>
-                        <MaterialIcons name='more-horiz' size={24} color="grey"/>
-                      </MenuTrigger>
-                      <MenuOptions>
-                        <MenuOption onSelect={() => showAlert(item.id)}>
-                          <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
-                        </MenuOption>
-                      </MenuOptions>
-                    </Menu>
-                  }
-                  
-                </View>
-                <Text style={styles.body} numberOfLines={2}>{ item.body }</Text>
-              </View>
-              <View style={styles.createdView}>
-                <Text style={styles.createdAuthor}>{ item.author }</Text>
-                <Text style={styles.createdTime}>{ item.dateCreated.toDate().toDateString() }</Text>
-              </View>
-            </Card>
+          <TouchableOpacity onPress={() => setModalOpen(true)} style={styles.newConv}>
+            <View style={styles.modalToggle}>
+              <MaterialIcons name='add' size={18} color="white" />
+              <Text style={{color:'white', fontSize:15, marginLeft:5}}>New Conversation</Text>
+            </View>
           </TouchableOpacity>
-        )}/>
+        </View>
+
+        <View style={{flex: 1}}>
+          <FlatList data={reviews} renderItem={({ item }) => (
+            <TouchableOpacity onPress={() => navigation.navigate('Details', { id: item.id })} style={styles.item}>
+              <Card>
+                <View style={styles.content}>
+                  <View style={styles.header}>
+                    <Text style={globalStyles.titleText}>{ item.title }</Text>
+                    
+                    {(getAuth().currentUser.uid == item.authorID) &&
+                      <Menu>
+                        <MenuTrigger>
+                          <MaterialIcons name='more-horiz' size={24} color="grey"/>
+                        </MenuTrigger>
+                        <MenuOptions>
+                          <MenuOption onSelect={() => showAlert(item.id)}>
+                            <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
+                          </MenuOption>
+                        </MenuOptions>
+                      </Menu>
+                    }
+                    
+                  </View>
+                  <Text style={styles.body} numberOfLines={2}>{ item.body }</Text>
+                </View>
+                <View style={styles.createdView}>
+                  <Text style={styles.createdAuthor}>{ item.author }</Text>
+                  <Text style={styles.createdTime}>{ item.dateCreated.toDate().toDateString() }</Text>
+                </View>
+              </Card>
+            </TouchableOpacity>
+          )}/>
+        </View>
+        
       </View>
-      
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -137,7 +149,6 @@ const styles = StyleSheet.create({
   modalToggle: {
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#f2f2f2',
     padding: 10,
@@ -168,13 +179,24 @@ const styles = StyleSheet.create({
   createdView: {
     flexDirection: 'row',
     marginTop: 30,
-    backgroundColor: '#c5f5fc',
+    backgroundColor: '#cebce0',
     padding: 10,
     marginHorizontal: 0
   },
+  newConv: {
+    justifyContent:'center'
+  },
+  homeHeader: {
+    flexDirection: 'row', 
+    justifyContent:'space-between', 
+    alignItems:'center',
+    marginBottom: 15,
+    backgroundColor: '#524d57',
+    padding: 10
+  },
   createdAuthor: {
     fontSize: 15,
-    color: '#a1a30b',
+    color: '#545303',
   },
   createdTime: {
     fontSize: 15,
@@ -188,5 +210,9 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between'
+  },
+  item: {
+    marginHorizontal: 10,
+    marginBottom: 10
   }
 });

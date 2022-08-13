@@ -4,6 +4,8 @@ import {
   Pressable
 } from 'react-native'
 import { TextInput } from 'react-native-gesture-handler'
+import avatar from '../assets/Imgs/avatar.png'
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { MaterialIcons } from '@expo/vector-icons'
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, deleteDoc, setDoc } from 'firebase/firestore'
@@ -15,28 +17,68 @@ export default function Register({ navigation }) {
     const [lasttName, setlastName] = useState('');
   
     const db = getFirestore();
+    const storage = getStorage();
   
-    const HandleRegister = () => {
-      createUserWithEmailAndPassword(getAuth(), email, password)
-        .then(credentials => {
-          updateProfile(credentials.user, {
-            displayName: firstName + ' ' + lasttName
-          });
-
-          setDoc(doc(db, 'Users', getAuth().currentUser.uid), {
-            firstName: firstName,
-            lasttName: lasttName,
-            ID: getAuth().currentUser.uid,
-            email: credentials.user.email,
-            dateRegistered: serverTimestamp(),
-          })
-        })
-        .catch(error => {
-          const errorCode = error.code;
-          const errorMessage = error.message;
-          console.log(errorCode, errorMessage);
+    const HandleRegister = async () => {
+      try{
+        const credentials = await createUserWithEmailAndPassword(getAuth(), email, password)
+        const refc = ref(storage, 'Profile Photos/avatar.png');
+        const url = await getDownloadURL(refc);
+        
+        await updateProfile(credentials.user, {
+          displayName: firstName + ' ' + lasttName,
+          photoURL: url,
         });
+
+        console.log(credentials.user);
+
+        await setDoc(doc(db, 'Users', getAuth().currentUser.uid), {
+          firstName: firstName,
+          lasttName: lasttName,
+          ID: getAuth().currentUser.uid,
+          email: credentials.user.email,
+          dateRegistered: serverTimestamp(),
+        })
+      }
+      catch(error){
+        const errorCode = error.code;
+        const errorMessage = error.message;
+        console.log(errorCode, errorMessage);
+      }
+      
     }
+
+
+    // const HandleRegisterOLD = () => {
+    //   createUserWithEmailAndPassword(getAuth(), email, password)
+    //     .then(credentials => {
+    //       const refc = ref(storage, 'Profile Photos/' + credentials.user.uid);
+    //       const img = avatar;
+    //       const bytes = await img.blob();
+    //       await uploadBytes(refc, bytes)
+    //         .then(snapShot => {
+    //           console.log(snapShot.metadata.fullPath);
+    //         })
+
+    //       updateProfile(credentials.user, {
+    //         displayName: firstName + ' ' + lasttName,
+    //         photoURL: "gs://pilot-react-native.appspot.com/Profile Photos/avatar.png"
+    //       });
+
+          // setDoc(doc(db, 'Users', getAuth().currentUser.uid), {
+          //   firstName: firstName,
+          //   lasttName: lasttName,
+          //   ID: getAuth().currentUser.uid,
+          //   email: credentials.user.email,
+          //   dateRegistered: serverTimestamp(),
+          // })
+    //     })
+    //     .catch(error => {
+    //       const errorCode = error.code;
+    //       const errorMessage = error.message;
+    //       console.log(errorCode, errorMessage);
+    //     });
+    // }
   
   
     return (

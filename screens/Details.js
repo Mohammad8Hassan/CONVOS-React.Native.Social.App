@@ -10,6 +10,8 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
   deleteDoc, Timestamp, setDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
+import { Entypo } from '@expo/vector-icons'
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 export default function Details({ route, navigation }) {
@@ -28,39 +30,12 @@ export default function Details({ route, navigation }) {
   const storage = getStorage();
 
   useEffect(() => {
-    // const imageRef = ref(storage, item.title);
-    // getDownloadURL(imageRef)
-    //   .then(uri => {
-    //     setImage(uri);
-    //   })
-    //   .catch(error => {
-    //     switch (error.code) {
-    //       case 'storage/object-not-found':
-    //         console.log(error);
-    //         break;
-    //       case 'storage/unauthorized':
-    //         console.log(error);
-    //         break;
-    //       case 'storage/canceled':
-    //         console.log(error);
-    //         break;
-    //       case 'storage/unknown':
-    //         console.log(error);
-    //         break;
-    //     }
-    //   })
-
-    // setPost({
-    //   title: 'test',
-    //   body: 'test',
-    //   author: 'test',
-    //   authorID: 'test',
-    //   authorEmail: 'test',
-    //   dateCreated: 'test',
-    // });
-
+    const tab = navigation.getParent();
+    tab.setOptions({
+      tabBarStyle: {display: 'none'}
+    });
     
-    onSnapshot(doc(db, 'Posts', id), doc => {
+    const unsubscribe = onSnapshot(doc(db, 'Posts', id), doc => {
       if(doc.data()) {
         setPost(doc.data());
       
@@ -73,17 +48,40 @@ export default function Details({ route, navigation }) {
 
     const colRef = collection(db, 'Posts', id, 'Comments');
     const q = query(colRef, orderBy('timeStamp'));
-    onSnapshot(q, snapShot => {
+
+    const unsubscribe2 = onSnapshot(q, async snapShot => {
       let result = [];
-      snapShot.forEach(doc => {
-        // console.log('before', doc.data().timeStamp);
+
+      // snapShot.forEach(doc => {
+      //   const empty = doc.data().timeStamp === null ? Timestamp.now() : doc.data().timeStamp;
+      //   const refc = ref(storage, doc.data().authorID);
+      //   const url_Temp = await getDownloadURL(refc);
+      //   url_Temp == null ? defaultImg : url_Temp;
+
+      //   result.push({id: doc.id, ...doc.data(), timeStamp: empty, uri: url_Temp});
+      // })
+
+      for (const doc of snapShot.docs) {
         const empty = doc.data().timeStamp === null ? Timestamp.now() : doc.data().timeStamp;
-        // console.log('after', empty);
-        // console.log(doc.data());
-        result.push({id: doc.id, ...doc.data(), timeStamp: empty});
-      })
+        const refc = ref(storage, doc.data().authorID);
+        const url_Temp = await getDownloadURL(refc);
+        url_Temp == null ? defaultImg : url_Temp;
+
+        result.push({id: doc.id, ...doc.data(), timeStamp: empty, uri: url_Temp});
+      }
+
       setAllComments(result);
     })
+
+
+    return () => {
+      tab.setOptions({
+        tabBarStyle: {display: 'flex', backgroundColor: '#524d57'}
+      });
+      unsubscribe();
+      unsubscribe2();
+    }
+
   }, [])
 
   const showAlert = (id) => {
@@ -107,28 +105,6 @@ export default function Details({ route, navigation }) {
   }
 
   const addComment = () => {
-    // let result = await ImagePicker.launchImageLibraryAsync({
-    //   mediaTypes: ImagePicker.MediaTypeOptions.All,
-    //   allowsEditing: true,
-    //   aspect: [4, 3],
-    //   quality: 1
-    // });
-
-    // console.log(result);
-
-    // if(!result.cancelled) {
-    //   setImage(result.uri);
-    //   console.log("before ref");
-    //   const refc = ref(storage, item.title)
-    //   console.log("before fetch");
-    //   const img = await fetch(result.uri);
-    //   console.log("before blob");
-    //   const bytes = await img.blob();
-      
-    //   console.log("before upload");
-    //   await uploadBytes(refc, bytes)
-    // };
-
     setAddCommentButton(false);
     setCommentBox(true);
 
@@ -166,109 +142,121 @@ export default function Details({ route, navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.container} >
-      <ScrollView ref={scrollView}>
-        { isAvailable == true ? (
-          <>
-            { post && 
+    <SafeAreaView style={{flex:1}}>
+
+      
+
+      <KeyboardAvoidingView style={styles.container} >
+        <ScrollView ref={scrollView}>
+          { isAvailable == true ? (
             <>
-              <Card>
-              <View style={styles.cardContent}>
-                <Text style={{color:'grey'}}>Title</Text>
-                <Text style={{borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:18}}>{ post.title }</Text>
+              { post &&
+              <>
+                <Card>
+                  <View style={styles.cardContent}>
+                    <Text style={{color:'grey'}}>Title</Text>
+                    <Text style={{borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:18}}>{ post.title }</Text>
 
-                <Text style={{marginTop:20, fontSize:18}}>{ post.body }</Text>
+                    <Text style={{marginTop:20, fontSize:18}}>{ post.body }</Text>
 
-                <View style={styles.createdView}>
-                  <Text style={{fontSize: 15}}>By: </Text>
-                  <Text style={styles.createdAuthor}>{ post.author }</Text>
-                  <Text style={styles.createdTime}>{post.dateCreated.toDate().toDateString()}</Text>
-                </View>
-              </View>
-            </Card>
-
-            <View>
-              {addCommentButton && <MaterialIcons name='add' color='black' size={30} onPress={addComment}/>}
-            </View>
-
-            <View style={styles.addContainer}></View>
+                    <View style={styles.createdView}>
+                      <Text style={{fontSize: 15}}>By: </Text>
+                      <Text style={styles.createdAuthor}>{ post.author }</Text>
+                      <Text style={styles.createdTime}>{post.dateCreated.toDate().toDateString()}</Text>
+                    </View>
+                  </View>
+                </Card>
 
 
-            <View style={styles.listContainer}>
-              {
-                allComments.map((comment) => {
-                  return (
-                    <View style={styles.listItem} key={comment.id}>
-                      <View style={styles.commentView} >
-                        <View style={styles.commentViewInner}>
-                          <Text style={styles.theComment}>{comment.comment}</Text>
-                          <View style={styles.commentDetails}>
-                            <Text style={styles.author}>{ comment.author }</Text>
-                            <Text style={styles.commentDate}>  •  {comment.timeStamp.toDate().toDateString()}</Text>
+              {/* <View style={styles.addContainer}></View> */}
+
+
+              <View style={styles.listContainer}>
+                {
+                  allComments.map((comment) => {
+                    return (
+                      <View style={styles.listItem} key={comment.id}>
+                        <View style={styles.commentView} >
+                          <View style={styles.commentViewInner}>
+                            <Text style={styles.theComment}>{comment.comment}</Text>
+                            <View style={styles.commentDetails}>
+                              <Text style={styles.author}>{ comment.author }</Text>
+                              <Text style={styles.commentDate}>  •  {comment.timeStamp.toDate().toDateString()}</Text>
+                            </View>
                           </View>
                         </View>
+                        <Image source={{uri: comment.uri}} style={styles.pic} />
+                        <View style={styles.delete} >
+                          {(getAuth().currentUser.uid == comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => showAlert(comment.id)}/>}
+                        </View>
                       </View>
-                      <View style={styles.delete} >
-                        {(getAuth().currentUser.uid == comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => showAlert(comment.id)}/>}
-                      </View>
-                    </View>
-                  )
-                })
-              }
-            </View>
-            
-            {
-              commentBox && 
-              
-              <View style={styles.commentBox}>
-                <TextInput
-                  style={styles.comment}
-                  placeholder='comment...'
-                  onChangeText={(value) => setComment(value)}
-                  value={comment}
-                  multiline
-                  textAlignVertical='top'
-                />
-
-                <View style={styles.buttonGroup}>
-                  <TouchableOpacity style={styles.buttonCancel} onPress={cancelComment}>
-                    <Text style={{color:'white', fontSize:15}}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.buttonPost} onPress={postComment}>
-                    <Text style={{color:'white', fontSize:15}}>Post</Text>
-                  </TouchableOpacity>
-                </View>
+                    )
+                  })
+                }
               </View>
-            }
+              
+              
+                {addCommentButton && 
+                  <TouchableOpacity style={styles.write} onPress={addComment}>
+                    <Entypo name='new-message' color='grey' size={25} />
+                    <Text style={{fontSize:20, marginLeft:5, color:'grey'}}>write</Text>
+                  </TouchableOpacity>
+                }
+              
 
-            {/* <View>
-              {image && <Image source={{uri: image}} style={{width: 200, height: 200}}/>}
-            </View>  */}
+              {
+                commentBox && 
+                
+                <View style={styles.commentBox}>
+                  <TextInput
+                    style={styles.comment}
+                    placeholder='comment...'
+                    onChangeText={(value) => setComment(value)}
+                    value={comment}
+                    multiline
+                    textAlignVertical='top'
+                  />
 
-              </>
-            }
-          </>
-        ) : (
-          <View style={styles.na}>
-            <View style={styles.naHeader}>
-              <MaterialIcons name='warning' color='#8b8c41' size={40}/>
-              <Text style={{color:'#8b8c41', fontSize:20, marginLeft:10, fontWeight:'bold'}}>Post not available</Text>
+                  <View style={styles.buttonGroup}>
+                    <TouchableOpacity style={styles.buttonCancel} onPress={cancelComment}>
+                      <Text style={{color:'white', fontSize:15}}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.buttonPost} onPress={postComment}>
+                      <Text style={{color:'white', fontSize:15}}>Post</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              }
+
+              {/* <View>
+                {image && <Image source={{uri: image}} style={{width: 200, height: 200}}/>}
+              </View>  */}
+
+                </>
+              }
+            </>
+          ) : (
+            <View style={styles.na}>
+              <View style={styles.naHeader}>
+                <MaterialIcons name='warning' color='#8b8c41' size={40}/>
+                <Text style={{color:'#8b8c41', fontSize:20, marginLeft:10, fontWeight:'bold'}}>Post not available</Text>
+              </View>
+              <View style={styles.naBody}>
+                <Text style={{fontSize:18, color:'#8b8c41'}}>The owner may have changed its privacy settings, or it has been deleted</Text>
+              </View>
             </View>
-            <View style={styles.naBody}>
-              <Text style={{fontSize:18, color:'#8b8c41'}}>The owner may have changed its privacy settings, or it has been deleted</Text>
-            </View>
-          </View>
-        )
-        } 
-      </ScrollView>
-    </KeyboardAvoidingView>
+          )
+          } 
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10
+    paddingHorizontal: 10,
   },
   na: {
     marginHorizontal:40,
@@ -283,18 +271,6 @@ const styles = StyleSheet.create({
   cardContent:{
     marginHorizontal: 18,
     marginVertical: 20,
-  },
-  rating:{
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingTop: 16,
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  cat:{
-    width: 30,
-    height: 30,
   },
   commentBox: {
     backgroundColor: '#737373',
@@ -322,7 +298,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-evenly',
     marginTop: 8,
   },
-
+  write: {
+    flexDirection:'row',
+    justifyContent:'center',
+    padding:10,
+    alignSelf:'center',
+    borderWidth: 1,
+    borderColor:'grey',
+    borderStyle:'dashed',
+    borderRadius:10,
+    alignItems:'center',
+    marginTop: 20,
+    marginBottom: 50
+  },
   buttonPost: {
     backgroundColor: 'blue',
     padding: 10,
@@ -339,24 +327,36 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     elevation: 8
   },
+  listContainer: {
+    marginTop:10
+  },
   listItem: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10
   },
+  pic: {
+    height: 35,
+    width: 35,
+    borderRadius: 60,
+    marginLeft:3,
+    borderColor: '#51445e',
+    borderWidth:1,
+    position: 'absolute'
+  },
   commentView: {
     backgroundColor: 'pink',
     padding: 10,
     marginRight: 50,
-    marginLeft: 5,
+    marginLeft: 20,
     borderRadius: 17,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center'
   },
   commentViewInner: {
-   
+    marginLeft: 15
   },
   delete: {
     opacity: 0.5,
@@ -396,5 +396,5 @@ const styles = StyleSheet.create({
   createdTime: {
     fontSize: 15,
     marginLeft: 'auto'
-  }
+  },
 })

@@ -10,8 +10,10 @@ import Login from './screens/Login'
 import Register from './screens/Register'
 import ByMe from './screens/ByMe';
 import Conversations from './screens/Conversations';
+import Settings from './screens/Settings';
 import Private from './screens/Private';
-import { StyleSheet, Text, View, Button, TouchableOpacity} from 'react-native';
+import EditProfile from './screens/EditProfile';
+import { StyleSheet, Text, View, Button, TouchableOpacity, StatusBar} from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as SplashScreen from 'expo-splash-screen';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
@@ -20,6 +22,9 @@ import { onAuthStateChanged, getAuth, signOut } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
 import { MenuProvider } from 'react-native-popup-menu';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { FontAwesome} from '@expo/vector-icons'
+import { SafeAreaView } from 'react-native-safe-area-context';
+import ChangeEmail from './screens/ChangeEmail';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzFP5s0WoP9MKd8Dk13QTDwNln7UXOoOs",
@@ -48,8 +53,10 @@ const Tabs = createBottomTabNavigator()
 
 function HomeStackScreens() {
   return(
-    <HomeStack.Navigator>
-      <HomeStack.Screen name="All" component={Home} options={({ navigation }) => ({
+    <HomeStack.Navigator screenOptions={() => ({ 
+      headerShown: false,
+      })}>
+      <HomeStack.Screen name="Public Conversations" component={Home} options={({ navigation }) => ({
         headerRight: () => <Button title="Log Out" onPress={() => {
           signOut(getAuth())
             .then(() => {
@@ -95,46 +102,55 @@ function TabScreens() {
         let iconColor;
 
         if(route.name =='Home'){
-          iconName = focused
-            ? 'person'
-            : 'person-outline';
+          iconName = 'home'
           iconColor = focused
             ? '#f55fd2'
             : '#f2f2f2';
         } else if(route.name == 'By Me') {
           iconName = focused
-            ? 'lock'
-            : 'lock-outline';
+            ? 'user'
+            : 'user';
           iconColor = focused
             ? '#f55fd2'
             : '#f2f2f2';
         } else if(route.name == 'Conversations') {
           iconName = focused
-            ? 'comment'
-            : 'mode-comment';
+            ? 'comments'
+            : 'comments';
+          iconColor = focused
+            ? '#f55fd2'
+            : '#f2f2f2';
+        } else if(route.name == 'Settings') {
+          iconName = focused
+            ? 'gear'
+            : 'gear';
           iconColor = focused
             ? '#f55fd2'
             : '#f2f2f2';
         }
 
-        return <MaterialIcons name={iconName} size={35} color={iconColor} />;
+        return <FontAwesome name={iconName} size={30} color={iconColor} />;
       },
-      tabBarStyle: {backgroundColor: '#58387a'},
+      tabBarStyle: {backgroundColor: '#524d57'},
       tabBarActiveTintColor: '#f55fd2',
       tabBarInactiveTintColor: '#f2f2f2',
-      headerShown: false
+      headerShown: false,
+      tabBarHideOnKeyboard: true,
     })}>
       <Tabs.Screen name="Home" component={HomeStackScreens}/>
       <Tabs.Screen name="By Me" component={ByMeScreens}/>
       <Tabs.Screen name="Conversations" component={ConversationsStackScreens}/>
+      <Tabs.Screen name="Settings" component={SettingsScreens} />
     </Tabs.Navigator>
   )
 }
 
 function ByMeScreens() {
   return(
-    <ByMeStack.Navigator>
-      <ByMeStack.Screen name="All" component={ByMe} options={({ navigation }) => ({
+    <ByMeStack.Navigator screenOptions={() => ({ 
+      headerShown: false,
+      })}>
+      <ByMeStack.Screen name="By me" component={ByMe} options={({ navigation }) => ({
         headerRight: () => <Button title="Log Out" onPress={() => {
           signOut(getAuth())
             .then(() => {
@@ -157,8 +173,10 @@ function ByMeScreens() {
 
 function ConversationsStackScreens() {
   return(
-    <ByMeStack.Navigator>
-      <ByMeStack.Screen name="All" component={Conversations} options={({ navigation }) => ({
+    <ByMeStack.Navigator screenOptions={() => ({ 
+      headerShown: false,
+      })}>
+      <ByMeStack.Screen name="Active Conversations" component={Conversations} options={({ navigation }) => ({
         headerRight: () => <Button title="Log Out" onPress={() => {
           signOut(getAuth())
             .then(() => {
@@ -175,6 +193,18 @@ function ConversationsStackScreens() {
           </TouchableOpacity>
         })}/>
       <ByMeStack.Screen name="Details" component={Details} />
+    </ByMeStack.Navigator>
+  );
+}
+
+function SettingsScreens() {
+  return(
+    <ByMeStack.Navigator screenOptions={() => ({ 
+      headerShown: false,
+      })}>
+      <ByMeStack.Screen name="Overview" component={Settings} />
+      <ByMeStack.Screen name="Edit Profile" component={EditProfile} />
+      <ByMeStack.Screen name="Change Email" component={ChangeEmail} />
     </ByMeStack.Navigator>
   );
 }
@@ -235,6 +265,10 @@ export default function App() {
 
   return (
     <MenuProvider>
+      <StatusBar
+        animated={true}
+        backgroundColor="#524d57" 
+      />
       <NavigationContainer>
         <MainStack.Navigator screenOptions={() => ({ headerShown: false,})}>
           { isSignedin == false ? (

@@ -10,6 +10,9 @@ import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, o
    doc, deleteDoc, setDoc, Timestamp, getDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+
 
 export default function Conversations({ navigation }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -22,12 +25,9 @@ export default function Conversations({ navigation }) {
     const colRef = collection(db, 'Users', getAuth().currentUser.uid, 'Threads');
     const q = query(colRef, orderBy('timeStamp'));
 
-    onSnapshot(q, snapShot => {
+    const unsubscribe = onSnapshot(q, snapShot => {
       let result = []; 
       snapShot.forEach(dok => {
-        console.log(dok.id);
-        // setSampleComment(dok.data().sampleComment)
-        console.log(dok.data().comment)
         getDoc(doc(db, "Posts", dok.id))
           .then(doc => {
             console.log(dok.data().sampleComment)
@@ -39,6 +39,11 @@ export default function Conversations({ navigation }) {
           })
       })
     })
+
+    return () => {
+      unsubscribe();
+    }
+
   }, [])
 
   const deletePost = (id) => {
@@ -80,78 +85,80 @@ export default function Conversations({ navigation }) {
   };
 
   return (
-    <View style={{...globalStyles.container, backgroundColor:'#bca5d4'}}>
-      
-      <Modal visible={modalOpen} animationType='fade'>
-        <View style={styles.modalContent}>
+    <SafeAreaView style={{flex:1}}>
+      <View style={{...globalStyles.container, backgroundColor:'#806b96'}}>
+        
+        <Modal visible={modalOpen} animationType='fade'>
+          <View style={styles.modalContent}>
 
-          <MaterialIcons name='close' size={24} 
-          style={{...styles.modalToggle, ...styles.modalClose}} onPress={() => setModalOpen(false)} />
+            <MaterialIcons name='close' size={24} 
+            style={{...styles.modalToggle, ...styles.modalClose}} onPress={() => setModalOpen(false)} />
 
-          <KeyboardAvoidingView style={styles.modalBody}>
-            <ScrollView>
-              <Form addReview={addReview} />
-            </ScrollView>
-          </KeyboardAvoidingView>
+            <KeyboardAvoidingView style={styles.modalBody}>
+              <ScrollView>
+                <Form addReview={addReview} />
+              </ScrollView>
+            </KeyboardAvoidingView>
 
-        </View>
-      </Modal>
-      
-      <View style={styles.homeHeader}>
-        <Text style={{fontSize:18, color:'white'}}>Active Conversations</Text>
-
-        <TouchableOpacity onPress={() => setModalOpen(true)} style={styles.newConv}>
-          <View style={styles.modalToggle}>
-            <MaterialIcons name='add' size={18} color="white" />
-            <Text style={{color:'white', fontSize:15, marginLeft:5}}>New Conversation</Text>
           </View>
-        </TouchableOpacity>
-      </View>
+        </Modal>
+        
+        <View style={styles.homeHeader}>
+          <Text style={{fontSize:18, color:'white'}}>Active Conversations</Text>
 
-      <View style={{flex: 1}}>
-        <FlatList data={reviews} renderItem={({ item }) => (
-          <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('Details', { id: item.id })}>
-            <Card>
-              <View style={styles.content}>
-                <View style={styles.header}>
-                  <Text style={globalStyles.titleText}>{ item.title }</Text>
-                  
-                  {(getAuth().currentUser.uid == item.authorID) &&
-                    <Menu>
-                      <MenuTrigger>
-                        <MaterialIcons name='more-horiz' size={24} color="grey"/>
-                      </MenuTrigger>
-                      <MenuOptions>
-                        <MenuOption onSelect={() => showAlert(item.id)}>
-                          <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
-                        </MenuOption>
-                      </MenuOptions>
-                    </Menu>
-                  }
-                  
-                </View>
-                <Text style={styles.body} numberOfLines={2}>{ item.body }</Text>
-              </View>
-              <View style={styles.createdView}>
-                <Text style={styles.createdAuthor}>{ item.author }</Text>
-                <Text style={styles.createdTime}>{ item.dateCreated.toDate().toDateString() }</Text>
-              </View>
-            </Card>
-
-            <View style={styles.sampleComment}>
-              <MaterialIcons name='subdirectory-arrow-right' color='black' size={25} />
-              <View style={styles.sampleText}>
-                <Text style={{fontSize:16, color: 'blue'}}>{getAuth().currentUser.displayName}: </Text>
-                <Text style={{flexShrink:1, fontSize:16}} numberOfLines={1} >{item.sampleComment}</Text>
-              </View>
+          <TouchableOpacity onPress={() => setModalOpen(true)} style={styles.newConv}>
+            <View style={styles.modalToggle}>
+              <MaterialIcons name='add' size={18} color="white" />
+              <Text style={{color:'white', fontSize:15, marginLeft:5}}>New Conversation</Text>
             </View>
-
-            <View style={{borderBottomColor: '#c4c4c4', borderBottomWidth:1, marginTop: 20, marginHorizontal: 50}}></View>
           </TouchableOpacity>
-        )}/>
+        </View>
+
+        <View style={{flex: 1}}>
+          <FlatList data={reviews} renderItem={({ item }) => (
+            <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('Details', { id: item.id })}>
+              <Card>
+                <View style={styles.content}>
+                  <View style={styles.header}>
+                    <Text style={globalStyles.titleText}>{ item.title }</Text>
+                    
+                    {(getAuth().currentUser.uid == item.authorID) &&
+                      <Menu>
+                        <MenuTrigger>
+                          <MaterialIcons name='more-horiz' size={24} color="grey"/>
+                        </MenuTrigger>
+                        <MenuOptions>
+                          <MenuOption onSelect={() => showAlert(item.id)}>
+                            <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
+                          </MenuOption>
+                        </MenuOptions>
+                      </Menu>
+                    }
+                    
+                  </View>
+                  <Text style={styles.body} numberOfLines={2}>{ item.body }</Text>
+                </View>
+                <View style={styles.createdView}>
+                  <Text style={styles.createdAuthor}>{ item.author }</Text>
+                  <Text style={styles.createdTime}>{ item.dateCreated.toDate().toDateString() }</Text>
+                </View>
+              </Card>
+
+              <View style={styles.sampleComment}>
+                <MaterialIcons name='subdirectory-arrow-right' color='black' size={25} />
+                <View style={styles.sampleText}>
+                  <Text style={{fontSize:16, color: 'blue'}}>{getAuth().currentUser.displayName}: </Text>
+                  <Text style={{flexShrink:1, fontSize:16}} numberOfLines={1} >{item.sampleComment}</Text>
+                </View>
+              </View>
+
+              <View style={{borderBottomColor: '#c4c4c4', borderBottomWidth:1, marginTop: 20, marginHorizontal: 50}}></View>
+            </TouchableOpacity>
+          )}/>
+        </View>
+        
       </View>
-      
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -182,8 +189,16 @@ const styles = StyleSheet.create({
     margin: 20,
     paddingTop: 20,
   },
-  item: {
-    marginBottom: 15
+  content:{
+    marginHorizontal: 18,
+    marginTop: 20,
+  },
+  createdView: {
+    flexDirection: 'row',
+    marginTop: 30,
+    backgroundColor: '#cebce0',
+    padding: 10,
+    marginHorizontal: 0
   },
   newConv: {
     justifyContent:'center'
@@ -196,20 +211,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#524d57',
     padding: 10
   },
-  content:{
-    marginHorizontal: 18,
-    marginTop: 20,
-  },
-  createdView: {
-    flexDirection: 'row',
-    marginTop: 30,
-    backgroundColor: '#c5f5fc',
-    padding: 10,
-    marginHorizontal: 0
-  },
   createdAuthor: {
     fontSize: 15,
-    color: '#a1a30b',
+    color: '#545303',
   },
   createdTime: {
     fontSize: 15,
@@ -223,6 +227,10 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between'
+  },
+  item: {
+    marginHorizontal: 10,
+    marginBottom: 15
   },
   sampleComment: {
     flex: 1,
