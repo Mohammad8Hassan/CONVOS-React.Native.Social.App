@@ -8,6 +8,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useIsFocused } from '@react-navigation/native';
+import { updateDoc, getFirestore, doc,  } from 'firebase/firestore';
 
 
 export default function EditProfile({ navigation }) {
@@ -22,6 +23,7 @@ export default function EditProfile({ navigation }) {
   const [newEmail, setNewEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const db = getFirestore();
   const storage = getStorage();
   const user = getAuth().currentUser;
 
@@ -74,11 +76,14 @@ export default function EditProfile({ navigation }) {
       const url_Temp = await getDownloadURL(refc);
 
       await updateProfile(user, {
-
         photoURL: url_Temp,
       });
 
       setUrl(url_Temp)
+
+      await updateDoc(doc(db, 'Users', userId), {
+        photoURL: url_Temp
+      })
     };
   }
 

@@ -25,6 +25,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { FontAwesome} from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ChangeEmail from './screens/ChangeEmail';
+import Friends from './screens/Friends';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzFP5s0WoP9MKd8Dk13QTDwNln7UXOoOs",
@@ -127,6 +128,11 @@ function TabScreens() {
           iconColor = focused
             ? '#f55fd2'
             : '#f2f2f2';
+        } else if (route.name == 'Friends') {
+          iconName = 'users'
+          iconColor = focused
+            ? '#f55fd2'
+            : '#f2f2f2';
         }
 
         return <FontAwesome name={iconName} size={30} color={iconColor} />;
@@ -138,6 +144,7 @@ function TabScreens() {
       tabBarHideOnKeyboard: true,
     })}>
       <Tabs.Screen name="Home" component={HomeStackScreens}/>
+      <Tabs.Screen name="Friends" component={Friends} />
       <Tabs.Screen name="By Me" component={ByMeScreens}/>
       <Tabs.Screen name="Conversations" component={ConversationsStackScreens}/>
       <Tabs.Screen name="Settings" component={SettingsScreens} />

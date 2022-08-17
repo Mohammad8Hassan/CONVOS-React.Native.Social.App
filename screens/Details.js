@@ -143,112 +143,98 @@ export default function Details({ route, navigation }) {
 
   return (
     <SafeAreaView style={{flex:1}}>
-
-      
-
-      <KeyboardAvoidingView style={styles.container} >
-        <ScrollView ref={scrollView}>
-          { isAvailable == true ? (
+      { isAvailable == true ? (
+        <>
+          { post &&
             <>
-              { post &&
-              <>
-                <Card>
-                  <View style={styles.cardContent}>
-                    <Text style={{color:'grey'}}>Title</Text>
-                    <Text style={{borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:18}}>{ post.title }</Text>
+              <Card>
+                <View style={styles.cardContent}>
+                  <Text style={{color:'grey'}}>Title</Text>
+                  <Text style={{borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:18}}>{ post.title }</Text>
 
-                    <Text style={{marginTop:20, fontSize:18}}>{ post.body }</Text>
+                  <Text style={{marginTop:20, fontSize:18}}>{ post.body }</Text>
 
-                    <View style={styles.createdView}>
-                      <Text style={{fontSize: 15}}>By: </Text>
-                      <Text style={styles.createdAuthor}>{ post.author }</Text>
-                      <Text style={styles.createdTime}>{post.dateCreated.toDate().toDateString()}</Text>
-                    </View>
-                  </View>
-                </Card>
-
-
-              {/* <View style={styles.addContainer}></View> */}
-
-
-              <View style={styles.listContainer}>
-                {
-                  allComments.map((comment) => {
-                    return (
-                      <View style={styles.listItem} key={comment.id}>
-                        <View style={styles.commentView} >
-                          <View style={styles.commentViewInner}>
-                            <Text style={styles.theComment}>{comment.comment}</Text>
-                            <View style={styles.commentDetails}>
-                              <Text style={styles.author}>{ comment.author }</Text>
-                              <Text style={styles.commentDate}>  •  {comment.timeStamp.toDate().toDateString()}</Text>
-                            </View>
-                          </View>
-                        </View>
-                        <Image source={{uri: comment.uri}} style={styles.pic} />
-                        <View style={styles.delete} >
-                          {(getAuth().currentUser.uid == comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => showAlert(comment.id)}/>}
-                        </View>
-                      </View>
-                    )
-                  })
-                }
-              </View>
-              
-              
-                {addCommentButton && 
-                  <TouchableOpacity style={styles.write} onPress={addComment}>
-                    <Entypo name='new-message' color='grey' size={25} />
-                    <Text style={{fontSize:20, marginLeft:5, color:'grey'}}>write</Text>
-                  </TouchableOpacity>
-                }
-              
-
-              {
-                commentBox && 
-                
-                <View style={styles.commentBox}>
-                  <TextInput
-                    style={styles.comment}
-                    placeholder='comment...'
-                    onChangeText={(value) => setComment(value)}
-                    value={comment}
-                    multiline
-                    textAlignVertical='top'
-                  />
-
-                  <View style={styles.buttonGroup}>
-                    <TouchableOpacity style={styles.buttonCancel} onPress={cancelComment}>
-                      <Text style={{color:'white', fontSize:15}}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.buttonPost} onPress={postComment}>
-                      <Text style={{color:'white', fontSize:15}}>Post</Text>
-                    </TouchableOpacity>
+                  <View style={styles.createdView}>
+                    <Text style={{fontSize: 15}}>By: </Text>
+                    <Text style={styles.createdAuthor}>{ post.author }</Text>
+                    <Text style={styles.createdTime}>{post.dateCreated.toDate().toDateString()}</Text>
                   </View>
                 </View>
-              }
+              </Card>
 
-              {/* <View>
-                {image && <Image source={{uri: image}} style={{width: 200, height: 200}}/>}
-              </View>  */}
+              <KeyboardAvoidingView style={styles.container} >
+                <ScrollView ref={scrollView}>
+                  
+                  <View style={styles.listContainer}>
+                    {
+                      allComments.map((comment) => {
+                        return (
+                          <View style={styles.listItem} key={comment.id}>
+                            <View style={styles.commentView} >
+                              <View style={styles.commentViewInner}>
+                                <Text style={styles.theComment}>{comment.comment}</Text>
+                                <View style={styles.commentDetails}>
+                                  <Text style={styles.author}>{ comment.author }</Text>
+                                  <Text style={styles.commentDate}>  •  {comment.timeStamp.toDate().toDateString()}</Text>
+                                </View>
+                              </View>
+                            </View>
+                            <Image source={{uri: comment.uri}} style={styles.pic} />
+                            <View style={styles.delete} >
+                              {(getAuth().currentUser.uid == comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => showAlert(comment.id)}/>}
+                            </View>
+                          </View>
+                        )
+                      })
+                    }
+                  </View>
+                  
+                  {addCommentButton && 
+                    <TouchableOpacity style={styles.write} onPress={addComment}>
+                      <Entypo name='new-message' color='grey' size={25} />
+                      <Text style={{fontSize:20, marginLeft:5, color:'grey'}}>write</Text>
+                    </TouchableOpacity>
+                  }
+                  
+                  {
+                    commentBox && 
+                    <View style={styles.commentBox}>
+                      <TextInput
+                        style={styles.comment}
+                        placeholder='comment...'
+                        onChangeText={(value) => setComment(value)}
+                        value={comment}
+                        multiline
+                        textAlignVertical='top'
+                      />
 
-                </>
-              }
+                      <View style={styles.buttonGroup}>
+                        <TouchableOpacity style={styles.buttonCancel} onPress={cancelComment}>
+                          <Text style={{color:'white', fontSize:15}}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.buttonPost} onPress={postComment}>
+                          <Text style={{color:'white', fontSize:15}}>Post</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  }
+                </ScrollView>
+              </KeyboardAvoidingView>
             </>
-          ) : (
-            <View style={styles.na}>
-              <View style={styles.naHeader}>
-                <MaterialIcons name='warning' color='#8b8c41' size={40}/>
-                <Text style={{color:'#8b8c41', fontSize:20, marginLeft:10, fontWeight:'bold'}}>Post not available</Text>
-              </View>
-              <View style={styles.naBody}>
-                <Text style={{fontSize:18, color:'#8b8c41'}}>The owner may have changed its privacy settings, or it has been deleted</Text>
-              </View>
+          }
+        </>
+        ) : (
+          <View style={styles.na}>
+            <View style={styles.naHeader}>
+              <MaterialIcons name='warning' color='#8b8c41' size={40}/>
+              <Text style={{color:'#8b8c41', fontSize:20, marginLeft:10, fontWeight:'bold'}}>Post not available</Text>
             </View>
-          )
-          } 
-        </ScrollView>
-      </KeyboardAvoidingView>
+            <View style={styles.naBody}>
+              <Text style={{fontSize:18, color:'#8b8c41'}}>The owner may have changed its privacy settings, or it has been deleted</Text>
+            </View>
+          </View>
+        )
+      }
     </SafeAreaView>
   );
 }

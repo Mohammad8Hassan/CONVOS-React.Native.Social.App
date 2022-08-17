@@ -9,6 +9,7 @@ export default function Settings({ navigation }) {
   const [profilePic, setProfilePic] = useState(null);
   const [userName, setUserName] = useState(null);
   const [email, setEmail] = useState(null);
+  const [ID, setID] = useState(null);
 
   const focused = useIsFocused();
 
@@ -18,6 +19,8 @@ export default function Settings({ navigation }) {
     setProfilePic(user.photoURL);
     setUserName(user.displayName);
     setEmail(user.email);
+    setID(user.uid);
+
   }, [focused])
 
   return (
@@ -30,12 +33,13 @@ export default function Settings({ navigation }) {
 
         <View style={styles.header}>
           <View>
-            <Image source={{uri: profilePic}} style={{width:120, height:120, borderRadius:100, borderWidth:2, borderColor:'#806b96'}}/>
+            <Image source={{uri: profilePic}} style={{width:100, height:100, borderRadius:100, borderWidth:2, borderColor:'#806b96'}}/>
           </View>
           
           <View style={styles.userInfo}>
             <Text style={{color:'#201d21', fontSize:20, marginBottom:10}} numberOfLines={1}>{userName}</Text>
             <Text style={{color:'#201d21', fontSize:20, marginBottom:10}} numberOfLines={1}>{email}</Text>
+            <Text style={{color:'#201d21', fontSize:15, marginBottom:10}} numberOfLines={1}>{ID}</Text>
             <Pressable  
                 onPress={() => navigation.navigate("Edit Profile")}
                 style={({ pressed }) => [
@@ -107,7 +111,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   userInfo: {
-    marginLeft: 40,
+    marginLeft: 20,
     flexShrink:1
   },
   edit: {
