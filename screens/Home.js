@@ -29,18 +29,9 @@ export default function Home({ navigation }) {
     onSnapshot(q, async snapShot => {
       let result = [];
 
-      // await Promise.all(snapShot.docs.map(async doc => {
-      //   const empty = doc.data().dateCreated === null ? Timestamp.now() : doc.data().dateCreated;
-      //   const refc = ref(storage, doc.data().authorID);
-      //   const url_Temp = await getDownloadURL(refc);
-      //   url_Temp == null ? defaultImg : url_Temp;
-
-      //   result.push({id: doc.id, ...doc.data(), dateCreated: empty, uri: url_Temp});
-      // }));
-
       for (const doc of snapShot.docs) {
         const empty = doc.data().dateCreated === null ? Timestamp.now() : doc.data().dateCreated;
-        const refc = ref(storage, doc.data().authorID);
+        const refc = ref(storage, 'Profile Photos/' + doc.data().authorID);
         const url_Temp = await getDownloadURL(refc);
         url_Temp == null ? defaultImg : url_Temp;
 
