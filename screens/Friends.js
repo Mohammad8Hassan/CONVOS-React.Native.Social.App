@@ -65,12 +65,21 @@ export default function Friends() {
 
       for (const doc of snapShot.docs) {
         if(doc.data().ignored == false) {
+          // var url_temp = null;
           const empty = doc.data().timestamp === null ? Timestamp.now() : doc.data().timestamp;
-          const refc = ref(storage, 'Profile Photos/' + doc.data().senderID);
-          const url_Temp = await getDownloadURL(refc);
-          url_Temp == null ? defaultImg : url_Temp;
-
-          result.push({id: doc.id, ...doc.data(), dateReceived: empty.toDate(), uri: url_Temp});
+          // const refc = ref(storage, 'Profile Photos/' + doc.data().senderID);
+          // const url_Temp = await getDownloadURL(refc);
+          // getDownloadURL(refc)
+          //   .then(res => {
+          //     url_temp = res;
+          //   })
+          //   .catch(() => {
+          //     console.log(defaultImg);
+          //     url_temp = defaultImg;
+          //   })
+          // url_Temp == null ? defaultImg : url_Temp;
+          
+          result.push({id: doc.id, ...doc.data(), dateReceived: empty.toDate()});
         }
       }
       
@@ -432,13 +441,13 @@ export default function Friends() {
           {receivedRequests && 
             <View style={{flex:1, padding:4}}>
               <FlatList data={receivedRequests} renderItem={({ item }) => (
-                <View style={{flex:1, backgroundColor:'#8d8299', borderRadius:10}}>
+                <View style={{flex:1, backgroundColor:'#8d8299', borderRadius:10,}}>
 
                   <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20}}>
-                    <Image source={{uri: item.uri}} style={{height:40, width:40, borderRadius:50}} />
+                    <Image source={{uri: item.senderPhoto}} style={{height:40, width:40, borderRadius:50}} />
                     <Text style={{color:'white', fontSize:18, marginLeft:10}}>{ item.senderName }</Text>
                   </View>
-                  <View style={{flexDirection:'row', padding:10, justifyContent:'flex-end'}}>
+                  <View style={{flexDirection:'row', paddingBottom:10, paddingRight:10, justifyContent:'flex-end', alignItems:'center'}}>
                       <Pressable
                         onPress={() => approveRequest(item.senderID)}
                         style={({ pressed }) => [
@@ -473,10 +482,10 @@ export default function Friends() {
         <View style={{flex:1, marginBottom:20}}>
           <Text style={{color:"white", fontSize:25}}>Friends</Text>
           
-          {sentRequests && 
+          {Friends && 
             <View style={{flex:1, marginTop:5, padding:4}}>
               <FlatList data={Friends} renderItem={({ item }) => (
-                <View style={{flex:1}}>
+                <View style={{flex:1, marginBottom:10}}>
 
                   <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20}}>
                     <Image source={{uri: item.friendPhoto}} style={{height:40, width:40, borderRadius:50}} />

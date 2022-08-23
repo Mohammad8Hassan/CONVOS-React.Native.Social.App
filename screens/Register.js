@@ -37,6 +37,7 @@ export default function Register({ navigation }) {
           lasttName: lasttName,
           ID: getAuth().currentUser.uid,
           email: credentials.user.email,
+          photoURL: getAuth().currentUser.photoURL,
           dateRegistered: serverTimestamp(),
         })
       }
