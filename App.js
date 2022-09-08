@@ -12,6 +12,7 @@ import ByMe from './screens/ByMe';
 import Conversations from './screens/Conversations';
 import Settings from './screens/Settings';
 import Private from './screens/Private';
+import NewConv from './screens/NewConv';
 import EditProfile from './screens/EditProfile';
 import { StyleSheet, Text, View, Button, TouchableOpacity, StatusBar} from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -74,6 +75,7 @@ function HomeStackScreens() {
           </TouchableOpacity>
         })}/>
       <HomeStack.Screen name="Details" component={Details} />
+      <HomeStack.Screen name="New Conversation" component={NewConv} />
     </HomeStack.Navigator>
   );
 }

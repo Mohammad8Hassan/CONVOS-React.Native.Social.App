@@ -78,7 +78,6 @@ export default function Home({ navigation }) {
       authorEmail: getAuth().currentUser.email,
       dateCreated: serverTimestamp(),
     })
-  
   };
 
   return (
@@ -102,6 +101,12 @@ export default function Home({ navigation }) {
         
         <View style={styles.homeHeader}>
           <Text style={{fontSize:18, color:'white'}}>Public Conversations</Text>
+
+          <TouchableOpacity onPress={() => navigation.navigate('New Conversation')} style={styles.newConv}>
+            <View style={styles.modalToggle}>
+              <Text style={{color:'white', fontSize:15, marginLeft:5}}>New</Text>
+            </View>
+          </TouchableOpacity>
 
           <TouchableOpacity onPress={() => setModalOpen(true)} style={styles.newConv}>
             <View style={styles.modalToggle}>
