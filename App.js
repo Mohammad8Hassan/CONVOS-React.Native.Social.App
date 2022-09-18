@@ -27,6 +27,7 @@ import { FontAwesome} from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ChangeEmail from './screens/ChangeEmail';
 import Friends from './screens/Friends';
+import Invites from './screens/Invites';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzFP5s0WoP9MKd8Dk13QTDwNln7UXOoOs",
@@ -107,7 +108,7 @@ function TabScreens() {
         if(route.name =='Home'){
           iconName = 'home'
           iconColor = focused
-            ? '#f55fd2'
+            ? 'black'
             : '#f2f2f2';
         } else if(route.name == 'By Me') {
           iconName = focused
@@ -135,20 +136,27 @@ function TabScreens() {
           iconColor = focused
             ? '#f55fd2'
             : '#f2f2f2';
+        } else if (route.name == 'Invites') {
+          iconName = 'envelope'
+          iconColor = focused
+            ? '#f55fd2'
+            : '#f2f2f2';
         }
 
         return <FontAwesome name={iconName} size={30} color={iconColor} />;
       },
-      tabBarStyle: {backgroundColor: '#524d57'},
+      tabBarStyle: {backgroundColor: '#806b96', elevation:15},
       tabBarActiveTintColor: '#f55fd2',
       tabBarInactiveTintColor: '#f2f2f2',
       headerShown: false,
       tabBarHideOnKeyboard: true,
+      tabBarShowLabel:false
     })}>
       <Tabs.Screen name="Home" component={HomeStackScreens}/>
+      <Tabs.Screen name="Invites" component={Invites} />
       <Tabs.Screen name="Friends" component={Friends} />
-      <Tabs.Screen name="By Me" component={ByMeScreens}/>
-      <Tabs.Screen name="Conversations" component={ConversationsStackScreens}/>
+      {/* <Tabs.Screen name="By Me" component={ByMeScreens}/>
+      <Tabs.Screen name="Conversations" component={ConversationsStackScreens}/> */}
       <Tabs.Screen name="Settings" component={SettingsScreens} />
     </Tabs.Navigator>
   )
@@ -276,7 +284,7 @@ export default function App() {
     <MenuProvider>
       <StatusBar
         animated={true}
-        backgroundColor="#524d57" 
+        backgroundColor="#613a5f" 
       />
       <NavigationContainer>
         <MainStack.Navigator screenOptions={() => ({ headerShown: false,})}>

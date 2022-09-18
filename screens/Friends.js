@@ -374,7 +374,7 @@ export default function Friends() {
   return (
     <SafeAreaView style={{flex: 1, backgroundColor:'#806b96'}}>
       <View style={styles.homeHeader}>
-        <Text style={{fontSize:18, color:'white'}}>Friends</Text>
+        <Text style={{fontSize:19, color:'white'}}>Friends</Text>
       </View>
 
         <Modal visible={modalVisible} animationType='fade' transparent={true}
@@ -579,10 +579,10 @@ export default function Friends() {
 const styles = StyleSheet.create({
   homeHeader: {
     flexDirection: 'row', 
-    justifyContent:'center', 
     alignItems:'center',
-    backgroundColor: '#524d57',
-    padding: 10
+    backgroundColor: '#613a5f',
+    padding: 15,
+    elevation:15
   },
   outerView: {
     flex: 1,

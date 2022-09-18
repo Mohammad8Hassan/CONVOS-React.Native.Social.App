@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, TextInput,
-  Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, Alert, RefreshControl } from 'react-native';
+  Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList,
+   Alert, RefreshControl, Switch } from 'react-native';
 import { useEffect, useState, useCallback } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Form from '../shared/Form';
@@ -42,6 +43,7 @@ export default function NewConv({ navigation }) {
   const [displayNames, setDisplayNames] = useState([]);
   const [email, setEmail] = useState('');
   const [searchStatus, setSearchStatus] = useState(null);
+  const [hasPassword, setHasPassword] = useState(false);
 
   useEffect(() => {
     const tab = navigation.getParent();
@@ -51,7 +53,7 @@ export default function NewConv({ navigation }) {
 
     let friends = [];
     const friendsCollection = collection(db, 'Users', user.uid, 'Friends');
-    
+
     getDocs(friendsCollection)
       .then(res => {
         res.forEach(doc => {
@@ -86,6 +88,10 @@ export default function NewConv({ navigation }) {
     setData(selectedOthers);
   }, [selectedOthers])
 
+  const toggleSwitch = () => {
+    setHasPassword(prev => !prev);
+  }
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     wait(800).then(() => setRefreshing(false));
@@ -96,6 +102,8 @@ export default function NewConv({ navigation }) {
     addDoc(collection(db, 'Conversations'), {
       title: values.title,
       body: values.body,
+      password: values.password,
+      hasPassword: hasPassword,
       author: user.displayName,
       authorID: user.uid,
       authorEmail: user.email,
@@ -103,6 +111,9 @@ export default function NewConv({ navigation }) {
     })
     .then(ref => {
       setDoc(doc(db, 'Users', user.uid, 'My Conversations', ref.id), {
+        authorID: user.uid,
+        title: values.title,
+        body: values.body,
         dateCreated: serverTimestamp()
       });
 
@@ -125,6 +136,11 @@ export default function NewConv({ navigation }) {
           timeStamp: serverTimestamp(),
         })
       })
+
+      setDoc(doc(db, 'Conversations', ref.id, 'Participants', user.uid), {
+        Name: user.displayName,
+        ID: user.uid,
+      });
 
       ToastAndroid.show('Conversation Created', ToastAndroid.SHORT);
       navigation.popToTop();
@@ -382,18 +398,17 @@ export default function NewConv({ navigation }) {
 
       {/* Page Contents */}
 
-      <View style={{flex: 1, padding:10}}>
+      <View style={{flex: 1, padding:10,}}>
         <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}
         progressBackgroundColor={'white'} />}
-        
         >
           <Formik
-            initialValues={{title: '', body: ''}}
+            initialValues={{title: '', body: '', password: ''}}
             onSubmit={(values) => addConversation(values)}
             validationSchema={reviewSchema}
           >
             {props => (
-              <View style={{alignItems:'flex-start'}}>
+              <View style={{alignItems:'flex-start', flex:1,}}>
                 <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginBottom:5}}>Title</Text>
                 <TextInput
                   style={styles.input}
@@ -438,8 +453,22 @@ export default function NewConv({ navigation }) {
                   </View>
                 </TouchableOpacity>
 
+                <View style={{flexDirection:'row', marginTop:5, alignItems:'center'}}>
+                  <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginRight:5}}>Password</Text>
+                  <Switch 
+                    onValueChange={toggleSwitch}
+                    value={hasPassword}
 
-
+                  />
+                </View>
+                {hasPassword && 
+                  <TextInput
+                    style={styles.input}
+                    placeholder='Password'
+                    onChangeText={props.handleChange('password')}
+                    value={props.values.password}
+                  />
+                }
                 <TouchableOpacity style={styles.buttonSubmit} onPress={props.handleSubmit}>
                   <Text style={{color:'white', fontSize:18,}}>Create</Text>
                 </TouchableOpacity>

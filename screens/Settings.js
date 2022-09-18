@@ -26,20 +26,19 @@ export default function Settings({ navigation }) {
   return (
     <SafeAreaView style={{flex:1,}}>
       <View style={styles.homeHeader}>
-        <Text style={{fontSize:18, color:'white'}}>Settings</Text>
+        <Text style={{fontSize:19, color:'white'}}>Settings</Text>
       </View>
       
       <View style={styles.container}>
 
-        <View style={styles.header}>
-          <View>
-            <Image source={{uri: profilePic}} style={{width:100, height:100, borderRadius:100, borderWidth:2, borderColor:'#806b96'}}/>
-          </View>
+        <View style={{backgroundColor:'#613a5f',}}>
+        <View style={styles.header}> 
+          <Image source={{uri: profilePic}} style={{width:100, height:100, borderRadius:100, borderWidth:2, borderColor:'#bab806'}}/>
           
           <View style={styles.userInfo}>
-            <Text style={{color:'#201d21', fontSize:20, marginBottom:10}} numberOfLines={1}>{userName}</Text>
-            <Text style={{color:'#201d21', fontSize:20, marginBottom:10}} numberOfLines={1}>{email}</Text>
-            <Text style={{color:'#201d21', fontSize:15, marginBottom:10}} numberOfLines={1}>{ID}</Text>
+            <Text style={{color:'#bab806', fontSize:20, marginBottom:10}} numberOfLines={1}>{userName}</Text>
+            <Text style={{color:'#bfbfb0', fontSize:20, marginBottom:10}} numberOfLines={1}>{email}</Text>
+            
             <Pressable  
                 onPress={() => navigation.navigate("Edit Profile")}
                 style={({ pressed }) => [
@@ -51,6 +50,20 @@ export default function Settings({ navigation }) {
                 <Text style={{color:"#806b96", fontSize: 20, marginLeft:8}}>Edit</Text>
               </View>
             </Pressable>
+          </View>
+        </View>
+        <View style={{flexDirection:'row', alignItems:'center', marginBottom:10, paddingHorizontal:5}}>
+          <Text style={{color:'#bfbfb0', fontSize:16, marginLeft:5}} numberOfLines={1}>{ID}</Text>
+          <Pressable
+            style={({ pressed }) => [
+              {opacity: pressed ? 0.5: 1}, styles.copyID
+            ]}
+          >
+            <View style={{flexDirection:'row', alignItems:'center',}}>
+              <Text style={{color:"#806b96", fontSize: 15, marginRight:3}}>Copy ID</Text>
+              <MaterialIcons name='file-copy' size={17} color='#806b96' />
+            </View>
+          </Pressable>
           </View>
         </View>
 
@@ -96,7 +109,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     justifyContent:'space-between', 
     alignItems:'center',
-    backgroundColor: '#524d57',
+    backgroundColor: '#613a5f',
     padding: 10
   },
   container: {
@@ -106,8 +119,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    margin: 5,
-    backgroundColor: '#d46ebc',
+    backgroundColor: '#613a5f',
     padding: 10,
   },
   userInfo: {
@@ -130,5 +142,12 @@ const styles = StyleSheet.create({
     marginTop:'auto',
     marginBottom:40,
     borderRadius: 25
+  },
+  copyID: {
+    padding: 8,
+    backgroundColor: '#d4c86e',
+    alignItems: 'center',
+    borderRadius:20,
+    marginLeft: 'auto'
   },
 })

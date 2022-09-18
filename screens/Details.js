@@ -8,11 +8,11 @@ import * as ImagePicker from 'expo-image-picker'
 import { MaterialIcons } from '@expo/vector-icons';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
-  deleteDoc, Timestamp, setDoc } from 'firebase/firestore'
+  deleteDoc, Timestamp, setDoc, getDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { Entypo } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context';
-
+import avatar from '../assets/Imgs/avatar.png';
 
 export default function Details({ route, navigation }) {
 
@@ -28,6 +28,8 @@ export default function Details({ route, navigation }) {
   
   const db = getFirestore();
   const storage = getStorage();
+  const defaultImg = Image.resolveAssetSource(avatar).uri;
+  const user = getAuth().currentUser;
 
   useEffect(() => {
     const tab = navigation.getParent();
@@ -35,18 +37,26 @@ export default function Details({ route, navigation }) {
       tabBarStyle: {display: 'none'}
     });
     
-    const unsubscribe = onSnapshot(doc(db, 'Posts', id), doc => {
-      if(doc.data()) {
-        setPost(doc.data());
+    const unsubscribe = onSnapshot(doc(db, 'Conversations', id), snapShot => {
+      if(snapShot.data()) {
+        getDoc(doc(db, 'Conversations', id, 'Participants', user.uid))
+          .then(res => {
+            if(res.exists()){
+              setPost(snapShot.data());
       
-        setIsAvailable(true);
+              setIsAvailable(true);
+            }
+            else {
+              setIsAvailable(false);
+            }
+          })
       }
       else {
         setIsAvailable(false);
       }
     })
 
-    const colRef = collection(db, 'Posts', id, 'Comments');
+    const colRef = collection(db, 'Conversations', id, 'Comments');
     const q = query(colRef, orderBy('timeStamp'));
 
     const unsubscribe2 = onSnapshot(q, async snapShot => {
@@ -63,9 +73,14 @@ export default function Details({ route, navigation }) {
 
       for (const doc of snapShot.docs) {
         const empty = doc.data().timeStamp === null ? Timestamp.now() : doc.data().timeStamp;
-        const refc = ref(storage, doc.data().authorID);
-        const url_Temp = await getDownloadURL(refc);
-        url_Temp == null ? defaultImg : url_Temp;
+        const refc = ref(storage, 'Profile Photos/' + doc.data().authorID);
+        let url_Temp = null;
+        try{
+          url_Temp = await getDownloadURL(refc);
+        }
+        catch{
+          url_Temp = defaultImg;
+        }
 
         result.push({id: doc.id, ...doc.data(), timeStamp: empty, uri: url_Temp});
       }
@@ -118,17 +133,17 @@ export default function Details({ route, navigation }) {
     scrollView.current.scrollToEnd();
     setComment('');
     
-    await addDoc(collection(db, 'Posts', id, 'Comments'), {
+    await addDoc(collection(db, 'Conversations', id, 'Comments'), {
       comment: comment,
       author: getAuth().currentUser.displayName,
       authorID: getAuth().currentUser.uid,
       timeStamp: serverTimestamp()
     })
 
-    setDoc(doc(db, 'Users', getAuth().currentUser.uid, 'Threads', id), {
-      timeStamp: serverTimestamp(),
-      comment: comment
-    })
+    // setDoc(doc(db, 'Users', getAuth().currentUser.uid, 'Threads', id), {
+    //   timeStamp: serverTimestamp(),
+    //   comment: comment
+    // })
   }
 
   const cancelComment = () => {
@@ -138,7 +153,7 @@ export default function Details({ route, navigation }) {
   }
 
   const deleteComment = (commentId) => {
-    deleteDoc(doc(db, "Posts", id, "Comments", commentId));
+    deleteDoc(doc(db, "Conversations", id, "Comments", commentId));
   }
 
   return (
@@ -227,10 +242,10 @@ export default function Details({ route, navigation }) {
           <View style={styles.na}>
             <View style={styles.naHeader}>
               <MaterialIcons name='warning' color='#8b8c41' size={40}/>
-              <Text style={{color:'#8b8c41', fontSize:20, marginLeft:10, fontWeight:'bold'}}>Post not available</Text>
+              <Text style={{color:'#8b8c41', fontSize:20, marginLeft:10, fontWeight:'bold'}}>Conversation not available</Text>
             </View>
             <View style={styles.naBody}>
-              <Text style={{fontSize:18, color:'#8b8c41'}}>The owner may have changed its privacy settings, or it has been deleted</Text>
+              <Text style={{fontSize:18, color:'#8b8c41'}}>The owner may have removed you, or it has been deleted</Text>
             </View>
           </View>
         )
