@@ -28,6 +28,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ChangeEmail from './screens/ChangeEmail';
 import Friends from './screens/Friends';
 import Invites from './screens/Invites';
+import * as NavigationBar from 'expo-navigation-bar';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzFP5s0WoP9MKd8Dk13QTDwNln7UXOoOs",
@@ -108,7 +109,7 @@ function TabScreens() {
         if(route.name =='Home'){
           iconName = 'home'
           iconColor = focused
-            ? 'black'
+            ? '#e374b5'
             : '#f2f2f2';
         } else if(route.name == 'By Me') {
           iconName = focused
@@ -143,9 +144,9 @@ function TabScreens() {
             : '#f2f2f2';
         }
 
-        return <FontAwesome name={iconName} size={30} color={iconColor} />;
+        return <FontAwesome name={iconName} size={27} color={iconColor} />;
       },
-      tabBarStyle: {backgroundColor: '#806b96', elevation:15},
+      tabBarStyle: {backgroundColor: '#745f8a', elevation:15, borderTopWidth:0},
       tabBarActiveTintColor: '#f55fd2',
       tabBarInactiveTintColor: '#f2f2f2',
       headerShown: false,
@@ -264,6 +265,8 @@ export default function App() {
     } 
 
     prepare();
+
+    NavigationBar.setBackgroundColorAsync("#613a5f");
 
     const unsubscribe = getAuth().onAuthStateChanged(user => {
       if(user) {

@@ -1,6 +1,6 @@
 import { useState, useEffect} from 'react';
 import { StyleSheet, Text, View, Button, FlatList, TouchableOpacity, ImageBackground, Modal,
-  KeyboardAvoidingView, ScrollView, Alert, Image, TouchableWithoutFeedback, TextInput, Pressable
+  KeyboardAvoidingView, ScrollView, Alert, Image, TouchableWithoutFeedback, TextInput, Pressable, ToastAndroid
 } from 'react-native';
 import { globalStyles } from '../shared/globalStyles';
 import Card from '../shared/Card';
@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import avatar from '../assets/Imgs/avatar.png';
 import { useIsFocused } from '@react-navigation/native';
+import * as Clipboard from 'expo-clipboard';
+import { async } from '@firebase/util';
 
 // component
 export default function Home({ navigation }) {
@@ -176,6 +178,11 @@ export default function Home({ navigation }) {
     }
   }
 
+  const copyToClipboard = async () => {
+    await Clipboard.setStringAsync(user.uid);
+
+    ToastAndroid.show('ID copied', ToastAndroid.SHORT);
+  }
 
   return (
     <SafeAreaView style={{flex:1}}>
@@ -228,6 +235,7 @@ export default function Home({ navigation }) {
               <Text style={{color: '#bfbfb0'}}>{ user.uid }</Text>
             </View>
             <Pressable
+              onPress={copyToClipboard}
               style={({ pressed }) => [
                 {opacity: pressed ? 0.5: 1}, styles.copyID
               ]}
@@ -387,10 +395,8 @@ const styles = StyleSheet.create({
   },
   createdViewContainer: {
     flexDirection:'row', 
-    // backgroundColor:'red', 
     alignItems:'center', 
     marginTop: 20,
-    // paddingVertical:10
   },
   outerView: {
     flex: 1,
