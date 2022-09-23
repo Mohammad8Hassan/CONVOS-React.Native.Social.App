@@ -62,15 +62,6 @@ export default function Details({ route, navigation }) {
     const unsubscribe2 = onSnapshot(q, async snapShot => {
       let result = [];
 
-      // snapShot.forEach(doc => {
-      //   const empty = doc.data().timeStamp === null ? Timestamp.now() : doc.data().timeStamp;
-      //   const refc = ref(storage, doc.data().authorID);
-      //   const url_Temp = await getDownloadURL(refc);
-      //   url_Temp == null ? defaultImg : url_Temp;
-
-      //   result.push({id: doc.id, ...doc.data(), timeStamp: empty, uri: url_Temp});
-      // })
-
       for (const doc of snapShot.docs) {
         const empty = doc.data().timeStamp === null ? Timestamp.now() : doc.data().timeStamp;
         const refc = ref(storage, 'Profile Photos/' + doc.data().authorID);
@@ -91,7 +82,7 @@ export default function Details({ route, navigation }) {
 
     return () => {
       tab.setOptions({
-        tabBarStyle: {display: 'flex', backgroundColor: '#524d57'}
+        tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
       });
       unsubscribe();
       unsubscribe2();
@@ -139,11 +130,6 @@ export default function Details({ route, navigation }) {
       authorID: getAuth().currentUser.uid,
       timeStamp: serverTimestamp()
     })
-
-    // setDoc(doc(db, 'Users', getAuth().currentUser.uid, 'Threads', id), {
-    //   timeStamp: serverTimestamp(),
-    //   comment: comment
-    // })
   }
 
   const cancelComment = () => {

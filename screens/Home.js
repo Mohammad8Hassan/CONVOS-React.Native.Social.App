@@ -1,7 +1,7 @@
 import { useState, useEffect} from 'react';
 import { StyleSheet, Text, View, Button, FlatList, TouchableOpacity, ImageBackground, Modal,
-  KeyboardAvoidingView, ScrollView, Alert, Image, TouchableWithoutFeedback, TextInput, Pressable, ToastAndroid
-} from 'react-native';
+  KeyboardAvoidingView, ScrollView, Alert, Image, TouchableWithoutFeedback, TextInput, Pressable, ToastAndroid,
+  ActivityIndicator, } from 'react-native';
 import { globalStyles } from '../shared/globalStyles';
 import Card from '../shared/Card';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -26,6 +26,7 @@ export default function Home({ navigation }) {
   const [response, setResponse] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
+  const [showIndicator, setShowIndicator] = useState(false);
 
   const db = getFirestore();
   const storage = getStorage();
@@ -37,20 +38,12 @@ export default function Home({ navigation }) {
   useEffect(() => {
     setModalVisible(false);
     setShowPassword(false);
-    setResponse('');
+    setResponse(null);
   }, [focused])
 
   useEffect(() => {
     const colRef = collection(db, 'Users', user.uid, 'My Conversations');
-    // onSnapshot(colRef, snapShot => {
-    //   var myConvs = ['1'];
-    //   for(const doc of snapShot.docs) {
-    //     myConvs.push(doc.id);
-    //   }
-      
-      // const allConvsRef = collection(db, 'Conversations');
-      // const q = query(allConvsRef, where(documentId(), 'in', myConvs));
-      
+    
     onSnapshot(colRef, async snapShot => {
       let result = [];
       
@@ -76,7 +69,8 @@ export default function Home({ navigation }) {
   }, [])
 
   const deletePost = (id) => {
-    deleteDoc(doc(db, 'Posts', id));
+    deleteDoc(doc(db, 'Conversations', id));
+    deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
   }
 
   const showAlert = (id) => {
@@ -99,61 +93,68 @@ export default function Home({ navigation }) {
     )
   }
 
-  const addReview = (review) => {
-    setModalOpen(false);
-
-    addDoc(collection(db, 'Posts'), {
-      title: review.title,
-      body: review.body,
-      author: getAuth().currentUser.displayName,
-      authorID: getAuth().currentUser.uid,
-      authorEmail: getAuth().currentUser.email,
-      dateCreated: serverTimestamp(),
-    })
-  };
-
   const clickOut = () => {
     setModalVisible(false);
     setConvID('');
+    setResponse(null);
   }
 
   const joinConversation = async () => {
+    setShowIndicator(true);
+    setResponse(null);
     if(showPassword == false) {
-      const checkExist = await getDoc(doc(db, 'Conversations', convID, 'Participants', user.uid));
-      if(checkExist.exists()) {
-        console.log('already joined!');
-        navigation.navigate('Details', { id: convID });
-      }
-  
-      const checkBan = await getDoc(doc(db, 'Conversations', convID, 'Banned Users', user.uid));
-      if(checkBan.exists()) {
-        console.log('BANNED!');
-        setResponse('unable to join Conversation');
+      console.log('11111');
+      if(convID == '') {
+        setShowIndicator(false);
+        setResponse('No conversations found!');
         return;
       }
-  
-      const passCheck = await getDoc(doc(db, 'Conversations', convID));
-      if(passCheck.data().password) {
-        console.log('enter password');
-        setShowPassword(true);
-        return;
-      }
+      const convExists = await getDoc(doc(db, 'Conversations', convID));
 
-      await setDoc(doc(db, 'Conversations', convID, 'Participants', user.uid), {
-        ID: user.uid,
-        Name: user.displayName
-      })
-      const getConvInfo = await getDoc(doc(db, 'Conversations', convID));
-      await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {
-        authorID: getConvInfo.data().authorID,
-        title: getConvInfo.data().title,
-        body: getConvInfo.data().body,
-        dateCreated: serverTimestamp()
-      })
-      console.log('enter 1 ..');
-      navigation.navigate('Details', { id: convID });
+      if(convExists.exists()) {
+        console.log('22222');
+        const checkExist = await getDoc(doc(db, 'Conversations', convID, 'Participants', user.uid));
+        if(checkExist.exists()) {
+          console.log('already joined!');
+          navigation.navigate('Details', { id: convID });
+        }
+    
+        const checkBan = await getDoc(doc(db, 'Conversations', convID, 'Banned Users', user.uid));
+        if(checkBan.exists()) {
+          console.log('BANNED!');
+          setResponse('unable to join Conversation');
+          return;
+        }
+    
+        const passCheck = await getDoc(doc(db, 'Conversations', convID));
+        if(passCheck.data().password) {
+          console.log('enter password');
+          setShowPassword(true);
+          return;
+        }
+  
+        await setDoc(doc(db, 'Conversations', convID, 'Participants', user.uid), {
+          ID: user.uid,
+          Name: user.displayName
+        })
+        const getConvInfo = await getDoc(doc(db, 'Conversations', convID));
+        await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {
+          authorID: getConvInfo.data().authorID,
+          title: getConvInfo.data().title,
+          body: getConvInfo.data().body,
+          dateCreated: serverTimestamp()
+        })
+        console.log('enter 1 ..');
+        navigation.navigate('Details', { id: convID });
+      } 
+      else {
+        console.log('33333');
+        setShowIndicator(false);
+        setResponse('No conversations found!');
+      }
     }
     else {
+      console.log('44444');
       const passCheck = await getDoc(doc(db, 'Conversations', convID));
       if(password == passCheck.data().password) {
         await setDoc(doc(db, 'Conversations', convID, 'Participants', user.uid), {
@@ -199,20 +200,26 @@ export default function Home({ navigation }) {
                 {showPassword && 
                   <View>
                     <TextInput placeholder='Password' value={password} onChangeText={text => setPassword(text)} style={styles.inputP} secureTextEntry /> 
-                    <Text style={{color:'white', fontSize:17, marginHorizontal:15, alignSelf:'center'}}>{ response }</Text>
                   </View>
                 }
-                <Pressable
-                  onPress={joinConversation}
-                  style={({ pressed }) => [
-                    {opacity: pressed ? 0.5: 1}, styles.changeEmail
-                  ]}
-                >
-                  <View style={{flexDirection:'row', alignItems:'center',}}>
-                    <Text style={{color:"#806b96", fontSize: 16,}}>Join</Text>
-                  </View>
-                </Pressable>
-
+                {response && <Text style={{color:'white', fontSize:17, marginHorizontal:15, alignSelf:'center'}}>{ response }</Text> }
+                {showIndicator==false? (
+                    <Pressable
+                      onPress={joinConversation}
+                      style={({ pressed }) => [
+                        {opacity: pressed ? 0.5: 1}, styles.changeEmail
+                      ]}
+                    >
+                      <View style={{flexDirection:'row', alignItems:'center',}}>
+                        <Text style={{color:"#806b96", fontSize: 16,}}>Join</Text>
+                      </View>
+                    </Pressable>
+                  ) : (
+                    <View style={styles.indicator}>
+                      <ActivityIndicator size={40} color='#613a5f' animating={showIndicator} />
+                    </View>
+                  )
+                }
               </View>
               </TouchableWithoutFeedback>
 
@@ -249,7 +256,7 @@ export default function Home({ navigation }) {
         </View>
 
         <View style={{flexDirection:'row', padding:10,}}>
-          <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.joinConv}>
+          <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={styles.joinConv}>
               <Text style={{color:'white', fontSize:16, marginRight:5}}>Join</Text>
               <Ionicons name='arrow-redo-outline' size={20} color='white' />
           </TouchableOpacity>
@@ -274,7 +281,7 @@ export default function Home({ navigation }) {
                           <MaterialIcons name='more-horiz' size={24} color="grey"/>
                         </MenuTrigger>
                         <MenuOptions>
-                          <MenuOption onSelect={() => showAlert(item.authorID)}>
+                          <MenuOption onSelect={() => showAlert(item.id)}>
                             <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
                           </MenuOption>
                         </MenuOptions>
@@ -444,4 +451,7 @@ const styles = StyleSheet.create({
     borderRadius:20,
     marginLeft: 'auto'
   },
+  indicator: {
+    alignItems:'center'
+  }
 });

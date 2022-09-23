@@ -202,6 +202,57 @@ export default function Friends({ navigation }) {
   deleteDoc(doc(db, 'Users', user.uid, 'Others Invites', id));
  }
 
+ const renderList = (data, listTitle, listNum) => {
+  return(
+    <View style={{flex:1, marginBottom:20}}>
+      <View style={{flexDirection: 'row', backgroundColor:'#745f8a', alignItems:'center', paddingLeft:8}}>
+        <Text style={{color:"white", fontSize:25}}>{ listTitle }</Text>
+        <Text style={{color:'white', fontSize:25, marginLeft:5}}>{ listNum }</Text>
+      </View>
+
+      <View style={{flex:1, marginTop:5, padding:4}}>
+        <FlatList data={data} renderItem={({ item }) => (
+          <View style={styles.item}>
+
+            <View style={{margin:15}}>
+              <Text style={{color:'white', fontSize:20, padding:5, backgroundColor:'#613a5f'}}>{ item.title }</Text>
+            </View>
+
+            <View style={{flexDirection:'row', alignItems:'center', marginHorizontal:8}}>
+              <Image source={{uri: item.Photo}} style={{height:30, width:30, borderRadius:50}} />
+              <Text style={{color:'white', fontSize:15, marginLeft:10}}>{ item.Name }</Text>
+              <Text style={{color:'white', fontSize:11, marginLeft:'auto'}}>{ item.timeStamp.toDateString() }</Text>
+            </View>
+
+            <View style={{flexDirection:'row', marginTop:5, padding:10, backgroundColor:'#613a5f', justifyContent:'flex-end', alignItems:'center'}}>
+              <Pressable
+                onPress={() => joinResponse(item.ID)}
+                style={({ pressed }) => [
+                  {opacity: pressed ? 0.5: 1}, styles.join
+                ]}
+              >
+                <View style={{flexDirection:'row', alignItems:'center',}}>
+                  <Text style={{color:"white", fontSize: 16,}}>Join</Text>
+                </View>
+              </Pressable>
+              <Pressable
+                onPress={() => deleteResponse(item.ID)}
+                style={({ pressed }) => [
+                  {opacity: pressed ? 0.5: 1}, styles.delete
+                ]}
+              >
+                <View style={{flexDirection:'row', alignItems:'center',}}>
+                  <Text style={{color:"white", fontSize: 16,}}>Delete</Text>
+                </View>
+              </Pressable>
+            </View>
+          </View>
+        )} />
+      </View>
+    </View>
+  )
+ }
+
  const joinResponse = (id) => {
   if(selector=='friends'){
     joinFriendConversation(id);
@@ -233,7 +284,7 @@ export default function Friends({ navigation }) {
 
        {/* selectors */}
 
-       <View style={{flexDirection:'row', alignItems:'center', marginVertical:20, justifyContent:'space-between',paddingTop:10}}>
+       <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, marginHorizontal:20, justifyContent:'space-around',paddingTop:10}}>
           <View style={{alignItems:'flex-end', paddingTop:12, paddingRight:3}}>
            <Pressable
              onPress={selectFriends}
@@ -245,7 +296,7 @@ export default function Friends({ navigation }) {
                <Text style={{color:"white", fontSize: 16,}}>Friends Invites</Text>
              </View>
            </Pressable>
-           { (FriendsInvites > 0) && <Text style={styles.badge}>{ FriendsInvitesNum }</Text> }
+           { (FriendsInvitesNum > 0) && <Text style={styles.badge}>{ FriendsInvitesNum }</Text> }
           </View>
 
          <View style={{alignItems:'flex-end', paddingTop:12, paddingRight:3}}>
@@ -259,62 +310,15 @@ export default function Friends({ navigation }) {
                <Text style={{color:"white", fontSize: 16,}}>Others Invites</Text>
              </View>
            </Pressable>
-           { (OthersInvites > 0) && <Text style={styles.badge}>{ OthersInvitesNum }</Text> }
+           { (OthersInvitesNum > 0) && <Text style={styles.badge}>{ OthersInvitesNum }</Text> }
          </View>
        </View>
        
-       {/* Titles */}
+       {/* Lists */}
 
-       <View style={{flex:1, marginBottom:20}}>
-         <View style={{flexDirection: 'row'}}>
-           <Text style={{color:"white", fontSize:25}}>{ title }</Text>
-           <Text style={{color:'white', fontSize:25, marginLeft:5}}>{ num }</Text>
-         </View>
+       {(selector=='friends') && renderList(FriendsInvites, 'Invites - ', FriendsInvitesNum)}
 
-         {/* Main List */}
-
-          <View style={{flex:1, marginTop:5, padding:4}}>
-            <FlatList data={Data} renderItem={({ item }) => (
-              <View style={styles.item}>
-
-                <View style={{margin:15}}>
-                  <Text style={{color:'white', fontSize:20, padding:5, backgroundColor:'#58436e'}}>{ item.title }</Text>
-                </View>
-
-                <View style={{flexDirection:'row', alignItems:'center', marginHorizontal:8}}>
-                  <Image source={{uri: item.Photo}} style={{height:30, width:30, borderRadius:50}} />
-                  <Text style={{color:'white', fontSize:15, marginLeft:10}}>{ item.Name }</Text>
-                  <Text style={{color:'white', fontSize:11, marginLeft:'auto'}}>{ item.timeStamp.toDateString() }</Text>
-                </View>
-
-                <View style={{flexDirection:'row', marginTop:5, padding:5, backgroundColor:'grey', justifyContent:'flex-end'}}>
-                  <Pressable
-                    onPress={() => joinResponse(item.ID)}
-                    style={({ pressed }) => [
-                      {opacity: pressed ? 0.5: 1}, styles.join
-                    ]}
-                  >
-                    <View style={{flexDirection:'row', alignItems:'center',}}>
-                      <Text style={{color:"white", fontSize: 16,}}>Join</Text>
-                    </View>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => deleteResponse(item.ID)}
-                    style={({ pressed }) => [
-                      {opacity: pressed ? 0.5: 1}, styles.delete
-                    ]}
-                  >
-                    <View style={{flexDirection:'row', alignItems:'center',}}>
-                      <Text style={{color:"white", fontSize: 16,}}>Delete</Text>
-                    </View>
-                  </Pressable>
-                </View>
-
-
-              </View>
-            )} />
-          </View>
-       </View>
+       {(selector=='others') && renderList(OthersInvites, 'Invites - ', OthersInvitesNum)}
        
      </View>
    </SafeAreaView>
@@ -357,7 +361,9 @@ const styles = StyleSheet.create({
    flex:1, 
    marginBottom:15,
    backgroundColor:'#8d8299',
-   elevation:5
+   elevation:5,
+   borderColor:'#613a5f',
+   borderWidth:2
  },
  badge:{
    backgroundColor:'#f55fd2', 

@@ -42,7 +42,7 @@ export default function EditProfile({ navigation }) {
 
     return () => {
       tab.setOptions({
-        tabBarStyle: {display: 'flex', backgroundColor: '#524d57'}
+        tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
       });
     }
   },)

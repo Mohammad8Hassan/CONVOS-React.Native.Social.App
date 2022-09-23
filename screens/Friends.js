@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, TextInput,
-   Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, Alert } from 'react-native';
-import { useEffect, useState } from 'react';
+    Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, Alert, 
+    ActivityIndicator } from 'react-native';
+import { useEffect, useState, useLayoutEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
@@ -9,6 +10,7 @@ import { getAuth } from 'firebase/auth';
 import avatar from '../assets/Imgs/avatar.png';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
+import { set } from 'react-native-reanimated';
 
 export default function Friends() {
 
@@ -35,6 +37,7 @@ export default function Friends() {
   const [selector, setSelector] = useState('');
   const [title, setTitle] = useState('');
   const [num, setNum] = useState(0);
+  const [showIndicator, setShowIndicator] = useState(false);
 
   useEffect(() => {
     // Sent Requests
@@ -46,18 +49,13 @@ export default function Friends() {
 
       for (const doc of snapShot.docs) {
         const empty = doc.data().timestamp === null ? Timestamp.now() : doc.data().timestamp;
-        // const refc = ref(storage, 'Profile Photos/' + doc.data().receiverID);
-        // const url_Temp = await getDownloadURL(refc);
-        // url_Temp == null ? defaultImg : url_Temp;
 
         result.push({id: doc.id, ...doc.data(), dateSent: empty.toDate()});
         num++;
       }
 
       setSentRequestsNum(num);
-      console.log('result', result);
       setSentRequests(result);
-      console.log('sentRequests', sentRequests);
     })
     
     // Received Requests
@@ -69,29 +67,15 @@ export default function Friends() {
 
       for (const doc of snapShot.docs) {
         if(doc.data().ignored == false) {
-          // var url_temp = null;
           const empty = doc.data().timestamp === null ? Timestamp.now() : doc.data().timestamp;
-          // const refc = ref(storage, 'Profile Photos/' + doc.data().senderID);
-          // const url_Temp = await getDownloadURL(refc);
-          // getDownloadURL(refc)
-          //   .then(res => {
-          //     url_temp = res;
-          //   })
-          //   .catch(() => {
-          //     console.log(defaultImg);
-          //     url_temp = defaultImg;
-          //   })
-          // url_Temp == null ? defaultImg : url_Temp;
           
           result.push({id: doc.id, ...doc.data(), dateReceived: empty.toDate()});
           num++;
         }
       }
-      
-      console.log('result', result);
+      // console.log("ran here");
       setReceivedRequests(result);
       setReceivedRequestsNum(num);
-      console.log('receivedRequests', receivedRequests);
     })
 
     // Friends List
@@ -103,20 +87,14 @@ export default function Friends() {
 
       for (const doc of snapShot.docs) {
         const empty = doc.data().since === null ? Timestamp.now() : doc.data().since;
-        // const refc = ref(storage, 'Profile Photos/' + doc.data().receiverID);
-        // const url_Temp = await getDownloadURL(refc);
-        // url_Temp == null ? defaultImg : url_Temp;
 
         result.push({...doc.data(), since: empty.toDate()});
         num++;
       }
       
-      console.log('friends result', result);
       setSelector('friends');
       setFriends(result);
       setFriendsNum(num);
-      setTitle('Friends - ')
-      setData(result);
     })
   }, [])
 
@@ -124,25 +102,43 @@ export default function Friends() {
     setNum(FriendsNum)
   }, [FriendsNum])
 
+
+  // useEffect(() => {
+  //   console.log("RAN AGAIN!!")
+  // })
+
   const searchEmail = () => {
     Keyboard.dismiss();
+    setUrl(null);
+    setConnection('');
+    setEmailResult('')
 
-    const colRef = collection(db, 'Users');
-    const q = query(colRef, where('email', '==', email));
+    if(searchedID == '') {
+      setEmailResult("no users found!");
+      setFound(true);
+      return;
+    }
 
-    getDocs(q)
+    if(searchedID == user.uid){
+      setEmailResult("Sorry, you can't add yourself!");
+      setFound(true);
+      return;
+    }
+
+    const docRef = doc(db, 'Users', searchedID);
+    getDoc(docRef)
       .then(res => {
-        let id = res.docs[0].data().ID;
-        setSearchedID(id);
-        let userName = res.docs[0].data().firstName + " " + res.docs[0].data().lasttName;
-        setEmailResult(res.docs[0].data().firstName + " " + res.docs[0].data().lasttName);
-        setUrl(res.docs[0].data().photoURL);
+        if(res.exists()) {
+        // setEmailResult(res.data().Name);
+        // setUrl(res.data().Photo);
   
-        getDoc(doc(db, 'Users', user.uid, 'Friends', id))
+        getDoc(doc(db, 'Users', user.uid, 'Friends', res.id))
           .then(doc => {
       
             if(doc.exists()) {
-              setCaption('You are already friends with ' + userName);
+              setEmailResult(res.data().Name);
+              setUrl(res.data().Photo);
+              setCaption('You are already friends with ' + res.data().Name);
               setConnection('friend');
         
               setFound(true);
@@ -151,10 +147,12 @@ export default function Friends() {
           })
           .catch(err => {
             console.log('friends catch', err);
-            getDoc(doc(db, 'Users', user.uid, 'Sent Requests', id))
+            getDoc(doc(db, 'Users', user.uid, 'Sent Requests', res.id))
               .then(doc => {
                 if(doc.exists()) {
-                  setCaption('You have already sent a friend request to ' + userName);
+                  setEmailResult(res.data().Name);
+                  setUrl(res.data().Photo);
+                  setCaption('You have already sent a friend request to ' + res.data().Name);
                   setConnection('sent');
                   setFound(true);
                 }
@@ -162,10 +160,12 @@ export default function Friends() {
               })
               .catch(err => {
                 console.log('sent catch', err);
-                getDoc(doc(db, 'Users', user.uid, 'Received Requests', id))
+                getDoc(doc(db, 'Users', user.uid, 'Received Requests', res.id))
                   .then(doc => {
                     if(doc.exists()) {
-                      setCaption(userName + ' sent you a friend request!');
+                      setEmailResult(res.data().Name);
+                      setUrl(res.data().Photo);
+                      setCaption(res.data().Name + ' sent you a friend request!');
                       setConnection('received');
                       setFound(true);
                     }
@@ -173,13 +173,15 @@ export default function Friends() {
                   })
                   .catch(err => {
                     console.log('received catch', err);
+                    setEmailResult(res.data().Name);
+                    setUrl(res.data().Photo);
                     setConnection('new');
                     setFound(true);
                   })
               })
           })
-
-
+        }
+        else throw 'no user found throw'
       })
       .catch(err => {
         console.log('search catch', err);
@@ -187,92 +189,136 @@ export default function Friends() {
         setFound(true);
       })
 
-    
   }
 
   function renderButton() {
-    console.log(connection);
-    if (connection == 'friend') {
-      return(
-        <Pressable
-          style={styles.btnGrey}
-        >
-          <View style={{flexDirection:'row', alignItems:'center'}}>
-            <Text style={{color:"white", fontSize: 16,}}>on your friends list.</Text>
-          </View>
-        </Pressable>
-      )
-    }
-    else if (connection == 'sent') {
-      return(
-        <Pressable
-          style={styles.btnGrey}
-        >
-          <View style={{flexDirection:'row', alignItems:'center'}}>
-            <Text style={{color:"white", fontSize: 16,}}>waiting for approval..</Text>
-          </View>
-        </Pressable>
-      )
-    }
-    else if (connection == 'received') {
-      return(
-        <View style={{flexDirection:'row', flex:2, justifyContent:'space-between'}}>
-          <Pressable  
-            onPress={() => approveRequest(searchedID)}
-            style={({ pressed }) => [
-              {opacity: pressed ? 0.5: 1}, styles.searchApprove
-            ]}
+    if(!showIndicator) {
+      console.log(connection);
+      if (connection == 'friend') {
+        return(
+          <Pressable
+            style={styles.btnGrey}
           >
             <View style={{flexDirection:'row', alignItems:'center'}}>
-              <Text style={{color:"white", fontSize: 16,}}>approve</Text>
+              <Text style={{color:"white", fontSize: 16,}}>on your friends list.</Text>
             </View>
           </Pressable>
-          <Pressable  
-            onPress={clickOut}
-            style={({ pressed }) => [
-              {opacity: pressed ? 0.5: 1}, styles.searchIgnore
-            ]}
-          >
-            <View style={{flexDirection:'row', alignItems:'center'}}>
-              <Text style={{color:"white", fontSize: 16,}}>ignore</Text>
-            </View>
-          </Pressable>
+        )
+      }
+      else if (connection == 'sent') {
+        return(
+          <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+            <Pressable
+              style={styles.btnGrey}
+            >
+              <View style={{flexDirection:'row', alignItems:'center'}}>
+                <Text style={{color:"white", fontSize: 16,}}>waiting for approval..</Text>
+              </View>
+            </Pressable>
+            <Pressable  
+              onPress={() => cancelRequest(searchedID)}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.searchCancel
+              ]}
+            >
+              <View style={{flexDirection:'row', alignItems:'center'}}>
+                <Text style={{color:"white", fontSize: 16,}}>cancel</Text>
+              </View>
+            </Pressable>
+          </View>
+        )
+      }
+      else if (connection == 'received') {
+        return(
+          <View style={{flexDirection:'row', flex:2, justifyContent:'space-between'}}>
+            <Pressable  
+              onPress={() => approveRequest(searchedID)}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.searchApprove
+              ]}
+            >
+              <View style={{flexDirection:'row', alignItems:'center'}}>
+                <Text style={{color:"white", fontSize: 16,}}>approve</Text>
+              </View>
+            </Pressable>
+            <Pressable  
+              onPress={clickOut}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.searchIgnore
+              ]}
+            >
+              <View style={{flexDirection:'row', alignItems:'center'}}>
+                <Text style={{color:"white", fontSize: 16,}}>ignore</Text>
+              </View>
+            </Pressable>
+            <Pressable  
+                        
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.btnBlock
+              ]}
+            >
+              <View style={{flexDirection:'row', alignItems:'center',}}>
+                <Text style={{color:"white", fontSize: 16,}}>Block</Text>
+              </View>
+            </Pressable>
+          </View>
+        )
+      }
+      else if (connection == 'new') {
+        return(
+          <View style={{flexDirection:'row', flex:2, justifyContent:'space-between'}}>
+            <Pressable  
+              onPress={sendRequest}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.btn
+              ]}
+            >
+              <View style={{flexDirection:'row', alignItems:'center'}}>
+                <Text style={{color:"white", fontSize: 16,}}>Send friend request</Text>
+              </View>
+            </Pressable>
+            <Pressable  
+                          
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.btnBlock
+              ]}
+            >
+              <View style={{flexDirection:'row', alignItems:'center',}}>
+                <Text style={{color:"white", fontSize: 16,}}>Block</Text>
+              </View>
+            </Pressable>
+          </View>
+        )
+      }
+    }
+    else {
+      return(
+        <View style={styles.indicator}>
+          <ActivityIndicator size={40} color='#613a5f' animating={showIndicator} />
         </View>
       )
     }
-    else if (connection == 'new') {
-      return(
-        <Pressable  
-          onPress={sendRequest}
-          style={({ pressed }) => [
-            {opacity: pressed ? 0.5: 1}, styles.btn
-          ]}
-        >
-          <View style={{flexDirection:'row', alignItems:'center'}}>
-            <Text style={{color:"white", fontSize: 16,}}>Send friend request</Text>
-          </View>
-        </Pressable>
-      )
-    }
+    
   }
 
-
   const clickOut = () => {
+    setShowIndicator(true);
     setModalVisible(false);
     setEmailResult('');
     setFound(false);
     setEmail('');
+    setSearchedID('');
     setCaption('');
     setConnection('');
-    setUrl('');
+    setUrl(null);
   }
 
   const sendRequest = () => {
-    const colRef = collection(db, 'Users');
-    const q = query(colRef, where('email', '==', email));
-    getDocs(q)
+    setShowIndicator(true);
+    const docRef = doc(db, 'Users', searchedID);
+    getDoc(docRef)
       .then(res => {
-        setDoc(doc(db, 'Users', res.docs[0].data().ID, 'Received Requests', user.uid), {
+        setDoc(doc(db, 'Users', searchedID, 'Received Requests', user.uid), {
           ID: user.uid,
           Name: user.displayName,
           Email: user.email,
@@ -281,16 +327,17 @@ export default function Friends() {
           timestamp: serverTimestamp()
         });
 
-        setDoc(doc(db, 'Users', user.uid, 'Sent Requests', res.docs[0].data().ID), {
-          ID: res.docs[0].data().ID,
-          Name: res.docs[0].data().firstName + ' ' + res.docs[0].data().lasttName,
-          Email: res.docs[0].data().email,
-          Photo: res.docs[0].data().photoURL,
+        setDoc(doc(db, 'Users', user.uid, 'Sent Requests', searchedID), {
+          ID: res.data().ID,
+          Name: res.data().Name,
+          Email: res.data().email,
+          Photo: res.data().Photo,
           timestamp: serverTimestamp()
         })
 
         setModalVisible(false);
         ToastAndroid.show('Request Sent.', ToastAndroid.SHORT);
+        clickOut();
       })
       .catch(err => {
         console.log(err);
@@ -298,9 +345,13 @@ export default function Friends() {
   }
 
   const cancelRequest = (id) => {
+    setShowIndicator(true);
+    console.log('runningggggg');
     deleteDoc(doc(db, 'Users', id, 'Received Requests', user.uid))
 
     deleteDoc(doc(db, 'Users', user.uid, 'Sent Requests', id))
+
+    clickOut()
   }
 
 
@@ -311,6 +362,7 @@ export default function Friends() {
   }
 
   const approveRequest = (id) => {
+    setShowIndicator(true);
     getDoc(doc(db, 'Users', id))
       .then(res => {
         deleteDoc(doc(db, 'Users', id, 'Sent Requests', user.uid))
@@ -371,6 +423,89 @@ export default function Friends() {
     )
   }
 
+  const renderList = (data, listTitle, listNum) => {
+    return(
+      <View style={{flex:1, marginBottom:20}}>
+        <View style={{flexDirection: 'row', backgroundColor:'#745f8a', alignItems:'center', paddingLeft:8}}>
+          <Text style={{color:"white", fontSize:25}}>{ listTitle }</Text>
+          <Text style={{color:'white', fontSize:25, marginLeft:5}}>{ listNum }</Text>
+        </View>
+
+        
+          <View style={{flex:1, marginTop:5, padding:4}}>
+            <FlatList data={data} renderItem={({ item }) => (
+              <View style={[styles.item, {backgroundColor: (selector=='friends'? 'none': '#8d8299')}]}>
+
+                <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20}}>
+                  <Image source={{uri: item.Photo}} style={{height:40, width:40, borderRadius:50}} />
+                  <Text style={{color:'white', fontSize:18, marginLeft:10}}>{ item.Name }</Text>
+                  
+                  {(selector == 'friends') && 
+                    <Pressable
+                      style={({ pressed }) => [
+                        {opacity: pressed ? 0.5: 1}, styles.menu
+                      ]}
+                    >
+                      <Menu>
+                        <MenuTrigger>
+                          <MaterialIcons name='more-horiz' size={20} color='white'  />
+                        </MenuTrigger>
+                        <MenuOptions>
+                          <MenuOption onSelect={() => showAlert(item.ID, item.Name)}>
+                            <Text style={{color: "red", fontSize: 18, margin: 5}}>Remove friend</Text>
+                          </MenuOption>
+                        </MenuOptions>
+                      </Menu>
+                    </Pressable>
+                  }
+                </View>
+
+                {(selector == 'received') && 
+                  <View style={{flexDirection:'row', marginBottom:5, marginTop:3, marginRight:5, justifyContent:'flex-end', alignItems:'center'}}>
+                    <Pressable
+                      onPress={() => approveRequest(item.ID)}
+                      style={({ pressed }) => [
+                        {opacity: pressed ? 0.5: 1}, styles.approve
+                      ]}
+                    >
+                      <View style={{flexDirection:'row', alignItems:'center',}}>
+                        <Text style={{color:"white", fontSize: 16,}}>approve</Text>
+                      </View>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => ignoreRequest(item.ID)}
+                      style={({ pressed }) => [
+                        {opacity: pressed ? 0.5: 1}, styles.delete
+                      ]}
+                    >
+                      <View style={{flexDirection:'row', alignItems:'center',}}>
+                        <Text style={{color:"white", fontSize: 16,}}>ignore</Text>
+                      </View>
+                    </Pressable>
+                  </View>
+                }
+                {(selector=='sent') && 
+                  <Pressable
+                    onPress={() => cancelRequest(item.ID)}
+                    style={({ pressed }) => [
+                      {opacity: pressed ? 0.5: 1}, styles.cancel
+                    ]}
+                  >
+                    <View style={{flexDirection:'row', alignItems:'center',}}>
+                      <Text style={{color:"white", fontSize: 16,}}>cancel</Text>
+                    </View>
+                  </Pressable>
+                }
+              </View>
+            )} />
+          </View>
+        
+      </View>
+    )
+  }
+
+
   return (
     <SafeAreaView style={{flex: 1, backgroundColor:'#806b96'}}>
       <View style={styles.homeHeader}>
@@ -382,9 +517,10 @@ export default function Friends() {
         >
           <TouchableWithoutFeedback onPress={clickOut}>
             <View style={styles.outerView}>
+              <ScrollView contentContainerStyle={{justifyContent:'center',}}>
               <TouchableWithoutFeedback>
               <View style={styles.innerView}>
-                <TextInput placeholder='Email' value={email} onChangeText={text => setEmail(text)} style={styles.inputP}/> 
+                <TextInput placeholder='User ID' value={searchedID} onChangeText={text => setSearchedID(text)} style={styles.inputP}/> 
                 
                 {/* Middle View */}
 
@@ -392,26 +528,13 @@ export default function Friends() {
                   <View style={{margin:15, marginTop:50, marginBottom:50,}}>
                     <Text style={{color:'#64deb1', fontSize:18, marginBottom:8}}>{caption}</Text>
 
-                    <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299',}}>
-                      <Image source={{uri: url}} style={{height:50, width:50, borderRadius:50, marginLeft:30}} />
-                      <Text style={{fontSize:18, color:'white', marginLeft:30}}>{ emailResult }</Text>
+                    <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', justifyContent:'center'}}>
+                      {url && <Image source={{uri: url}} style={{height:50, width:50, borderRadius:50, marginRight:15}} />}
+                      <Text style={{fontSize:18, color:'white', paddingVertical:10}}>{ emailResult }</Text>
                     </View>
 
-                    <View style={{flexDirection:'row', alignItems:'center', marginTop:10}}>
+                    <View style={{flexDirection:'row', alignItems:'center', marginTop:10, flex:1, justifyContent:'center'}}>
                       {renderButton()}
-
-                      { (connection != '') &&
-                        <Pressable  
-                        
-                          style={({ pressed }) => [
-                            {opacity: pressed ? 0.5: 1}, styles.btnBlock
-                          ]}
-                        >
-                          <View style={{flexDirection:'row', alignItems:'center',}}>
-                            <Text style={{color:"white", fontSize: 16,}}>Block</Text>
-                          </View>
-                        </Pressable>
-                      }
                     </View>
 
                   </View>
@@ -428,7 +551,7 @@ export default function Friends() {
                 </Pressable>
               </View>
               </TouchableWithoutFeedback>
-
+              </ScrollView>
             </View>
           </TouchableWithoutFeedback>
         </Modal>
@@ -439,7 +562,7 @@ export default function Friends() {
 
         {/* selectors */}
 
-        <View style={{flexDirection:'row', alignItems:'center', marginVertical:20, justifyContent:'space-between',paddingTop:10}}>
+        <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, justifyContent:'space-between',paddingTop:10,}}>
           <View style={{alignItems:'flex-end', paddingTop:12, paddingRight:10}}>
             <Pressable
               onPress={() => {setData(Friends); setSelector('friends'); setTitle('Friends - '); setNum(FriendsNum)}}
@@ -484,88 +607,14 @@ export default function Friends() {
         
         {/* Titles */}
 
-        <View style={{flex:1, marginBottom:20}}>
-          <View style={{flexDirection: 'row'}}>
-            <Text style={{color:"white", fontSize:25}}>{ title }</Text>
-            <Text style={{color:'white', fontSize:25, marginLeft:5}}>{ num }</Text>
-          </View>
+        {(selector == 'friends') && renderList(Friends, 'Friends - ', FriendsNum)}
 
-          {/* Main List */}
+        {(selector == 'received') && renderList(receivedRequests, 'Received Requests - ', receivedRequestsNum)}
 
-          {Friends && 
-            <View style={{flex:1, marginTop:5, padding:4}}>
-              <FlatList data={Data} renderItem={({ item }) => (
-                <View style={[styles.item, {backgroundColor: (selector=='friends'? 'none': '#8d8299')}]}>
-
-                  <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20}}>
-                    <Image source={{uri: item.Photo}} style={{height:40, width:40, borderRadius:50}} />
-                    <Text style={{color:'white', fontSize:18, marginLeft:10}}>{ item.Name }</Text>
-                    
-                    {(selector == 'friends') && 
-                      <Pressable
-                        style={({ pressed }) => [
-                          {opacity: pressed ? 0.5: 1}, styles.menu
-                        ]}
-                      >
-                        <Menu>
-                          <MenuTrigger>
-                            <MaterialIcons name='more-horiz' size={20} color='white'  />
-                          </MenuTrigger>
-                          <MenuOptions>
-                            <MenuOption onSelect={() => showAlert(item.ID, item.Name)}>
-                              <Text style={{color: "red", fontSize: 18, margin: 5}}>Remove friend</Text>
-                            </MenuOption>
-                          </MenuOptions>
-                        </Menu>
-                      </Pressable>
-                    }
-                  </View>
-
-                  {(selector == 'received') && 
-                    <View style={{flexDirection:'row', marginBottom:5, marginTop:3, marginRight:5, justifyContent:'flex-end', alignItems:'center'}}>
-                      <Pressable
-                        onPress={() => approveRequest(item.ID)}
-                        style={({ pressed }) => [
-                          {opacity: pressed ? 0.5: 1}, styles.approve
-                        ]}
-                      >
-                        <View style={{flexDirection:'row', alignItems:'center',}}>
-                          <Text style={{color:"white", fontSize: 16,}}>approve</Text>
-                        </View>
-                      </Pressable>
-
-                      <Pressable
-                        onPress={() => ignoreRequest(item.ID)}
-                        style={({ pressed }) => [
-                          {opacity: pressed ? 0.5: 1}, styles.delete
-                        ]}
-                      >
-                        <View style={{flexDirection:'row', alignItems:'center',}}>
-                          <Text style={{color:"white", fontSize: 16,}}>ignore</Text>
-                        </View>
-                      </Pressable>
-                    </View>
-                  }
-                  {(selector=='sent') && 
-                    <Pressable
-                      onPress={() => cancelRequest(item.ID)}
-                      style={({ pressed }) => [
-                        {opacity: pressed ? 0.5: 1}, styles.cancel
-                      ]}
-                    >
-                      <View style={{flexDirection:'row', alignItems:'center',}}>
-                        <Text style={{color:"white", fontSize: 16,}}>cancel</Text>
-                      </View>
-                    </Pressable>
-                  }
-                </View>
-              )} />
-            </View>
-          }
-        </View>
+        {(selector == 'sent') && renderList(sentRequests, 'Sent Requests - ', sentRequestsNum)}
 
         <View style={{alignItems:'stretch'}}>
-          <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addbtn}>
+          <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={styles.addbtn}>
             <Text style={{fontSize:16, marginRight:8}}>add friend</Text>
             <MaterialIcons name='person-add' size={30} color="#574866"/>
           </TouchableOpacity>
@@ -687,6 +736,15 @@ const styles = StyleSheet.create({
     elevation:10,
     marginLeft:10,
   },
+  searchCancel: {
+    flex:1,
+    backgroundColor: 'red',
+    alignItems: 'center',
+    justifyContent:'center',
+    borderRadius:20,
+    elevation:10,
+    marginLeft:10,
+  },
   searchApprove: {
     flex:1,
     padding: 8,
@@ -721,6 +779,10 @@ const styles = StyleSheet.create({
     position:'absolute',
     paddingVertical: 2,
     paddingHorizontal: 5,
-    borderRadius:100
+    borderRadius:100,
+    elevation:20
+  },
+  indicator: {
+    alignItems:'center'
   }
 })
