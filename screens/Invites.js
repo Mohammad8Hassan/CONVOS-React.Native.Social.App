@@ -159,7 +159,7 @@ export default function Friends({ navigation }) {
    )
  }
 
- const joinFriendConversation = (id) => {
+ const joinFriendConversation = (id, title, body, authorID) => {
   setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
     Name: user.displayName,
     ID: user.uid,
@@ -168,6 +168,9 @@ export default function Friends({ navigation }) {
   deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
 
   setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
+    authorID: authorID,
+    title: title,
+    body: body,
     dateCreated: serverTimestamp()
   });
 
@@ -226,7 +229,7 @@ export default function Friends({ navigation }) {
 
             <View style={{flexDirection:'row', marginTop:5, padding:10, backgroundColor:'#613a5f', justifyContent:'flex-end', alignItems:'center'}}>
               <Pressable
-                onPress={() => joinResponse(item.ID)}
+                onPress={() => joinResponse(item.ID, item.title, item.body, item.authorID)}
                 style={({ pressed }) => [
                   {opacity: pressed ? 0.5: 1}, styles.join
                 ]}
@@ -253,9 +256,9 @@ export default function Friends({ navigation }) {
   )
  }
 
- const joinResponse = (id) => {
+ const joinResponse = (id, title, body, authorID) => {
   if(selector=='friends'){
-    joinFriendConversation(id);
+    joinFriendConversation(id, title, body, authorID);
   }
   else {
     joinOtherConversation(id);

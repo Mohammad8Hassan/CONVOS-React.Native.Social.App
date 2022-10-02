@@ -562,8 +562,8 @@ export default function Friends() {
 
         {/* selectors */}
 
-        <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, justifyContent:'space-between',paddingTop:10,}}>
-          <View style={{alignItems:'flex-end', paddingTop:12, paddingRight:10}}>
+        <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, justifyContent:'space-between', paddingTop:10,}}>
+          <View style={{paddingTop:12, flex:1,}}>
             <Pressable
               onPress={() => {setData(Friends); setSelector('friends'); setTitle('Friends - '); setNum(FriendsNum)}}
               style={({ pressed }) => [
@@ -576,7 +576,7 @@ export default function Friends() {
             </Pressable>
           </View>
 
-          <View style={{alignItems:'flex-end', paddingTop:12, paddingRight:3}}>
+          <View style={{paddingTop:12, flex:1}}>
             <Pressable
               onPress={() => {setData(receivedRequests); setSelector('received'); setTitle('Received Requests - '); setNum(receivedRequestsNum)}}
               style={({ pressed }) => [
@@ -590,7 +590,7 @@ export default function Friends() {
             { (receivedRequestsNum > 0) && <Text style={styles.badge}>{ receivedRequestsNum }</Text> }
           </View>
           
-          <View style={{alignItems:'flex-end', paddingTop:12, paddingRight:3}}>
+          <View style={{paddingTop:12, flex:1}}>
             <Pressable
               onPress={() => {setData(sentRequests); setSelector('sent'); setTitle('Sent Requests - '); setNum(sentRequestsNum)}}
               style={({ pressed }) => [
@@ -613,10 +613,10 @@ export default function Friends() {
 
         {(selector == 'sent') && renderList(sentRequests, 'Sent Requests - ', sentRequestsNum)}
 
-        <View style={{alignItems:'stretch'}}>
+        <View style={{alignItems:'flex-end'}}>
           <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={styles.addbtn}>
-            <Text style={{fontSize:16, marginRight:8}}>add friend</Text>
-            <MaterialIcons name='person-add' size={30} color="#574866"/>
+            {/* <Text style={{fontSize:16, marginRight:8}}>add friend</Text> */}
+            <MaterialIcons name='person-add' size={33} color="#574866"/>
           </TouchableOpacity>
         </View>
         
@@ -764,10 +764,10 @@ const styles = StyleSheet.create({
     marginBottom:10, 
     padding: 4
   },
-  addbtn: {
-    marginLeft:200, 
+  addbtn: { 
     backgroundColor:'white',
-    padding:5,
+    paddingHorizontal:20,
+    paddingVertical:5,
     borderRadius:20,
     alignItems:'center',
     justifyContent:'center',

@@ -33,11 +33,11 @@ export default function Register({ navigation }) {
         console.log(credentials.user);
 
         await setDoc(doc(db, 'Users', getAuth().currentUser.uid), {
-          firstName: firstName,
-          lasttName: lasttName,
+          Name: firstName + ' ' + lasttName,
           ID: getAuth().currentUser.uid,
           email: credentials.user.email,
-          photoURL: getAuth().currentUser.photoURL,
+          Photo: getAuth().currentUser.photoURL,
+          photoExtension: '.png',
           dateRegistered: serverTimestamp(),
         })
       }

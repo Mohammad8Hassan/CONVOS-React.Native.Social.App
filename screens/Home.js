@@ -1,4 +1,4 @@
-import { useState, useEffect} from 'react';
+import { useState, useEffect, useCallback} from 'react';
 import { StyleSheet, Text, View, Button, FlatList, TouchableOpacity, ImageBackground, Modal,
   KeyboardAvoidingView, ScrollView, Alert, Image, TouchableWithoutFeedback, TextInput, Pressable, ToastAndroid,
   ActivityIndicator, } from 'react-native';
@@ -16,7 +16,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import avatar from '../assets/Imgs/avatar.png';
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
-import { async } from '@firebase/util';
+import _, { set } from 'lodash';
 
 // component
 export default function Home({ navigation }) {
@@ -38,6 +38,7 @@ export default function Home({ navigation }) {
   useEffect(() => {
     setModalVisible(false);
     setShowPassword(false);
+    setPassword('');
     setResponse(null);
   }, [focused])
 
@@ -62,8 +63,10 @@ export default function Home({ navigation }) {
         result.push({id: conv.id, ...conv.data(), dateCreated: empty.toDate(), uri: url_Temp, author: author.data().Name});
       }
       
-      // console.log(result);
+      console.log(result);
       setConversations(result);
+
+    
     })
     
   }, [])
@@ -97,6 +100,8 @@ export default function Home({ navigation }) {
     setModalVisible(false);
     setConvID('');
     setResponse(null);
+    setShowPassword(false);
+    setPassword('');
   }
 
   const joinConversation = async () => {
@@ -123,6 +128,7 @@ export default function Home({ navigation }) {
         if(checkBan.exists()) {
           console.log('BANNED!');
           setResponse('unable to join Conversation');
+          setShowIndicator(false);
           return;
         }
     
@@ -130,6 +136,7 @@ export default function Home({ navigation }) {
         if(passCheck.data().password) {
           console.log('enter password');
           setShowPassword(true);
+          setShowIndicator(false);
           return;
         }
   
@@ -173,6 +180,7 @@ export default function Home({ navigation }) {
       }
       else {
         console.log('wrong password!');
+        setShowIndicator(false);
         setResponse('Incorrect Password!');
         return;
       }
@@ -184,6 +192,10 @@ export default function Home({ navigation }) {
 
     ToastAndroid.show('ID copied', ToastAndroid.SHORT);
   }
+
+  const enterConversation = useCallback(_.debounce((id) => {
+    navigation.push('Details', { id });
+  }, 2000, {'leading':true, 'trailing':false}), [])
 
   return (
     <SafeAreaView style={{flex:1}}>
@@ -236,8 +248,8 @@ export default function Home({ navigation }) {
           {/* Page Contents */}
 
           <View style={{backgroundColor:'#613a5f', padding:5, flexDirection:'row', alignItems:'center',}}>
-            <Image source={{uri: user.photoURL}} style={{height:50, width:50, borderRadius:50, borderColor:'#bab806', borderWidth:1}} />
-            <View style={{marginHorizontal:4}}>
+            <Image source={{uri: user.photoURL}} style={{height:40, width:40, borderRadius:50, borderColor:'#bab806', borderWidth:1}} />
+            <View style={{marginHorizontal:4, flex:5}}>
               <Text style={{color:'#bab806', fontSize:18}}>{ user.displayName }</Text>
               <Text style={{color: '#bfbfb0'}}>{ user.uid }</Text>
             </View>
@@ -248,7 +260,7 @@ export default function Home({ navigation }) {
               ]}
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
-                <Text style={{color:"#806b96", fontSize: 15, marginRight:3}}>Copy ID</Text>
+                {/* <Text style={{color:"#806b96", fontSize: 15, marginRight:3}}>Copy ID</Text> */}
                 <MaterialIcons name='file-copy' size={17} color='#806b96' />
               </View>
             </Pressable>
@@ -269,7 +281,7 @@ export default function Home({ navigation }) {
 
         <View style={{flex: 1}}>
           <FlatList data={conversations} renderItem={({ item }) => (
-            <TouchableOpacity onPress={() => navigation.push('Details', { id: item.id })} style={styles.item}>
+            <TouchableOpacity onPress={() => enterConversation(item.id)} style={styles.item}>
               <Card>
                 <View style={styles.content}>
                   <View style={styles.header}>
@@ -445,11 +457,11 @@ const styles = StyleSheet.create({
     marginTop: 20
   },
   copyID: {
-    padding: 8,
+    padding: 5,
     backgroundColor: '#d4c86e',
     alignItems: 'center',
     borderRadius:20,
-    marginLeft: 'auto'
+    flex: 1,
   },
   indicator: {
     alignItems:'center'

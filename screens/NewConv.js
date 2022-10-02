@@ -67,7 +67,7 @@ export default function NewConv({ navigation }) {
 
     return () => {
       tab.setOptions({
-        tabBarStyle: {display: 'flex', backgroundColor: '#524d57'}
+        tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
       });
     }
   }, [])
@@ -121,6 +121,7 @@ export default function NewConv({ navigation }) {
         const convRef = doc(db, 'Users', person.ID, 'Friends Invites', ref.id);
         setDoc(convRef, {
           title: values.title,
+          body: values.body,
           author: user.displayName,
           authorID: user.uid,
           timeStamp: serverTimestamp(),

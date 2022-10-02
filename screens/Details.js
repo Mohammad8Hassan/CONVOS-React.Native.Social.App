@@ -1,11 +1,12 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, Button, ImageBackground, Image, KeyboardAvoidingView,
-  TextInput, ScrollView, TouchableOpacity, FlatList, Alert
+  TextInput, ScrollView, TouchableOpacity, FlatList, Alert, Pressable, Keyboard
 } from 'react-native';
 import { globalStyles } from '../shared/globalStyles';
 import Card from '../shared/Card';
 import * as ImagePicker from 'expo-image-picker'
 import { MaterialIcons } from '@expo/vector-icons';
+import { Foundation } from '@expo/vector-icons';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
   deleteDoc, Timestamp, setDoc, getDoc } from 'firebase/firestore'
@@ -13,6 +14,8 @@ import { getAuth } from 'firebase/auth'
 import { Entypo } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import avatar from '../assets/Imgs/avatar.png';
+import CachableImage from '../shared/CachableImage';
+import RenderComment from '../shared/RenderComment';
 
 export default function Details({ route, navigation }) {
 
@@ -25,7 +28,10 @@ export default function Details({ route, navigation }) {
   const [allComments, setAllComments] = useState([]);
   const [post, setPost] = useState(null);
   const [isAvailable, setIsAvailable] = useState(true);
-  
+  const [allParticipants, setAllParticipants] = useState(null);
+  const [loadedParticipants, setLoadedParticipants] = useState(false);
+
+
   const db = getFirestore();
   const storage = getStorage();
   const defaultImg = Image.resolveAssetSource(avatar).uri;
@@ -37,6 +43,12 @@ export default function Details({ route, navigation }) {
       tabBarStyle: {display: 'none'}
     });
     
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
+      if(scrollView != null) {
+        scrollView.current.scrollToEnd({animated:true});
+      }
+    })
+
     const unsubscribe = onSnapshot(doc(db, 'Conversations', id), snapShot => {
       if(snapShot.data()) {
         getDoc(doc(db, 'Conversations', id, 'Participants', user.uid))
@@ -55,40 +67,117 @@ export default function Details({ route, navigation }) {
         setIsAvailable(false);
       }
     })
-
-    const colRef = collection(db, 'Conversations', id, 'Comments');
-    const q = query(colRef, orderBy('timeStamp'));
-
-    const unsubscribe2 = onSnapshot(q, async snapShot => {
-      let result = [];
-
-      for (const doc of snapShot.docs) {
-        const empty = doc.data().timeStamp === null ? Timestamp.now() : doc.data().timeStamp;
-        const refc = ref(storage, 'Profile Photos/' + doc.data().authorID);
-        let url_Temp = null;
-        try{
-          url_Temp = await getDownloadURL(refc);
-        }
-        catch{
-          url_Temp = defaultImg;
-        }
-
-        result.push({id: doc.id, ...doc.data(), timeStamp: empty, uri: url_Temp});
-      }
-
-      setAllComments(result);
+    
+    let participants = {};
+    const participantsRef = collection(db, 'Conversations', id, 'Participants');
+    const unsubscribe3 =  onSnapshot(participantsRef, async snapShot => {
+      await Promise.all(snapShot.docs.map(async user => {
+        const info = await getDoc(doc(db, 'Users', user.id));
+        participants[user.id + 'name'] = info.data().Name;
+        participants[user.id + 'Photo'] = info.data().Photo;
+        participants[user.id + 'xt'] = info.data().photoExtension;
+      }));
+      setAllParticipants(participants);
+      
     })
-
 
     return () => {
       tab.setOptions({
         tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
       });
       unsubscribe();
-      unsubscribe2();
+      unsubscribe3();
+      showSubscription.remove();
     }
 
   }, [])
+
+
+  useEffect(() => {
+    if(allParticipants != null) {
+      loadComments();
+    }
+  }, [allParticipants])
+
+
+  const loadComments = useCallback(() => {
+    const colRef = collection(db, 'Conversations', id, 'Comments');
+    const q = query(colRef, orderBy('timeStamp'));
+    
+    const unsubscribe2 = onSnapshot(q, async snapShot => {
+      let comments = allComments;
+
+      for (const change of snapShot.docChanges()) {
+        if(change.type === 'added') {
+          // const user = await getDoc(doc(db, 'Users', change.doc.data().authorID));
+          const empty = change.doc.data().timeStamp === null ? Timestamp.now() : change.doc.data().timeStamp;
+          // const refc = ref(storage, 'Profile Photos/' + change.doc.data().authorID);
+          // let url_Temp = null;
+          // try{
+          //   url_Temp = await getDownloadURL(refc);
+          // }
+          // catch{
+          //   url_Temp = defaultImg;
+          // }
+          // console.log(user.data().Photo);
+          console.log(change.doc.data().authorID+'Photo');
+          console.log(allParticipants);
+          comments.push({id: change.doc.id, ...change.doc.data(), timeStamp: empty, 
+            uri: allParticipants[change.doc.data().authorID+'Photo'], 
+            xt: allParticipants[change.doc.data().authorID+'xt'],
+            Name: allParticipants[change.doc.data().authorID+'Name']
+          });
+        }
+      }
+      // console.log('comments: ', comments);
+      setAllComments(prev => {
+        prev = comments;
+        return [...prev];
+      });
+      // snapShot.docChanges().forEach(change => {
+      //   if(change.type === 'added') {
+      //     console.log('ddddd', change.doc.data());
+      //     setAllComments(async prev => {
+      //       const empty = change.doc.data().timeStamp === null ? Timestamp.now() : change.doc.data().timeStamp;
+      //       const refc = ref(storage, 'Profile Photos/' + change.doc.data().authorID);
+      //       let url_Temp = null;
+      //       try{
+      //         url_Temp = await getDownloadURL(refc);
+      //       }
+      //       catch{
+      //         url_Temp = defaultImg;
+      //       }
+            
+      //       prev.push({id: change.doc.id, ...change.doc.data(), timeStamp: empty, uri: url_Temp});
+      //       console.log('ddddd', prev);
+      //       return [...prev];
+      //     })
+      //   }
+      // })
+
+      // let result = [];
+
+      // for (const doc of snapShot.docs) {
+      //   const empty = doc.data().timeStamp === null ? Timestamp.now() : doc.data().timeStamp;
+      //   const refc = ref(storage, 'Profile Photos/' + doc.data().authorID);
+      //   let url_Temp = null;
+      //   try{
+      //     url_Temp = await getDownloadURL(refc);
+      //   }
+      //   catch{
+      //     url_Temp = defaultImg;
+      //   }
+
+      //   result.push({id: doc.id, ...doc.data(), timeStamp: empty, uri: url_Temp});
+      // }
+
+      // setAllComments(result);
+    })
+
+    return () => {
+      unsubscribe2();
+    }
+  }, [allParticipants])
 
   const showAlert = (id) => {
     Alert.alert(
@@ -117,15 +206,19 @@ export default function Details({ route, navigation }) {
     scrollView.current.scrollToEnd();
   };
 
+  const scrollToEnd = () => {
+    scrollView.current.scrollToEnd({animated:false});
+  }
 
   const postComment = async () => {
-    setAddCommentButton(true);
-    setCommentBox(false);
+    const theComment = comment;
+    if(comment == '') return;
+
     scrollView.current.scrollToEnd();
     setComment('');
     
     await addDoc(collection(db, 'Conversations', id, 'Comments'), {
-      comment: comment,
+      comment: theComment,
       author: getAuth().currentUser.displayName,
       authorID: getAuth().currentUser.uid,
       timeStamp: serverTimestamp()
@@ -133,7 +226,6 @@ export default function Details({ route, navigation }) {
   }
 
   const cancelComment = () => {
-    setComment('');
     setAddCommentButton(true);
     setCommentBox(false);
   }
@@ -148,7 +240,7 @@ export default function Details({ route, navigation }) {
         <>
           { post &&
             <>
-              <Card>
+              <View style={styles.card}>
                 <View style={styles.cardContent}>
                   <Text style={{color:'grey'}}>Title</Text>
                   <Text style={{borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:18}}>{ post.title }</Text>
@@ -161,65 +253,63 @@ export default function Details({ route, navigation }) {
                     <Text style={styles.createdTime}>{post.dateCreated.toDate().toDateString()}</Text>
                   </View>
                 </View>
-              </Card>
+              </View>
 
-              <KeyboardAvoidingView style={styles.container} >
-                <ScrollView ref={scrollView}>
-                  
-                  <View style={styles.listContainer}>
-                    {
-                      allComments.map((comment) => {
-                        return (
-                          <View style={styles.listItem} key={comment.id}>
-                            <View style={styles.commentView} >
-                              <View style={styles.commentViewInner}>
-                                <Text style={styles.theComment}>{comment.comment}</Text>
-                                <View style={styles.commentDetails}>
-                                  <Text style={styles.author}>{ comment.author }</Text>
-                                  <Text style={styles.commentDate}>  •  {comment.timeStamp.toDate().toDateString()}</Text>
+              <KeyboardAvoidingView style={styles.container}  >
+                <View style={{flex:1}}>
+                  <ScrollView ref={scrollView} onContentSizeChange={(w, h) => {scrollView.current.scrollToEnd({animated:false})}}>
+                    
+                    <View style={styles.listContainer}>
+                      {
+                        allComments.map((comment) => {
+                          return (
+                            <View style={styles.listItem} key={comment.id}>
+                              <View style={styles.commentView} >
+                                <View style={styles.commentViewInner}>
+                                  <Text style={styles.theComment} selectable>{comment.comment}</Text>
+                                  <View style={styles.commentDetails}>
+                                    <Text style={styles.author} selectable>{ comment.author }</Text>
+                                    <Text style={styles.commentDate}>  •  {comment.timeStamp.toDate().toDateString()}</Text>
+                                  </View>
                                 </View>
                               </View>
+                              <CachableImage source={{uri: comment.uri}} cacheKey={ comment.authorID } 
+                              style={{width:35, height:35, borderRadius:60, marginLeft:3, borderColor:'#613a5f', borderWidth:1, position:'absolute'}} 
+                              id={comment.authorID} xt={ comment.xt }/>
+                              <View style={styles.delete} >
+                                {(getAuth().currentUser.uid == comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => showAlert(comment.id)}/>}
+                              </View>
+                              {/* <RenderComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} /> */}
                             </View>
-                            <Image source={{uri: comment.uri}} style={styles.pic} />
-                            <View style={styles.delete} >
-                              {(getAuth().currentUser.uid == comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => showAlert(comment.id)}/>}
-                            </View>
-                          </View>
-                        )
-                      })
-                    }
-                  </View>
-                  
-                  {addCommentButton && 
-                    <TouchableOpacity style={styles.write} onPress={addComment}>
-                      <Entypo name='new-message' color='grey' size={25} />
-                      <Text style={{fontSize:20, marginLeft:5, color:'grey'}}>write</Text>
-                    </TouchableOpacity>
-                  }
-                  
-                  {
-                    commentBox && 
-                    <View style={styles.commentBox}>
-                      <TextInput
-                        style={styles.comment}
-                        placeholder='comment...'
-                        onChangeText={(value) => setComment(value)}
-                        value={comment}
-                        multiline
-                        textAlignVertical='top'
-                      />
-
-                      <View style={styles.buttonGroup}>
-                        <TouchableOpacity style={styles.buttonCancel} onPress={cancelComment}>
-                          <Text style={{color:'white', fontSize:15}}>Cancel</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.buttonPost} onPress={postComment}>
-                          <Text style={{color:'white', fontSize:15}}>Post</Text>
-                        </TouchableOpacity>
-                      </View>
+                          )
+                        })
+                      }
                     </View>
-                  }
-                </ScrollView>
+                    
+                  </ScrollView>
+                  <View style={styles.commentBox}>
+                    <TextInput
+                      style={styles.comment}
+                      placeholder='comment...'
+                      onChangeText={(value) => setComment(value)}
+                      value={comment}
+                      multiline
+                    />
+
+                    <View style={styles.buttonGroup}>
+                      <Pressable
+                        onPress={postComment}
+                        style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1}, styles.buttonPost,
+                        ]}
+                      >
+                        <View style={{backgroundColor:'#613a5f', borderRadius:20, padding:6, paddingLeft:8}}>
+                          <MaterialIcons name='arrow-forward-ios' size={25} color='white' />
+                        </View>
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
               </KeyboardAvoidingView>
             </>
           }
@@ -243,7 +333,12 @@ export default function Details({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 10,
+    paddingHorizontal: 5,
+    backgroundColor:'white'
+  },
+  card:{
+    backgroundColor:'#fff',
+    elevation: 15
   },
   na: {
     marginHorizontal:40,
@@ -256,34 +351,30 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   cardContent:{
-    marginHorizontal: 18,
-    marginVertical: 20,
+    margin:10,
+    padding:10,
+    borderRadius:10
   },
   commentBox: {
-    backgroundColor: '#737373',
-    height: 250,
-    marginLeft: 6,
-    marginRight:6,
-    marginTop: 15,
-    marginBottom: 20,
-    padding: 10,
-    borderRadius: 15,
+    // backgroundColor: '#613a5f',
+    paddingVertical:3,
+    flexDirection:'row'
   },
   comment: {
     backgroundColor: 'white',
     color: 'black',
-    padding: 5,
-    fontSize: 15,
-    flex: 1,
-    borderColor: '#adab1a',
-    borderWidth: 2,
-    elevation:25
+    padding: 7,
+    paddingLeft: 15,
+    flex:4,
+    fontSize: 18,
+    borderColor: '#613a5f',
+    borderWidth: 1,
+    alignSelf:'flex-end',
+    borderRadius:20
   },
   buttonGroup: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-    marginTop: 8,
+    flex:1
   },
   write: {
     flexDirection:'row',
@@ -299,36 +390,33 @@ const styles = StyleSheet.create({
     marginBottom: 50
   },
   buttonPost: {
-    backgroundColor: 'blue',
-    padding: 10,
-    width: 100,
-    alignItems: 'center',
-    borderRadius: 20,
-    elevation: 8
+    flex:1,
+    justifyContent:'center',
+    alignItems:'center',
+    // borderColor: '#adab1a',
+    // borderWidth: 2,
   },
   buttonCancel: {
-    backgroundColor: 'red',
+    backgroundColor: '#E374A0',
     padding: 10,
-    width: 100,
-    alignItems: 'center',
-    borderRadius: 20,
-    elevation: 8
+    justifyContent:'center',
+    alignItems:'center',
   },
   listContainer: {
-    marginTop:10
+    marginTop:10,
   },
   listItem: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10
+    marginBottom: 10,
   },
   pic: {
     height: 35,
     width: 35,
     borderRadius: 60,
     marginLeft:3,
-    borderColor: '#51445e',
+    borderColor: '#613a5f',
     borderWidth:1,
     position: 'absolute'
   },
@@ -340,7 +428,9 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    // borderColor:'#745f8a',
+    // borderWidth:1
   },
   commentViewInner: {
     marginLeft: 15

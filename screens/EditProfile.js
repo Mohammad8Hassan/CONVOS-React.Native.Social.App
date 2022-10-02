@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { getAuth, signOut, reauthenticateWithCredential, updateProfile, EmailAuthProvider,
   updateEmail } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, getDownloadURL, getMetadata } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useIsFocused } from '@react-navigation/native';
 import { updateDoc, getFirestore, doc,  } from 'firebase/firestore';
@@ -74,7 +74,8 @@ export default function EditProfile({ navigation }) {
       const uploaded = await uploadBytes(refc, bytes);
       
       const url_Temp = await getDownloadURL(refc);
-
+      const meta = await getMetadata(refc);
+      
       await updateProfile(user, {
         photoURL: url_Temp,
       });
@@ -82,7 +83,8 @@ export default function EditProfile({ navigation }) {
       setUrl(url_Temp)
 
       await updateDoc(doc(db, 'Users', userId), {
-        photoURL: url_Temp
+        Photo: url_Temp,
+        photoExtension: '.' + meta.contentType.split('/')[1],
       })
     };
   }
