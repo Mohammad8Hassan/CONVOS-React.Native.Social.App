@@ -21,6 +21,7 @@ import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { onAuthStateChanged, getAuth, signOut } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
+import { SimpleLineIcons } from '@expo/vector-icons';
 import { MenuProvider } from 'react-native-popup-menu';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { FontAwesome} from '@expo/vector-icons'
@@ -111,47 +112,31 @@ function TabScreens() {
           iconColor = focused
             ? '#e374b5'
             : '#f2f2f2';
-        } else if(route.name == 'By Me') {
-          iconName = focused
-            ? 'user'
-            : 'user';
-          iconColor = focused
-            ? '#f55fd2'
-            : '#f2f2f2';
-        } else if(route.name == 'Conversations') {
-          iconName = focused
-            ? 'comments'
-            : 'comments';
-          iconColor = focused
-            ? '#f55fd2'
-            : '#f2f2f2';
         } else if(route.name == 'Settings') {
-          iconName = focused
-            ? 'gear'
-            : 'gear';
+          iconName = 'settings'
           iconColor = focused
             ? '#f55fd2'
             : '#f2f2f2';
         } else if (route.name == 'Friends') {
-          iconName = 'users'
+          iconName = 'people'
           iconColor = focused
             ? '#f55fd2'
             : '#f2f2f2';
         } else if (route.name == 'Invites') {
-          iconName = 'envelope'
+          iconName = 'envelope-letter'
           iconColor = focused
             ? '#f55fd2'
             : '#f2f2f2';
         }
 
-        return <FontAwesome name={iconName} size={27} color={iconColor} />;
+        return <SimpleLineIcons name={iconName} size={27} color={iconColor} />;
       },
       tabBarStyle: {backgroundColor: '#745f8a', elevation:15, borderTopWidth:0},
       tabBarActiveTintColor: '#f55fd2',
       tabBarInactiveTintColor: '#f2f2f2',
       headerShown: false,
       tabBarHideOnKeyboard: true,
-      tabBarShowLabel:false
+      // tabBarShowLabel:false
     })}>
       <Tabs.Screen name="Home" component={HomeStackScreens}/>
       <Tabs.Screen name="Invites" component={Invites} />

@@ -4,6 +4,8 @@ import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, Tex
 import { useEffect, useState, useLayoutEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
   deleteDoc, Timestamp, setDoc, getDocs, where, getDoc, updateDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
@@ -11,6 +13,7 @@ import avatar from '../assets/Imgs/avatar.png';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 import { set } from 'react-native-reanimated';
+
 
 export default function Friends() {
 
@@ -567,38 +570,41 @@ export default function Friends() {
             <Pressable
               onPress={() => {setData(Friends); setSelector('friends'); setTitle('Friends - '); setNum(FriendsNum)}}
               style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? '#1f1f1f': 'grey'}
+                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? '#3d243c': 'grey'}
               ]}
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
-                <Text style={{color:"white", fontSize: 16,}}>Friends</Text>
+                <FontAwesome5 name='user-friends' size={27} color='white' />
+                {/* <Text style={{color:"white", fontSize: 16,}}>Friends</Text> */}
               </View>
             </Pressable>
           </View>
 
-          <View style={{paddingTop:12, flex:1}}>
+          <View style={{paddingTop:12, flex:1,}}>
             <Pressable
               onPress={() => {setData(receivedRequests); setSelector('received'); setTitle('Received Requests - '); setNum(receivedRequestsNum)}}
               style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='received')? '#1f1f1f': 'grey'}
+                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='received')? '#3d243c': 'grey'}
               ]}
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
-                <Text style={{color:"white", fontSize: 16,}}>Received Requests</Text>
+                <MaterialCommunityIcons name='email-receive-outline' size={30} color='white' />
+                {/* <Text style={{color:"white", fontSize: 16,}}>Received Requests</Text> */}
               </View>
             </Pressable>
             { (receivedRequestsNum > 0) && <Text style={styles.badge}>{ receivedRequestsNum }</Text> }
           </View>
           
-          <View style={{paddingTop:12, flex:1}}>
+          <View style={{paddingTop:12, flex:1, }}>
             <Pressable
               onPress={() => {setData(sentRequests); setSelector('sent'); setTitle('Sent Requests - '); setNum(sentRequestsNum)}}
               style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='sent')? '#1f1f1f': 'grey'}
+                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='sent')? '#3d243c': 'grey'}
               ]}
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
-                <Text style={{color:"white", fontSize: 16,}}>Sent Requests</Text>
+                <MaterialCommunityIcons name='email-fast-outline' size={30} color='white' />
+                {/* <Text style={{color:"white", fontSize: 16,}}>Sent Requests</Text> */}
               </View>
             </Pressable>
             { (sentRequestsNum > 0) && <Text style={styles.badge}>{ sentRequestsNum }</Text> }
@@ -780,7 +786,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 5,
     borderRadius:100,
-    elevation:20
+    elevation:20,
+    alignSelf:'flex-end'
   },
   indicator: {
     alignItems:'center'

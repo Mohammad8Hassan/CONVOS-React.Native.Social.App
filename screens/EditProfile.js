@@ -84,7 +84,7 @@ export default function EditProfile({ navigation }) {
 
       await updateDoc(doc(db, 'Users', userId), {
         Photo: url_Temp,
-        photoExtension: '.' + meta.contentType.split('/')[1],
+        photoExtension: meta.contentType.split('/')[1],
       })
     };
   }
@@ -262,8 +262,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     justifyContent:'space-between', 
     alignItems:'center',
-    backgroundColor: '#524d57',
-    padding: 10
+    backgroundColor: '#613a5f',
+    padding: 10,
+    elevation:15
   },
   container: {
     flex: 1,

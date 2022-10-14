@@ -486,10 +486,11 @@ export default function NewConv({ navigation }) {
 const styles = StyleSheet.create({
   homeHeader: {
     flexDirection: 'row', 
-    justifyContent:'center', 
+    justifyContent:'space-between', 
     alignItems:'center',
-    backgroundColor: '#524d57',
-    padding: 10
+    backgroundColor: '#613a5f',
+    padding: 10,
+    elevation: 15
   },
   input: {
     marginBottom: 10,

@@ -11,22 +11,25 @@ import { updateDoc, getFirestore, doc, getDoc,  } from 'firebase/firestore';
 //   return /[.]/.exec(basename) ? /[^.]+$/.exec(basename) : undefined;
 // }
 
-async function findImageInCache(uri) {
-  try {
-    let info = await FileSystem.getInfoAsync(uri);
-    return { ...info, err: false };
-  } catch (error) {
-    return {
-      exists: false,
-      err: true,
-      msg: error,
-    };
-  }
-}
+// async function findImageInCache(uri) {
+//   console.log('searching cache...');
+//   try {
+//     console.log('search try');
+//     let info = await FileSystem.getInfoAsync(uri);
+//     return { ...info, err: false };
+//   } catch (error) {
+//     console.log('no found!');
+//     return {
+//       exists: false,
+//       err: true,
+//       msg: error,
+//     };
+//   }
+// }
 
 
 async function cacheImage(uri, cacheUri, callback) {
-  console.log('uri to download from: ', uri);
+  console.log('will download');
   try {
     const downloadImage = FileSystem.createDownloadResumable(
       uri,
@@ -34,7 +37,6 @@ async function cacheImage(uri, cacheUri, callback) {
       {},
       callback
     );
-    // console.log(downloadImage.uri);
     const downloaded = await downloadImage.downloadAsync();
     return {
       cached: true,
@@ -54,8 +56,8 @@ export default function CachableImage(props) {
   const {
     source: { uri },
     cacheKey,
+    isNew,
     style,
-    id,
     xt
   } = props;
 
@@ -67,22 +69,25 @@ export default function CachableImage(props) {
   useEffect(() => {
     async function loadImg() {
       // const xt = await getDoc(doc(db, 'Users', id));
+      // const newUri = /[^=]*$/.exec(uri)[0];
+      // console.log('newUri: ', newUri);
 
-      const cacheFileUri = `${FileSystem.cacheDirectory}${cacheKey}.${xt}`;
-      console.log(cacheFileUri);
+      // const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${xt}`;
+      // console.log('cacheFileUri: ', cacheFileUri);
 
-      let imgXistsInCache = await findImageInCache(cacheFileUri);
-      if (imgXistsInCache.exists) {
+      // let imgXistsInCache = await findImageInCache(cacheFileUri);
+      // console.log(imgXistsInCache.exists);
+      if (isNew) {
         console.log("cached!");
-        setUri(cacheFileUri);
+        setUri(cacheKey);
       } else {
-        let cached = await cacheImage(uri, cacheFileUri, () => {});
+        let cached = await cacheImage(uri, cacheKey, () => {});
         if (cached.cached) {
           console.log("cached new!");
           setUri(cached.path);
         } else {
-          Alert.alert(`Couldn't load Image!`);
-          // console.log(cached.msg)
+          console.log("Couldn't load Image!");
+          console.log(cached.msg)
         }
       }
     }

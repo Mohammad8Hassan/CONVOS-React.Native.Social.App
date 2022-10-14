@@ -1,10 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, Button, ImageBackground, Image, KeyboardAvoidingView,
-  TextInput, ScrollView, TouchableOpacity, FlatList, Alert, Pressable, Keyboard
+  TextInput, ScrollView, TouchableOpacity, FlatList, Alert, Pressable, Keyboard, ToastAndroid
 } from 'react-native';
-import { globalStyles } from '../shared/globalStyles';
-import Card from '../shared/Card';
-import * as ImagePicker from 'expo-image-picker'
 import { MaterialIcons } from '@expo/vector-icons';
 import { Foundation } from '@expo/vector-icons';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
@@ -16,6 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import avatar from '../assets/Imgs/avatar.png';
 import CachableImage from '../shared/CachableImage';
 import RenderComment from '../shared/RenderComment';
+import * as FileSystem from "expo-file-system";
+import * as Clipboard from 'expo-clipboard';
+import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 
 export default function Details({ route, navigation }) {
 
@@ -73,9 +73,11 @@ export default function Details({ route, navigation }) {
     const unsubscribe3 =  onSnapshot(participantsRef, async snapShot => {
       await Promise.all(snapShot.docs.map(async user => {
         const info = await getDoc(doc(db, 'Users', user.id));
+
+        const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+
         participants[user.id + 'name'] = info.data().Name;
-        participants[user.id + 'Photo'] = info.data().Photo;
-        participants[user.id + 'xt'] = info.data().photoExtension;
+        participants[user.id + 'Photo'] = photo;
       }));
       setAllParticipants(participants);
       
@@ -120,13 +122,15 @@ export default function Details({ route, navigation }) {
           //   url_Temp = defaultImg;
           // }
           // console.log(user.data().Photo);
-          console.log(change.doc.data().authorID+'Photo');
-          console.log(allParticipants);
+
           comments.push({id: change.doc.id, ...change.doc.data(), timeStamp: empty, 
             uri: allParticipants[change.doc.data().authorID+'Photo'], 
-            xt: allParticipants[change.doc.data().authorID+'xt'],
             Name: allParticipants[change.doc.data().authorID+'Name']
           });
+        }
+        else if(change.type === 'removed') {
+          const index = comments.map(e => e.id).indexOf(change.doc.id);
+          comments.splice(index,1);
         }
       }
       // console.log('comments: ', comments);
@@ -179,6 +183,61 @@ export default function Details({ route, navigation }) {
     }
   }, [allParticipants])
 
+  async function findImageInCache(uri) {
+    try {
+      let info = await FileSystem.getInfoAsync(uri);
+      return { ...info, err: false };
+    } catch (error) {
+      return {
+        exists: false,
+        err: true,
+        msg: error,
+      };
+    }
+  }
+
+  async function cacheImage(uri, cacheUri, callback) {
+    console.log('will download');
+    try {
+      const downloadImage = FileSystem.createDownloadResumable(
+        uri,
+        cacheUri,
+        {},
+        callback
+      );
+      const downloaded = await downloadImage.downloadAsync();
+      return {
+        cached: true,
+        err: false,
+        path: downloaded.uri,
+      };
+    } catch (error) {
+      return {
+        cached: false,
+        err: true,
+        msg: error,
+      };
+    }
+  }
+
+  async function prepareImg(photo, photoExtension) {
+    const newUri = /[^=]*$/.exec(photo)[0];
+    const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
+    const isNew = await findImageInCache(cacheFileUri);
+    if (isNew.exists) {
+      console.log("cached!");
+      return cacheFileUri;
+    } else {
+      let cached = await cacheImage(photo, cacheFileUri, () => {});
+      if (cached.cached) {
+        console.log("cached new!");
+        return cached.path;
+      } else {
+        console.log("Couldn't load Image!");
+        console.log(cached.msg)
+      }
+    }
+  }
   const showAlert = (id) => {
     Alert.alert(
       'Delete Comment?',
@@ -234,6 +293,37 @@ export default function Details({ route, navigation }) {
     deleteDoc(doc(db, "Conversations", id, "Comments", commentId));
   }
 
+  const renderComment = () => {
+    for(const comment of allComments) {
+      return (
+        <View style={styles.listItem} key={comment.id}>
+          <View style={styles.commentView} >
+            <View style={styles.commentViewInner}>
+              <Text style={styles.theComment} selectable>{comment.comment}</Text>
+              <View style={styles.commentDetails}>
+                <Text style={styles.author} selectable>{ comment.author }</Text>
+                <Text style={styles.commentDate}>  •  {comment.timeStamp.toDate().toDateString()}</Text>
+              </View>
+            </View>
+          </View>
+          <CachableImage source={{uri: comment.uri}} cacheKey={ comment.cache } 
+          style={{width:35, height:35, borderRadius:60, marginLeft:3, borderColor:'#613a5f', borderWidth:1, position:'absolute'}} 
+          isNew={comment.isNew} xt={ comment.xt }/>
+          <View style={styles.delete} >
+            {(getAuth().currentUser.uid == comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => showAlert(comment.id)}/>}
+          </View>
+          {/* <RenderComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} /> */}
+        </View>
+      )
+    }
+  }
+
+  const copyToClipboard = async () => {
+    await Clipboard.setStringAsync(id);
+
+    ToastAndroid.show('conversation id copied', ToastAndroid.SHORT);
+  }
+
   return (
     <SafeAreaView style={{flex:1}}>
       { isAvailable == true ? (
@@ -253,6 +343,39 @@ export default function Details({ route, navigation }) {
                     <Text style={styles.createdTime}>{post.dateCreated.toDate().toDateString()}</Text>
                   </View>
                 </View>
+                <View style={{flexDirection:'row', justifyContent:'flex-end', alignItems:'center', marginHorizontal:3}}>
+                  <View style={{alignItems:'flex-end', flex:5, marginRight:4}}>
+                    <Text style={{color: 'grey'}} >{ id }</Text>
+                  </View>
+                  <Pressable
+                    onPress={copyToClipboard}
+                    style={({ pressed }) => [
+                      {opacity: pressed ? 0.5: 1}, styles.copyID
+                    ]}
+                  >
+                    <View style={{flexDirection:'row', alignItems:'center',}}>
+                      <MaterialIcons name='file-copy' size={17} color='#806b96' />
+                    </View>
+                  </Pressable>
+                  <Menu>
+                    <MenuTrigger>
+                      <View style={{flexDirection:'row', alignItems:'center', marginLeft:7}}>
+                        <MaterialIcons name='more-horiz' size={30} color='#806b96' />
+                      </View>
+                    </MenuTrigger>
+                    <MenuOptions>
+                      <MenuOption onSelect={() => showAlert(item.id)}>
+                        <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>View Participants</Text>
+                      </MenuOption>
+                      { (post.authorID == user.uid) &&
+                        <MenuOption onSelect={() => showAlert(item.id)}>
+                         <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
+                        </MenuOption>
+                      }
+                      
+                    </MenuOptions>
+                  </Menu>
+                </View>
               </View>
 
               <KeyboardAvoidingView style={styles.container}  >
@@ -261,7 +384,7 @@ export default function Details({ route, navigation }) {
                     
                     <View style={styles.listContainer}>
                       {
-                        allComments.map((comment) => {
+                        allComments.map(comment => {
                           return (
                             <View style={styles.listItem} key={comment.id}>
                               <View style={styles.commentView} >
@@ -273,9 +396,7 @@ export default function Details({ route, navigation }) {
                                   </View>
                                 </View>
                               </View>
-                              <CachableImage source={{uri: comment.uri}} cacheKey={ comment.authorID } 
-                              style={{width:35, height:35, borderRadius:60, marginLeft:3, borderColor:'#613a5f', borderWidth:1, position:'absolute'}} 
-                              id={comment.authorID} xt={ comment.xt }/>
+                              <Image source={{uri: comment.uri}} style={{width:35, height:35, borderRadius:60, marginLeft:3, borderColor:'#613a5f', borderWidth:1, position:'absolute'}} />
                               <View style={styles.delete} >
                                 {(getAuth().currentUser.uid == comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => showAlert(comment.id)}/>}
                               </View>
@@ -338,7 +459,10 @@ const styles = StyleSheet.create({
   },
   card:{
     backgroundColor:'#fff',
-    elevation: 15
+    elevation: 10,
+    padding:3,
+    borderBottomWidth: 1,
+    borderBottomColor: '#613a5f'
   },
   na: {
     marginHorizontal:40,
@@ -352,8 +476,8 @@ const styles = StyleSheet.create({
   },
   cardContent:{
     margin:10,
-    padding:10,
-    borderRadius:10
+    padding:5,
+    borderRadius:10,
   },
   commentBox: {
     // backgroundColor: '#613a5f',
@@ -473,5 +597,20 @@ const styles = StyleSheet.create({
   createdTime: {
     fontSize: 15,
     marginLeft: 'auto'
+  },
+  copyID: {
+    padding: 5,
+    backgroundColor: '#d4c86e',
+    alignItems: 'center',
+    borderRadius:20,
+    flex: 1,
+  },
+  more: {
+    padding: 2,
+    backgroundColor: '#d4c86e',
+    alignItems: 'center',
+    borderRadius:20,
+    flex: 1,
+    marginLeft: 3
   },
 })

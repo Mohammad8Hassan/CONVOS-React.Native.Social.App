@@ -17,6 +17,7 @@ import avatar from '../assets/Imgs/avatar.png';
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import _, { set } from 'lodash';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // component
 export default function Home({ navigation }) {
@@ -306,10 +307,20 @@ export default function Home({ navigation }) {
                
                 <View style={styles.createdViewContainer}>
                   <View style={styles.createdView}>
-                    <Text style={styles.createdAuthor}>{ item.author }</Text>
+                    {item.author == user.displayName? (
+                        <Text style={styles.createdAuthor}>{ user.displayName }</Text>
+                      ) : (
+                        <Text style={styles.createdAuthor}>{ item.author }</Text>
+                      )
+                    }
                     <Text style={styles.createdTime}>{ item.dateCreated.toDateString()}</Text>
                   </View>
-                  <Image source={{uri: item.uri}} style={styles.pic} />
+                  {item.author == user.displayName? (
+                      <Image source={{uri: user.photoURL}} style={styles.pic} />
+                    ) : (
+                      <Image source={{uri: item.uri}} style={styles.pic} />
+                    )
+                  }
                 </View>
 
               </Card>

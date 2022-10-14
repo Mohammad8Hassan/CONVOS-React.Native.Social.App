@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { StyleSheet, Text, View, Image, Pressable } from 'react-native'
+import { StyleSheet, Text, View, Image, Pressable, ToastAndroid } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { getAuth, signOut } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
+import * as Clipboard from 'expo-clipboard';
 
 export default function Settings({ navigation }) {
   const [profilePic, setProfilePic] = useState(null);
@@ -12,6 +13,7 @@ export default function Settings({ navigation }) {
   const [ID, setID] = useState(null);
 
   const focused = useIsFocused();
+  const user = getAuth().currentUser;
 
   useEffect(() => {
     const user = getAuth().currentUser;
@@ -23,6 +25,12 @@ export default function Settings({ navigation }) {
 
   }, [focused])
 
+  const copyToClipboard = async () => {
+    await Clipboard.setStringAsync(user.uid);
+
+    ToastAndroid.show('ID copied', ToastAndroid.SHORT);
+  }
+
   return (
     <SafeAreaView style={{flex:1,}}>
       <View style={styles.homeHeader}>
@@ -32,38 +40,39 @@ export default function Settings({ navigation }) {
       <View style={styles.container}>
 
         <View style={{backgroundColor:'#613a5f',}}>
-        <View style={styles.header}> 
-          <Image source={{uri: profilePic}} style={{width:100, height:100, borderRadius:100, borderWidth:2, borderColor:'#bab806'}}/>
-          
-          <View style={styles.userInfo}>
-            <Text style={{color:'#bab806', fontSize:20, marginBottom:10}} numberOfLines={1}>{userName}</Text>
-            <Text style={{color:'#bfbfb0', fontSize:20, marginBottom:10}} numberOfLines={1}>{email}</Text>
+          <View style={styles.header}> 
+            <Image source={{uri: profilePic}} style={{width:100, height:100, borderRadius:100, borderWidth:2, borderColor:'#bab806'}}/>
             
-            <Pressable  
-                onPress={() => navigation.navigate("Edit Profile")}
-                style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.edit
+            <View style={styles.userInfo}>
+              <Text style={{color:'#bab806', fontSize:20, marginBottom:10}} numberOfLines={1}>{userName}</Text>
+              
+              
+              <Pressable  
+                  onPress={() => navigation.navigate("Edit Profile")}
+                  style={({ pressed }) => [
+                  {opacity: pressed ? 0.5: 1}, styles.edit
+                ]}
+              >
+                <View style={{flexDirection:'row', alignItems:'center'}}>
+                  <MaterialIcons name='edit' color='#806b96' size={25} />
+                  <Text style={{color:"#806b96", fontSize: 18, marginLeft:8}}>Edit Account</Text>
+                </View>
+              </Pressable>
+            </View>
+          </View>
+          <View style={{flexDirection:'row', alignItems:'center', marginBottom:10, paddingHorizontal:5}}>
+            <Text style={{color:'#bfbfb0', fontSize:16, marginLeft:5, flex:5}} numberOfLines={1}>{ID}</Text>
+            <Pressable
+              onPress={copyToClipboard}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.copyID
               ]}
             >
-              <View style={{flexDirection:'row', alignItems:'center'}}>
-                <MaterialIcons name='edit' color='#806b96' size={25} />
-                <Text style={{color:"#806b96", fontSize: 20, marginLeft:8}}>Edit</Text>
+              <View style={{flexDirection:'row', alignItems:'center',}}>
+                {/* <Text style={{color:"#806b96", fontSize: 15, marginRight:3}}>Copy ID</Text> */}
+                <MaterialIcons name='file-copy' size={17} color='#806b96' />
               </View>
             </Pressable>
-          </View>
-        </View>
-        <View style={{flexDirection:'row', alignItems:'center', marginBottom:10, paddingHorizontal:5}}>
-          <Text style={{color:'#bfbfb0', fontSize:16, marginLeft:5}} numberOfLines={1}>{ID}</Text>
-          <Pressable
-            style={({ pressed }) => [
-              {opacity: pressed ? 0.5: 1}, styles.copyID
-            ]}
-          >
-            <View style={{flexDirection:'row', alignItems:'center',}}>
-              <Text style={{color:"#806b96", fontSize: 15, marginRight:3}}>Copy ID</Text>
-              <MaterialIcons name='file-copy' size={17} color='#806b96' />
-            </View>
-          </Pressable>
           </View>
         </View>
 
@@ -124,12 +133,12 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     marginLeft: 20,
-    flexShrink:1
+    flexShrink:1,
+    flex:1,
   },
   edit: {
-    padding: 10,
+    padding: 8,
     backgroundColor: '#d4c86e',
-    width: 150,
     alignItems: 'center',
     borderRadius:10
   },
@@ -144,10 +153,10 @@ const styles = StyleSheet.create({
     borderRadius: 25
   },
   copyID: {
-    padding: 8,
+    padding: 5,
     backgroundColor: '#d4c86e',
     alignItems: 'center',
     borderRadius:20,
-    marginLeft: 'auto'
+    flex:1
   },
 })
