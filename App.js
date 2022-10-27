@@ -269,7 +269,7 @@ export default function App() {
   }
 
   return (
-    <MenuProvider>
+    <MenuProvider backHandler={true}>
       <StatusBar
         animated={true}
         backgroundColor="#613a5f" 

@@ -1,12 +1,10 @@
-import { StyleSheet, Text, View,  } from 'react-native'
+import { StyleSheet, Text, View, Image} from 'react-native'
 import React from 'react';
-import CachableImage from './CachableImage';
 import { MaterialIcons } from '@expo/vector-icons';
 
 export default function RenderComment(props) {
   return (
-    <View style={styles.listItem} key={props.comment.id}>
-
+    <>
       <View style={styles.commentView} >
         <View style={styles.commentViewInner}>
           <Text style={styles.theComment} selectable>{props.comment.comment}</Text>
@@ -16,16 +14,11 @@ export default function RenderComment(props) {
           </View>
         </View>
       </View>
-
-      <CachableImage source={{uri: comment.uri}} cacheKey={ props.comment.authorID } 
-      style={{width:35, height:35, borderRadius:60, marginLeft:3, borderColor:'#613a5f', borderWidth:1, position:'absolute'}} 
-      id={props.comment.authorID} xt={ props.comment.xt }/>
-
+      <Image source={{uri: props.comment.uri}} style={{width:35, height:35, borderRadius:60, marginLeft:3, borderColor:'#613a5f', borderWidth:1, position:'absolute'}} />
       <View style={styles.delete} >
         {(props.userID == props.comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => props.alert(props.comment.id)}/>}
       </View>
-
-    </View>
+    </>
   )
 }
 

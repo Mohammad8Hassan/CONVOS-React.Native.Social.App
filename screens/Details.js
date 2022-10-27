@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, Button, ImageBackground, Image, KeyboardAvoidingView,
-  TextInput, ScrollView, TouchableOpacity, FlatList, Alert, Pressable, Keyboard, ToastAndroid
+  TextInput, ScrollView, FlatList, Modal, Alert, Pressable, Keyboard, ToastAndroid
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { Foundation } from '@expo/vector-icons';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
@@ -13,23 +14,31 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import avatar from '../assets/Imgs/avatar.png';
 import CachableImage from '../shared/CachableImage';
 import RenderComment from '../shared/RenderComment';
+import RenderOthersComment from '../shared/RenderOthersComment';
 import * as FileSystem from "expo-file-system";
 import * as Clipboard from 'expo-clipboard';
-import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
+import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider, } from 'react-native-popup-menu';
 
 export default function Details({ route, navigation }) {
 
   const { id } = route.params;
   const scrollView = useRef(null);
-  const [image, setImage] = useState(null);
-  const [addCommentButton, setAddCommentButton] = useState(true);
-  const [commentBox, setCommentBox] = useState(false);
   const [comment, setComment] = useState('');
   const [allComments, setAllComments] = useState([]);
   const [post, setPost] = useState(null);
   const [isAvailable, setIsAvailable] = useState(true);
   const [allParticipants, setAllParticipants] = useState(null);
-  const [loadedParticipants, setLoadedParticipants] = useState(false);
+  const [expanded, setExpanded] = useState(true);
+  const [caretName, setCaretName] = useState('caret-up');
+  const [uri, setUri] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [friends, setFriends] = useState([]);
+  const [participantsIDs, setParticipantsIDs] = useState([]);
+  const [data, setData] = useState(null);
+  const [selector, setSelector] = useState('all');
+  const [num, setNum] = useState(0);
+  const [areFriends, setAreFriends] = useState([]);
+  const [notFriends, setNotFriends] = useState([]);
 
 
   const db = getFirestore();
@@ -57,6 +66,12 @@ export default function Details({ route, navigation }) {
               setPost(snapShot.data());
       
               setIsAvailable(true);
+              
+              getDoc(doc(db, 'Users', snapShot.data().authorID))
+                .then(author => {
+                  console.log('author photo: ', author.data().Photo);
+                  setUri(author.data().Photo);
+                })
             }
             else {
               setIsAvailable(false);
@@ -68,20 +83,35 @@ export default function Details({ route, navigation }) {
       }
     })
     
+
     let participants = {};
+    let participantsIDs = [];
+
     const participantsRef = collection(db, 'Conversations', id, 'Participants');
+    
     const unsubscribe3 =  onSnapshot(participantsRef, async snapShot => {
       await Promise.all(snapShot.docs.map(async user => {
+        participants = allParticipants == null? {} : allParticipants;
+        
         const info = await getDoc(doc(db, 'Users', user.id));
 
         const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
 
+        participantsIDs.push({id: user.id, photo: photo, name: info.data().Name});
+
         participants[user.id + 'name'] = info.data().Name;
         participants[user.id + 'Photo'] = photo;
+        participants[user.id + 'ID'] = user.id;
       }));
+
       setAllParticipants(participants);
-      
+      setParticipantsIDs(participantsIDs);
+      setData(participantsIDs);
+      setSelector('all');
+      setNum(participantsIDs.length);
     })
+
+
 
     return () => {
       tab.setOptions({
@@ -101,6 +131,20 @@ export default function Details({ route, navigation }) {
     }
   }, [allParticipants])
 
+  useEffect(() => {
+    if(participantsIDs != null) {
+      loadFriends();
+    }
+  }, [participantsIDs])
+
+  useEffect(() => {
+    if(expanded){
+      setCaretName('caret-up');
+    }
+    else {
+      setCaretName('caret-down');
+    }
+  }, [expanded])
 
   const loadComments = useCallback(() => {
     const colRef = collection(db, 'Conversations', id, 'Comments');
@@ -111,17 +155,7 @@ export default function Details({ route, navigation }) {
 
       for (const change of snapShot.docChanges()) {
         if(change.type === 'added') {
-          // const user = await getDoc(doc(db, 'Users', change.doc.data().authorID));
           const empty = change.doc.data().timeStamp === null ? Timestamp.now() : change.doc.data().timeStamp;
-          // const refc = ref(storage, 'Profile Photos/' + change.doc.data().authorID);
-          // let url_Temp = null;
-          // try{
-          //   url_Temp = await getDownloadURL(refc);
-          // }
-          // catch{
-          //   url_Temp = defaultImg;
-          // }
-          // console.log(user.data().Photo);
 
           comments.push({id: change.doc.id, ...change.doc.data(), timeStamp: empty, 
             uri: allParticipants[change.doc.data().authorID+'Photo'], 
@@ -182,6 +216,47 @@ export default function Details({ route, navigation }) {
       unsubscribe2();
     }
   }, [allParticipants])
+
+  const loadFriends = useCallback(() => {
+    const friendsRef = collection(db, 'Users', user.uid, 'Friends');
+
+    const unsubscribe4 = onSnapshot(friendsRef, async snapShot => {
+      let arrayFriends = friends;
+      let arrayAreFriends = areFriends;
+      let arrayNotFriends = notFriends;
+      
+      for (const change of snapShot.docChanges()) {
+        if(change.type === 'added') {
+          arrayFriends.push(change.doc.data());
+
+          let user = participantsIDs.find(e => e.id === change.doc.data().ID);
+          if(user) {
+            arrayAreFriends.push(user);
+          }
+          
+        }
+      }
+
+      // console.log('arrayFriends: ', arrayFriends);
+      
+      for (const participant of participantsIDs) {
+        // console.log('user.id: ', participant.id);
+        // console.log('friend?: ', arrayFriends.find(e => e.ID === participant.id));
+
+        if(!(arrayFriends.find(e => e.ID === participant.id) || participant.id == user.uid)) {
+          arrayNotFriends.push(participant);
+        }
+      }
+
+      setFriends(arrayFriends);
+      setAreFriends(arrayAreFriends);
+      setNotFriends(arrayNotFriends);
+    })
+
+    return () => {
+      unsubscribe4();
+    }
+  }, [participantsIDs])
 
   async function findImageInCache(uri) {
     try {
@@ -324,59 +399,214 @@ export default function Details({ route, navigation }) {
     ToastAndroid.show('conversation id copied', ToastAndroid.SHORT);
   }
 
+  const selectFriends = () => {
+    console.log(areFriends);
+    setData(areFriends);
+    setSelector('friends');
+    setNum(areFriends.length);
+  }
+
+  const selectOthers = () => {
+    console.log(notFriends);
+    setData(notFriends); 
+    setSelector('others'); 
+    setNum(notFriends.length);
+  }
+
+  const selectAll = () => {
+    setData(participantsIDs);
+    setSelector('all');
+    setNum(participantsIDs.length);
+  }
+
+
   return (
     <SafeAreaView style={{flex:1}}>
       { isAvailable == true ? (
         <>
           { post &&
             <>
-              <View style={styles.card}>
-                <View style={styles.cardContent}>
-                  <Text style={{color:'grey'}}>Title</Text>
-                  <Text style={{borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:18}}>{ post.title }</Text>
-
-                  <Text style={{marginTop:20, fontSize:18}}>{ post.body }</Text>
-
-                  <View style={styles.createdView}>
-                    <Text style={{fontSize: 15}}>By: </Text>
-                    <Text style={styles.createdAuthor}>{ post.author }</Text>
-                    <Text style={styles.createdTime}>{post.dateCreated.toDate().toDateString()}</Text>
-                  </View>
-                </View>
-                <View style={{flexDirection:'row', justifyContent:'flex-end', alignItems:'center', marginHorizontal:3}}>
-                  <View style={{alignItems:'flex-end', flex:5, marginRight:4}}>
-                    <Text style={{color: 'grey'}} >{ id }</Text>
-                  </View>
-                  <Pressable
-                    onPress={copyToClipboard}
-                    style={({ pressed }) => [
-                      {opacity: pressed ? 0.5: 1}, styles.copyID
-                    ]}
-                  >
-                    <View style={{flexDirection:'row', alignItems:'center',}}>
-                      <MaterialIcons name='file-copy' size={17} color='#806b96' />
+              <Modal visible={modalOpen} animationType='slide' onRequestClose={() => setModalOpen(false)}>
+                <MenuProvider skipInstanceCheck style={{flex:1}}>
+                  <View style={{flex:1, backgroundColor:'#806b96'}}>
+                    <View style={styles.homeHeader}>
+                      <Text style={{fontSize:18, color:'white'}}>Participants</Text>
                     </View>
-                  </Pressable>
-                  <Menu>
-                    <MenuTrigger>
-                      <View style={{flexDirection:'row', alignItems:'center', marginLeft:7}}>
-                        <MaterialIcons name='more-horiz' size={30} color='#806b96' />
+
+                    {/* selectors */}
+                    <View style={{flexDirection:'row', justifyContent:'space-around', marginVertical:15, marginHorizontal:20, paddingVertical:5}}>
+                      <Pressable
+                        onPress={selectAll}
+                        style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='all')? '#1f1f1f': 'grey'}
+                        ]}
+                      >
+                        <View style={{flexDirection:'row', alignItems:'center',}}>
+                          <Text style={{color:"white", fontSize: 19,}}>All</Text>
+                        </View>
+                      </Pressable>
+                      <Pressable
+                        onPress={selectFriends}
+                        style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? '#1f1f1f': 'grey'}
+                        ]}
+                      >
+                        <View style={{flexDirection:'row', alignItems:'center',}}>
+                          <Text style={{color:"white", fontSize: 19,}}>Friends</Text>
+                        </View>
+                      </Pressable>
+                      <Pressable
+                        onPress={selectOthers}
+                        style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='others')? '#1f1f1f': 'grey'}
+                        ]}
+                      >
+                        <View style={{flexDirection:'row', alignItems:'center',}}>
+                          <Text style={{color:"white", fontSize: 19,}}>Others</Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                    
+                    <Text style={{marginVertical:4, marginLeft:8, fontSize:18, color:'white'}}>{ num }</Text>
+
+                    <View style={{flex:1, marginTop:5, padding:4}}>
+                      <FlatList data={data} extraData={[friends, areFriends, notFriends, participantsIDs]} renderItem={({ item }) => (
+                        <View style={styles.item}>
+
+                          <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20}}>
+                            <Image source={{uri: item.photo}} style={[{height:40, width:40, borderRadius:50, borderColor:'#4ebbed'}, {borderWidth: (item.id == user.uid)?2:0}]} />
+                            <Text style={[{fontSize:18, marginLeft:10}, {color: (item.id == user.uid)?'#4ebbed':'white'}]}>{ item.name }</Text>
+                            {(item.id != user.uid) && 
+                              <Menu style={styles.menu}>
+                              <MenuTrigger>
+                                <MaterialIcons name='more-horiz' size={20} color='white'  />
+                              </MenuTrigger>
+                              <MenuOptions>
+                                <MenuOption onSelect={() => showAlert(item.ID, item.Name)}>
+                                  <Text style={{color: "red", fontSize: 18, margin: 5}}>Remove</Text>
+                                </MenuOption>
+
+                                <MenuOption onSelect={() => showAlert(item.ID, item.Name)}>
+                                  <Text style={{color: "red", fontSize: 18, margin: 5}}>Add to friends</Text>
+                                </MenuOption>
+                                
+                              </MenuOptions>
+                            </Menu>
+                            }
+                            
+                          </View>
+
+                        </View>
+                      )} />
+                    </View>
+                  </View>
+                </MenuProvider>
+              </Modal>
+
+
+              <View style={{zIndex:999}}>
+                {expanded ? (
+                  <View style={styles.card}>
+                  <View style={styles.cardContent}>
+                    {/* <Text style={{color:'grey'}}>Title</Text> */}
+                    <Text style={{borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:18}}>{ post.title }</Text>
+
+                    <Text style={{marginTop:20, fontSize:18}}>{ post.body }</Text>
+
+                    <View style={styles.createdView}>
+                      {/* <Text style={{fontSize: 13}}>By: </Text> */}
+                      <Image source={{uri: uri}} style={{width:25, height:25, borderRadius:60, borderColor:'#613a5f', borderWidth:1, marginRight:5}} />
+                      <Text style={styles.createdAuthor}>{ post.author }</Text>
+                      <Text style={styles.createdTime}>{post.dateCreated.toDate().toDateString()}</Text>
+                    </View>
+                  </View>
+                  <View style={{flexDirection:'row', justifyContent:'flex-end', alignItems:'center', marginHorizontal:3}}>
+                    <View style={{alignItems:'flex-end', flex:5, marginRight:6}}>
+                      <Text style={{color: 'grey'}} >{ id }</Text>
+                    </View>
+                    <Pressable
+                      onPress={copyToClipboard}
+                      style={({ pressed }) => [
+                        {opacity: pressed ? 0.5: 1}, styles.copyID
+                      ]}
+                    >
+                      <View style={{flexDirection:'row', alignItems:'center',}}>
+                        <MaterialIcons name='file-copy' size={13} color='#806b96' />
                       </View>
-                    </MenuTrigger>
-                    <MenuOptions>
-                      <MenuOption onSelect={() => showAlert(item.id)}>
-                        <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>View Participants</Text>
-                      </MenuOption>
-                      { (post.authorID == user.uid) &&
-                        <MenuOption onSelect={() => showAlert(item.id)}>
-                         <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
+                    </Pressable>
+
+                    <Menu style={styles.more}>
+                      <MenuTrigger style={{backgroundColor: '#d4c86e', alignItems:'center', borderRadius:20}}>
+                        <MaterialIcons name='more-horiz' size={26} color='#806b96' />
+                      </MenuTrigger>
+                      <MenuOptions>
+                        <MenuOption onSelect={() => setModalOpen(true)}>
+                          <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>View Participants</Text>
                         </MenuOption>
-                      }
-                      
-                    </MenuOptions>
-                  </Menu>
+                        <MenuOption onSelect={() => showAlert(item.id)}>
+                          <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>Invite Participant</Text>
+                        </MenuOption>
+                        { (post.authorID == user.uid) &&
+                          <MenuOption onSelect={() => showAlert(item.id)}>
+                          <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
+                          </MenuOption>
+                        }
+                        
+                      </MenuOptions>
+                    </Menu>
+                  </View>
                 </View>
+                ) : (
+                  <>
+                  <View style={styles.card}>
+                    <Text style={{fontSize:18, marginBottom:10, marginLeft:5, marginTop:5}}>{ post.body }</Text>
+                    <View style={{flexDirection:'row', justifyContent:'flex-end', alignItems:'center', marginHorizontal:3}}>
+                      <View style={{alignItems:'flex-end', flex:5, marginRight:4}}>
+                        <Text style={{color: 'grey'}} >{ id }</Text>
+                      </View>
+                      <Pressable
+                        onPress={copyToClipboard}
+                        style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1}, styles.copyID
+                        ]}
+                      >
+                        <View style={{flexDirection:'row', alignItems:'center',}}>
+                          <MaterialIcons name='file-copy' size={17} color='#806b96' />
+                        </View>
+                      </Pressable>
+
+                      <Menu style={styles.more}>
+                        <MenuTrigger style={{backgroundColor: '#d4c86e', alignItems:'center', borderRadius:20}}>
+                          <MaterialIcons name='more-horiz' size={30} color='#806b96' />
+                        </MenuTrigger>
+                        <MenuOptions>
+                          <MenuOption onSelect={() => showAlert(item.id)}>
+                            <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>View Participants</Text>
+                          </MenuOption>
+                          { (post.authorID == user.uid) &&
+                            <MenuOption onSelect={() => showAlert(item.id)}>
+                            <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
+                            </MenuOption>
+                          }
+                        </MenuOptions>
+                      </Menu>
+                    </View>
+                  </View>
+                </>
+                )
+                }
+                
+                <Pressable
+                  onPress={() => setExpanded(!expanded)}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.caretContainer
+                  ]}
+                >
+                  <Ionicons name={caretName} size={25} style={styles.caret} />
+                </Pressable>
+
               </View>
+
 
               <KeyboardAvoidingView style={styles.container}  >
                 <View style={{flex:1}}>
@@ -387,20 +617,12 @@ export default function Details({ route, navigation }) {
                         allComments.map(comment => {
                           return (
                             <View style={styles.listItem} key={comment.id}>
-                              <View style={styles.commentView} >
-                                <View style={styles.commentViewInner}>
-                                  <Text style={styles.theComment} selectable>{comment.comment}</Text>
-                                  <View style={styles.commentDetails}>
-                                    <Text style={styles.author} selectable>{ comment.author }</Text>
-                                    <Text style={styles.commentDate}>  •  {comment.timeStamp.toDate().toDateString()}</Text>
-                                  </View>
-                                </View>
-                              </View>
-                              <Image source={{uri: comment.uri}} style={{width:35, height:35, borderRadius:60, marginLeft:3, borderColor:'#613a5f', borderWidth:1, position:'absolute'}} />
-                              <View style={styles.delete} >
-                                {(getAuth().currentUser.uid == comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => showAlert(comment.id)}/>}
-                              </View>
-                              {/* <RenderComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} /> */}
+                              {(comment.authorID == user.uid) ? (
+                                <RenderComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} />
+                              ) : (
+                                <RenderOthersComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} />
+                              )
+                              }
                             </View>
                           )
                         })
@@ -454,15 +676,15 @@ export default function Details({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 5,
+    // paddingHorizontal: 5,
     backgroundColor:'white'
   },
   card:{
     backgroundColor:'#fff',
-    elevation: 10,
+    elevation: 8,
     padding:3,
-    borderBottomWidth: 1,
-    borderBottomColor: '#613a5f'
+    // borderBottomWidth: 1,
+    // borderBottomColor: '#613a5f'
   },
   na: {
     marginHorizontal:40,
@@ -480,7 +702,7 @@ const styles = StyleSheet.create({
     borderRadius:10,
   },
   commentBox: {
-    // backgroundColor: '#613a5f',
+    backgroundColor: '#613a5f',
     paddingVertical:3,
     flexDirection:'row'
   },
@@ -527,10 +749,11 @@ const styles = StyleSheet.create({
     alignItems:'center',
   },
   listContainer: {
-    marginTop:10,
+    marginTop:14,
   },
   listItem: {
     flex: 1,
+    backgroundColor: 'white',
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
@@ -586,31 +809,67 @@ const styles = StyleSheet.create({
     marginHorizontal: 100,
     marginTop: 8
   },
+  homeHeader: {
+    flexDirection: 'row', 
+    justifyContent:'space-between', 
+    alignItems:'center',
+    backgroundColor: '#613a5f',
+    padding: 10,
+    elevation: 15
+  },
   createdView: {
     flexDirection: 'row',
-    marginTop: 30,
+    marginTop: 10,
+    alignItems:'center'
   },
   createdAuthor: {
-    fontSize: 15,
+    fontSize: 13,
     color: '#a1a333',
   },
   createdTime: {
-    fontSize: 15,
+    fontSize: 13,
+    color:'grey',
     marginLeft: 'auto'
   },
   copyID: {
-    padding: 5,
+    padding: 6.5,
     backgroundColor: '#d4c86e',
     alignItems: 'center',
     borderRadius:20,
     flex: 1,
   },
   more: {
-    padding: 2,
-    backgroundColor: '#d4c86e',
+    alignItems: 'stretch',
+    borderRadius:20,
+    marginLeft: 7,
+    flex:1.5,
+  },
+  caret: {
+    color: '#613a5f',
+    backgroundColor:'#d4c86e',
+    padding: 1,
+    borderRadius:20,
+    position:'absolute',
+  },
+  caretContainer: {
+    marginLeft:15,
+    justifyContent:'center'
+  },
+  item: {
+    flex:1, 
+    marginBottom:10, 
+    padding: 4,
+    backgroundColor:'#8d8299'
+  },
+  friendsOp: {
+    padding: 8,
+    backgroundColor: 'grey',
     alignItems: 'center',
     borderRadius:20,
-    flex: 1,
-    marginLeft: 3
+  },
+  menu: {
+    alignItems: 'center',
+    marginRight:10,
+    marginLeft:'auto'
   },
 })
