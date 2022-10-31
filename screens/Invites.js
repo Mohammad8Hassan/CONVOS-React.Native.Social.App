@@ -163,6 +163,7 @@ export default function Friends({ navigation }) {
   setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
     Name: user.displayName,
     ID: user.uid,
+    removed: false,
   });
 
   deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
@@ -188,6 +189,7 @@ export default function Friends({ navigation }) {
   setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
     Name: user.displayName,
     ID: user.uid,
+    removed: false,
   });
 
   deleteDoc(doc(db, 'Users', user.uid, 'Others Invites', id));

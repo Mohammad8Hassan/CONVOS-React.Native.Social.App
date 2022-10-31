@@ -141,6 +141,7 @@ export default function NewConv({ navigation }) {
       setDoc(doc(db, 'Conversations', ref.id, 'Participants', user.uid), {
         Name: user.displayName,
         ID: user.uid,
+        removed: false
       });
 
       ToastAndroid.show('Conversation Created', ToastAndroid.SHORT);

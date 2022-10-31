@@ -120,7 +120,7 @@ export default function Home({ navigation }) {
       if(convExists.exists()) {
         console.log('22222');
         const checkExist = await getDoc(doc(db, 'Conversations', convID, 'Participants', user.uid));
-        if(checkExist.exists()) {
+        if(checkExist.exists() && checkExist.data().removed == false) {
           console.log('already joined!');
           navigation.navigate('Details', { id: convID });
         }
@@ -132,7 +132,7 @@ export default function Home({ navigation }) {
           setShowIndicator(false);
           return;
         }
-    
+        //redundant api cal!!
         const passCheck = await getDoc(doc(db, 'Conversations', convID));
         if(passCheck.data().password) {
           console.log('enter password');
@@ -143,8 +143,11 @@ export default function Home({ navigation }) {
   
         await setDoc(doc(db, 'Conversations', convID, 'Participants', user.uid), {
           ID: user.uid,
-          Name: user.displayName
+          Name: user.displayName,
+          removed: false,
         })
+
+        //redundant api cal!!
         const getConvInfo = await getDoc(doc(db, 'Conversations', convID));
         await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {
           authorID: getConvInfo.data().authorID,
@@ -163,11 +166,13 @@ export default function Home({ navigation }) {
     }
     else {
       console.log('44444');
+      // redundant api call!!
       const passCheck = await getDoc(doc(db, 'Conversations', convID));
       if(password == passCheck.data().password) {
         await setDoc(doc(db, 'Conversations', convID, 'Participants', user.uid), {
           ID: user.uid,
-          Name: user.displayName
+          Name: user.displayName,
+          removed: false,
         })
         const getConvInfo = await getDoc(doc(db, 'Conversations', convID));
         await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {

@@ -9,7 +9,7 @@ export default function RenderComment(props) {
         <View style={styles.commentViewInner}>
           <Text style={styles.theComment} selectable>{props.comment.comment}</Text>
           <View style={styles.commentDetails}>
-            <Text style={styles.author} selectable>{ props.comment.author }</Text>
+            <Text style={styles.author} selectable>{ props.comment.Name }</Text>
             <Text style={styles.commentDate}>  •  {props.comment.timeStamp.toDate().toDateString()}</Text>
           </View>
         </View>

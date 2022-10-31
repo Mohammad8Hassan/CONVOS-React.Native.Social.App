@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Foundation } from '@expo/vector-icons';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
-  deleteDoc, Timestamp, setDoc, getDoc } from 'firebase/firestore'
+  deleteDoc, Timestamp, setDoc, getDoc, getDocs, updateDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { Entypo } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,13 +33,16 @@ export default function Details({ route, navigation }) {
   const [uri, setUri] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [friends, setFriends] = useState([]);
-  const [participantsIDs, setParticipantsIDs] = useState([]);
+  const [participantsIDs, setParticipantsIDs] = useState(null);
   const [data, setData] = useState(null);
   const [selector, setSelector] = useState('all');
   const [num, setNum] = useState(0);
   const [areFriends, setAreFriends] = useState([]);
   const [notFriends, setNotFriends] = useState([]);
+  const [commentsFlag, setCommentsFlag] = useState('first render');
+  const [friendsFlag, setFriendsFlag] = useState('first render');
 
+  const refreshComments = useRef(false);
 
   const db = getFirestore();
   const storage = getStorage();
@@ -69,7 +72,6 @@ export default function Details({ route, navigation }) {
               
               getDoc(doc(db, 'Users', snapShot.data().authorID))
                 .then(author => {
-                  console.log('author photo: ', author.data().Photo);
                   setUri(author.data().Photo);
                 })
             }
@@ -85,33 +87,62 @@ export default function Details({ route, navigation }) {
     
 
     let participants = {};
-    let participantsIDs = [];
+    let participantsID = [];
 
     const participantsRef = collection(db, 'Conversations', id, 'Participants');
     
     const unsubscribe3 =  onSnapshot(participantsRef, async snapShot => {
-      await Promise.all(snapShot.docs.map(async user => {
-        participants = allParticipants == null? {} : allParticipants;
+      console.log('1: ', participantsID);
+      // participants = allParticipants == null? {} : allParticipants;
+      // participantsID = participantsIDs == null? [] : participantsIDs;
+      console.log('2: ', participantsID);
+      await Promise.all(snapShot.docChanges().map(async change => {
+
+        if(change.type === 'added') {
+          const info = await getDoc(doc(db, 'Users', change.doc.id));
+
+          const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+
+          participantsID.push({id: change.doc.id, photo: photo, name: info.data().Name, removed: change.doc.data().removed});
+          console.log('3: ', participantsID);
+
+          participants[change.doc.id + 'Name'] = info.data().Name;
+          participants[change.doc.id + 'Photo'] = photo;
+          participants[change.doc.id + 'ID'] = change.doc.id;
+          participants[change.doc.id + 'REM'] = change.doc.data().removed;
+        }
+        else if(change.type === 'modified') {
+          if(change.doc.data().removed == true) {
+            const index = participantsID.map(e => e.id).indexOf(change.doc.id);
+            participantsID[index].removed = true;
+  
+            participants[change.doc.id + 'REM'] = true;
+  
+            if(change.doc.id == user.uid) {
+              setIsAvailable(false);
+            }
+          }
+          else if(change.doc.data().removed == false) {
+            const index = participantsID.map(e => e.id).indexOf(change.doc.id);
+            participantsID[index].removed = false;
+  
+            participants[change.doc.id + 'REM'] = false;
+          }
+          
+        }
+
         
-        const info = await getDoc(doc(db, 'Users', user.id));
-
-        const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
-
-        participantsIDs.push({id: user.id, photo: photo, name: info.data().Name});
-
-        participants[user.id + 'name'] = info.data().Name;
-        participants[user.id + 'Photo'] = photo;
-        participants[user.id + 'ID'] = user.id;
       }));
+      console.log('4: ', participantsID);
 
       setAllParticipants(participants);
-      setParticipantsIDs(participantsIDs);
-      setData(participantsIDs);
+      setParticipantsIDs(participantsID);
+      setData(prev => {prev = participantsID; return [...prev]});
       setSelector('all');
-      setNum(participantsIDs.length);
+      setNum(participantsID.length);
     })
 
-
+    
 
     return () => {
       tab.setOptions({
@@ -124,18 +155,81 @@ export default function Details({ route, navigation }) {
 
   }, [])
 
+  // useEffect(() => {
+  //   const colRef = collection(db, 'Conversations', id, 'Comments');
+  //   const q = query(colRef, orderBy('timeStamp'));
+    
+  //   const unsubscribe2 = onSnapshot(q, async snapShot => {
+  //     let comments = allComments;
+  //     console.log('allComments.length ', allComments.length);
+  //     console.log('comments.length ', comments.length);
+  //     if(allComments.length != 0) {
+  //       console.log('ran comments listener!');
+  //       for (const change of snapShot.docChanges()) {
+  //         if(change.type === 'added') {
+  //           console.log('comment change happened: ', change.doc.data().comment);
+  //           const empty = change.doc.data().timeStamp === null ? Timestamp.now() : change.doc.data().timeStamp;
+  
+  //           comments.push({id: change.doc.id, ...change.doc.data(), timeStamp: empty, 
+  //             uri: allParticipants[change.doc.data().authorID+'Photo'], 
+  //             Name: allParticipants[change.doc.data().authorID+'Name']
+  //           });
+  //         }
+  //         else if(change.type === 'removed') {
+  //           const index = comments.map(e => e.id).indexOf(change.doc.id);
+  //           comments.splice(index,1);
+  //         }
+  //       }
+
+  //       setAllComments(prev => {
+  //         prev = comments;
+  //         return [...prev];
+  //       });
+
+  //     }
+  //   })
+
+  //   return () => {
+  //     unsubscribe2();
+  //   }
+  // })
+
+  // useEffect(() => {
+  //   const loadComments = async () => {
+  //     if(allComments.length == 0) {
+  //       let commentDocs = [];
+  //       const colRef = collection(db, 'Conversations', id, 'Comments');
+  //       const q = query(colRef, orderBy('timeStamp'));
+  
+  //       const comments = await getDocs(q);
+  
+  //       for (const commentDoc of comments.docs) {
+  //         const empty = commentDoc.data().timeStamp === null ? Timestamp.now() : commentDoc.data().timeStamp;
+  
+  //         commentDocs.push({id: commentDoc.id, ...commentDoc.data(), timeStamp: empty, 
+  //           uri: allParticipants[commentDoc.data().authorID+'Photo'], 
+  //           Name: allParticipants[commentDoc.data().authorID+'Name']
+  //         });
+  //       }
+  
+  //       setAllComments(commentDocs);
+  //     }
+  //   }
+    
+  //   loadComments();
+  // }, [allParticipants])
 
   useEffect(() => {
-    if(allParticipants != null) {
-      loadComments();
-    }
-  }, [allParticipants])
-
-  useEffect(() => {
-    if(participantsIDs != null) {
+    if(participantsIDs != null && friendsFlag == 'first render') {
       loadFriends();
     }
   }, [participantsIDs])
+
+  useEffect(() => {
+    if(allParticipants != null && commentsFlag == 'first render') {
+      loadComments();
+    }
+  }, [allParticipants])
 
   useEffect(() => {
     if(expanded){
@@ -151,7 +245,7 @@ export default function Details({ route, navigation }) {
     const q = query(colRef, orderBy('timeStamp'));
     
     const unsubscribe2 = onSnapshot(q, async snapShot => {
-      let comments = allComments;
+      let comments = refreshComments.current == false? allComments : [];
 
       for (const change of snapShot.docChanges()) {
         if(change.type === 'added') {
@@ -159,7 +253,8 @@ export default function Details({ route, navigation }) {
 
           comments.push({id: change.doc.id, ...change.doc.data(), timeStamp: empty, 
             uri: allParticipants[change.doc.data().authorID+'Photo'], 
-            Name: allParticipants[change.doc.data().authorID+'Name']
+            Name: allParticipants[change.doc.data().authorID+'Name'],
+            removed: allParticipants[change.doc.data().authorID+'REM'],
           });
         }
         else if(change.type === 'removed') {
@@ -167,50 +262,16 @@ export default function Details({ route, navigation }) {
           comments.splice(index,1);
         }
       }
-      // console.log('comments: ', comments);
+
       setAllComments(prev => {
         prev = comments;
         return [...prev];
       });
-      // snapShot.docChanges().forEach(change => {
-      //   if(change.type === 'added') {
-      //     console.log('ddddd', change.doc.data());
-      //     setAllComments(async prev => {
-      //       const empty = change.doc.data().timeStamp === null ? Timestamp.now() : change.doc.data().timeStamp;
-      //       const refc = ref(storage, 'Profile Photos/' + change.doc.data().authorID);
-      //       let url_Temp = null;
-      //       try{
-      //         url_Temp = await getDownloadURL(refc);
-      //       }
-      //       catch{
-      //         url_Temp = defaultImg;
-      //       }
-            
-      //       prev.push({id: change.doc.id, ...change.doc.data(), timeStamp: empty, uri: url_Temp});
-      //       console.log('ddddd', prev);
-      //       return [...prev];
-      //     })
-      //   }
-      // })
-
-      // let result = [];
-
-      // for (const doc of snapShot.docs) {
-      //   const empty = doc.data().timeStamp === null ? Timestamp.now() : doc.data().timeStamp;
-      //   const refc = ref(storage, 'Profile Photos/' + doc.data().authorID);
-      //   let url_Temp = null;
-      //   try{
-      //     url_Temp = await getDownloadURL(refc);
-      //   }
-      //   catch{
-      //     url_Temp = defaultImg;
-      //   }
-
-      //   result.push({id: doc.id, ...doc.data(), timeStamp: empty, uri: url_Temp});
-      // }
-
-      // setAllComments(result);
+      refreshComments.current = false;
+      setCommentsFlag('rendered');
     })
+
+    
 
     return () => {
       unsubscribe2();
@@ -221,6 +282,9 @@ export default function Details({ route, navigation }) {
     const friendsRef = collection(db, 'Users', user.uid, 'Friends');
 
     const unsubscribe4 = onSnapshot(friendsRef, async snapShot => {
+      console.log('initial arrayAreFriends: ', arrayAreFriends);
+      console.log('initial arrayNotFriends: ', arrayNotFriends);
+
       let arrayFriends = friends;
       let arrayAreFriends = areFriends;
       let arrayNotFriends = notFriends;
@@ -248,10 +312,16 @@ export default function Details({ route, navigation }) {
         }
       }
 
+      console.log('final arrayAreFriends: ', arrayAreFriends);
+      console.log('final arrayNotFriends: ', arrayNotFriends);
+
       setFriends(arrayFriends);
       setAreFriends(arrayAreFriends);
       setNotFriends(arrayNotFriends);
+      setFriendsFlag('rendered');
     })
+
+    
 
     return () => {
       unsubscribe4();
@@ -313,6 +383,7 @@ export default function Details({ route, navigation }) {
       }
     }
   }
+
   const showAlert = (id) => {
     Alert.alert(
       'Delete Comment?',
@@ -331,6 +402,33 @@ export default function Details({ route, navigation }) {
         cancelable: true
       }
     )
+  }
+
+  const showAlertUser = (id, name) => {
+    Alert.alert(
+      'Delete Comment?',
+      'Are you sure you want to remove ' + name + ' from this conversation?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: "confirm",
+          onPress: () => removeUser(id)
+        }
+      ],
+      {
+        cancelable: true
+      }
+    )
+  }
+
+  const removeUser = (userID) => {
+    updateDoc(doc(db, 'Conversations', id, 'Participants', userID), {
+      removed: true,
+    });
+    deleteDoc(doc(db, 'Users', userID, 'My Conversations', id));
   }
 
   const addComment = () => {
@@ -426,6 +524,7 @@ export default function Details({ route, navigation }) {
         <>
           { post &&
             <>
+              {/* modal */}
               <Modal visible={modalOpen} animationType='slide' onRequestClose={() => setModalOpen(false)}>
                 <MenuProvider skipInstanceCheck style={{flex:1}}>
                   <View style={{flex:1, backgroundColor:'#806b96'}}>
@@ -473,20 +572,20 @@ export default function Details({ route, navigation }) {
                       <FlatList data={data} extraData={[friends, areFriends, notFriends, participantsIDs]} renderItem={({ item }) => (
                         <View style={styles.item}>
 
-                          <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20}}>
+                          <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20, opacity: (item.removed == true)? 0.5 : 1}}>
                             <Image source={{uri: item.photo}} style={[{height:40, width:40, borderRadius:50, borderColor:'#4ebbed'}, {borderWidth: (item.id == user.uid)?2:0}]} />
                             <Text style={[{fontSize:18, marginLeft:10}, {color: (item.id == user.uid)?'#4ebbed':'white'}]}>{ item.name }</Text>
-                            {(item.id != user.uid) && 
+                            {(item.id != user.uid && item.removed == false) && 
                               <Menu style={styles.menu}>
                               <MenuTrigger>
                                 <MaterialIcons name='more-horiz' size={20} color='white'  />
                               </MenuTrigger>
                               <MenuOptions>
-                                <MenuOption onSelect={() => showAlert(item.ID, item.Name)}>
+                                <MenuOption onSelect={() => showAlertUser(item.id, item.name)}>
                                   <Text style={{color: "red", fontSize: 18, margin: 5}}>Remove</Text>
                                 </MenuOption>
 
-                                <MenuOption onSelect={() => showAlert(item.ID, item.Name)}>
+                                <MenuOption onSelect={() => showAlert(item.id, item.name)}>
                                   <Text style={{color: "red", fontSize: 18, margin: 5}}>Add to friends</Text>
                                 </MenuOption>
                                 
@@ -503,7 +602,7 @@ export default function Details({ route, navigation }) {
                 </MenuProvider>
               </Modal>
 
-
+              {/* topic card */}
               <View style={{zIndex:999}}>
                 {expanded ? (
                   <View style={styles.card}>
@@ -607,7 +706,7 @@ export default function Details({ route, navigation }) {
 
               </View>
 
-
+              {/* comments */}
               <KeyboardAvoidingView style={styles.container}  >
                 <View style={{flex:1}}>
                   <ScrollView ref={scrollView} onContentSizeChange={(w, h) => {scrollView.current.scrollToEnd({animated:false})}}>
@@ -630,6 +729,7 @@ export default function Details({ route, navigation }) {
                     </View>
                     
                   </ScrollView>
+
                   <View style={styles.commentBox}>
                     <TextInput
                       style={styles.comment}
@@ -750,6 +850,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     marginTop:14,
+    marginHorizontal:4
   },
   listItem: {
     flex: 1,

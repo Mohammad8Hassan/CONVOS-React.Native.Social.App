@@ -4,7 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 export default function RenderOthersComment(props) {
   return (
-    <>
+    <View style={{flexDirection:'row', flex:1, opacity: (props.comment.removed == true)? 0.5 : 1}}>
       <View style={styles.delete} >
         {(props.userID == props.comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => showAlert(props.comment.id)}/>}
       </View>
@@ -12,15 +12,15 @@ export default function RenderOthersComment(props) {
         <View style={styles.commentViewInner}>
           <Text style={styles.theComment} selectable>{props.comment.comment}</Text>
           <View style={styles.commentDetails}>
-            <Text style={styles.author} selectable>{ props.comment.author }</Text>
+            <Text style={styles.author} selectable>{ props.comment.Name }</Text>
             <Text style={styles.commentDate}>  •  {props.comment.timeStamp.toDate().toDateString()}</Text>
           </View>
         </View>
       </View>
-      <View style={{justifyContent:'center', alignItems:'center'}}>
+      <View style={{justifyContent:'center', alignItems:'center', marginRight:3}}>
         <Image source={{uri: props.comment.uri}} style={{width:35, height:35, borderRadius:60, marginRight:3, borderColor:'#613a5f', borderWidth:1, position:'absolute', alignSelf:'flex-end'}} />
       </View>
-    </>
+    </View>
   )
 }
 
