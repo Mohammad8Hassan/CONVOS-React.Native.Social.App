@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     justifyContent:'space-between', 
     alignItems:'center',
     backgroundColor: '#613a5f',
-    padding: 10
+    padding: 5
   },
   container: {
     flex: 1,

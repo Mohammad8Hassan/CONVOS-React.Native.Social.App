@@ -114,7 +114,8 @@ export default function NewConv({ navigation }) {
         authorID: user.uid,
         title: values.title,
         body: values.body,
-        dateCreated: serverTimestamp()
+        dateCreated: serverTimestamp(),
+        lastAccessed: serverTimestamp(),
       });
 
       selectedFriends.forEach(person => {
@@ -143,6 +144,7 @@ export default function NewConv({ navigation }) {
         ID: user.uid,
         removed: false
       });
+
 
       ToastAndroid.show('Conversation Created', ToastAndroid.SHORT);
       navigation.popToTop();
@@ -399,7 +401,6 @@ export default function NewConv({ navigation }) {
       </Modal>
 
       {/* Page Contents */}
-
       <View style={{flex: 1, padding:10,}}>
         <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}
         progressBackgroundColor={'white'} />}
@@ -497,12 +498,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 2,
     fontSize: 18,
-    padding: 10,
+    padding: 6,
+    paddingLeft:8,
     borderColor:"#574866",
     backgroundColor: '#ede9f2',
     alignSelf:'stretch',
     marginRight: 50,
-    borderRadius:20
+    borderRadius:10
   },
   errorText: {
     color: '#ff9cc3',
@@ -515,12 +517,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 2,
     fontSize: 18,
-    padding: 10,
+    padding: 8,
+    paddingLeft:8,
     borderColor:"#574866",
     backgroundColor: '#ede9f2',
     alignSelf:'stretch',
     marginRight: 50,
-    borderRadius:20,
+    borderRadius:10,
   },
   buttonSubmit: {
     backgroundColor: '#1da877',

@@ -159,25 +159,37 @@ export default function Friends({ navigation }) {
    )
  }
 
- const joinFriendConversation = (id, title, body, authorID) => {
-  setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
-    Name: user.displayName,
-    ID: user.uid,
-    removed: false,
-  });
+ const joinFriendConversation = async (id, title, body, authorID) => {
+  const checkExists = await getDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
+  if(checkExists.exists()) {
+    setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
+      Name: user.displayName,
+      ID: user.uid,
+      removed: false,
+    });
+  
+    deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
+  
+    setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
+      authorID: authorID,
+      title: title,
+      body: body,
+      dateCreated: serverTimestamp()
+    });
 
-  deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
-
-  setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
-    authorID: authorID,
-    title: title,
-    body: body,
-    dateCreated: serverTimestamp()
-  });
-
-  ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
-
-  navigation.navigate('Details', { id });
+    addDoc(collection(db, 'Conversations', id, 'Comments'), {
+      comment: 'joined',
+      author: user.displayName,
+      authorID: user.uid,
+      timeStamp: serverTimestamp(),
+      system: true,
+    })
+  
+    ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
+  
+    navigation.navigate('Details', { id });
+  }
+  
  }
 
  const deleteFriendInvite = (id) => {
@@ -335,7 +347,7 @@ const styles = StyleSheet.create({
    flexDirection: 'row', 
    alignItems:'center',
    backgroundColor: '#613a5f',
-   padding: 15,
+   padding: 5,
    elevation:15
  },
  join: {

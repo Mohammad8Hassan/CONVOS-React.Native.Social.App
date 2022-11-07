@@ -16,7 +16,7 @@ export default function RenderComment(props) {
       </View>
       <Image source={{uri: props.comment.uri}} style={{width:35, height:35, borderRadius:60, marginLeft:3, borderColor:'#613a5f', borderWidth:1, position:'absolute'}} />
       <View style={styles.delete} >
-        {(props.userID == props.comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => props.alert(props.comment.id)}/>}
+        <MaterialIcons name='delete' color='grey' size={25} onPress={() => props.alert(props.comment.id)}/>
       </View>
     </>
   )
@@ -43,7 +43,8 @@ const styles = StyleSheet.create({
   },
   commentView: {
     backgroundColor: 'pink',
-    padding: 10,
+    padding: 5,
+    paddingRight:8,
     marginRight: 50,
     marginLeft: 20,
     borderRadius: 17,

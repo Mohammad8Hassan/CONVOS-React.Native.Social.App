@@ -18,6 +18,7 @@ import RenderOthersComment from '../shared/RenderOthersComment';
 import * as FileSystem from "expo-file-system";
 import * as Clipboard from 'expo-clipboard';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider, } from 'react-native-popup-menu';
+import SystemMessage from '../shared/SystemMessage';
 
 export default function Details({ route, navigation }) {
 
@@ -42,14 +43,16 @@ export default function Details({ route, navigation }) {
   const [commentsFlag, setCommentsFlag] = useState('first render');
   const [friendsFlag, setFriendsFlag] = useState('first render');
 
-  const refreshComments = useRef(false);
+  // const refreshComments = useRef(false);
 
   const db = getFirestore();
   const storage = getStorage();
   const defaultImg = Image.resolveAssetSource(avatar).uri;
   const user = getAuth().currentUser;
+  const mount = useRef(false);
 
   useEffect(() => {
+    mount.current = true;
     const tab = navigation.getParent();
     tab.setOptions({
       tabBarStyle: {display: 'none'}
@@ -60,6 +63,10 @@ export default function Details({ route, navigation }) {
         scrollView.current.scrollToEnd({animated:true});
       }
     })
+
+    updateDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
+      lastAccessed: Timestamp.now(),
+    });
 
     const unsubscribe = onSnapshot(doc(db, 'Conversations', id), snapShot => {
       if(snapShot.data()) {
@@ -92,10 +99,7 @@ export default function Details({ route, navigation }) {
     const participantsRef = collection(db, 'Conversations', id, 'Participants');
     
     const unsubscribe3 =  onSnapshot(participantsRef, async snapShot => {
-      console.log('1: ', participantsID);
-      // participants = allParticipants == null? {} : allParticipants;
-      // participantsID = participantsIDs == null? [] : participantsIDs;
-      console.log('2: ', participantsID);
+      
       await Promise.all(snapShot.docChanges().map(async change => {
 
         if(change.type === 'added') {
@@ -104,19 +108,47 @@ export default function Details({ route, navigation }) {
           const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
 
           participantsID.push({id: change.doc.id, photo: photo, name: info.data().Name, removed: change.doc.data().removed});
-          console.log('3: ', participantsID);
+          // console.log('3: ', participantsID);
 
           participants[change.doc.id + 'Name'] = info.data().Name;
           participants[change.doc.id + 'Photo'] = photo;
           participants[change.doc.id + 'ID'] = change.doc.id;
           participants[change.doc.id + 'REM'] = change.doc.data().removed;
+
+          // setAllComments(prev => {
+          //   prev.forEach(comment => {
+          //     if(comment['authorID'] == change.doc.id) {
+          //       comment['removed'] = false;
+          //     }
+          //   })
+            
+          //   return [...prev];
+          // })
         }
         else if(change.type === 'modified') {
           if(change.doc.data().removed == true) {
+            // await addDoc(collection(db, 'Conversations', id, 'Comments'), {
+            //   comment: 'removed',
+            //   author: change.doc.data().Name,
+            //   authorID: change.doc.id,
+            //   timeStamp: serverTimestamp(),
+            //   system: true,
+            // })
+
             const index = participantsID.map(e => e.id).indexOf(change.doc.id);
             participantsID[index].removed = true;
   
             participants[change.doc.id + 'REM'] = true;
+
+            setAllComments(prev => {
+              prev.forEach(comment => {
+                if(comment['authorID'] == change.doc.id) {
+                  comment['removed'] = true;
+                }
+              })
+              
+              return [...prev];
+            })
   
             if(change.doc.id == user.uid) {
               setIsAvailable(false);
@@ -127,14 +159,23 @@ export default function Details({ route, navigation }) {
             participantsID[index].removed = false;
   
             participants[change.doc.id + 'REM'] = false;
+
+            setAllComments(prev => {
+              prev.forEach(comment => {
+                if(comment['authorID'] == change.doc.id) {
+                  comment['removed'] = false;
+                }
+              })
+              
+              return [...prev];
+            })
           }
           
         }
 
         
       }));
-      console.log('4: ', participantsID);
-
+      
       setAllParticipants(participants);
       setParticipantsIDs(participantsID);
       setData(prev => {prev = participantsID; return [...prev]});
@@ -151,6 +192,7 @@ export default function Details({ route, navigation }) {
       unsubscribe();
       unsubscribe3();
       showSubscription.remove();
+      mount.current = false;
     }
 
   }, [])
@@ -226,7 +268,7 @@ export default function Details({ route, navigation }) {
   }, [participantsIDs])
 
   useEffect(() => {
-    if(allParticipants != null && commentsFlag == 'first render') {
+    if((allParticipants != null && commentsFlag == 'first render')) {
       loadComments();
     }
   }, [allParticipants])
@@ -241,11 +283,14 @@ export default function Details({ route, navigation }) {
   }, [expanded])
 
   const loadComments = useCallback(() => {
+    console.log("loading comments...")
     const colRef = collection(db, 'Conversations', id, 'Comments');
     const q = query(colRef, orderBy('timeStamp'));
     
     const unsubscribe2 = onSnapshot(q, async snapShot => {
-      let comments = refreshComments.current == false? allComments : [];
+      let comments = allComments;
+
+      // console.log('allParticipants: ', allParticipants);
 
       for (const change of snapShot.docChanges()) {
         if(change.type === 'added') {
@@ -255,6 +300,7 @@ export default function Details({ route, navigation }) {
             uri: allParticipants[change.doc.data().authorID+'Photo'], 
             Name: allParticipants[change.doc.data().authorID+'Name'],
             removed: allParticipants[change.doc.data().authorID+'REM'],
+            system: change.doc.data().system == undefined? false : change.doc.data().system,
           });
         }
         else if(change.type === 'removed') {
@@ -267,13 +313,14 @@ export default function Details({ route, navigation }) {
         prev = comments;
         return [...prev];
       });
-      refreshComments.current = false;
+
       setCommentsFlag('rendered');
     })
 
     
 
     return () => {
+      console.log('RETURNED!!');
       unsubscribe2();
     }
   }, [allParticipants])
@@ -282,8 +329,8 @@ export default function Details({ route, navigation }) {
     const friendsRef = collection(db, 'Users', user.uid, 'Friends');
 
     const unsubscribe4 = onSnapshot(friendsRef, async snapShot => {
-      console.log('initial arrayAreFriends: ', arrayAreFriends);
-      console.log('initial arrayNotFriends: ', arrayNotFriends);
+      // console.log('initial arrayAreFriends: ', arrayAreFriends);
+      // console.log('initial arrayNotFriends: ', arrayNotFriends);
 
       let arrayFriends = friends;
       let arrayAreFriends = areFriends;
@@ -312,8 +359,8 @@ export default function Details({ route, navigation }) {
         }
       }
 
-      console.log('final arrayAreFriends: ', arrayAreFriends);
-      console.log('final arrayNotFriends: ', arrayNotFriends);
+      // console.log('final arrayAreFriends: ', arrayAreFriends);
+      // console.log('final arrayNotFriends: ', arrayNotFriends);
 
       setFriends(arrayFriends);
       setAreFriends(arrayAreFriends);
@@ -415,7 +462,7 @@ export default function Details({ route, navigation }) {
         },
         {
           text: "confirm",
-          onPress: () => removeUser(id)
+          onPress: () => removeUser(id, name)
         }
       ],
       {
@@ -424,10 +471,19 @@ export default function Details({ route, navigation }) {
     )
   }
 
-  const removeUser = (userID) => {
+  const removeUser = async (userID, name) => {
+    addDoc(collection(db, 'Conversations', id, 'Comments'), {
+      comment: 'removed',
+      author: name,
+      authorID: userID,
+      timeStamp: serverTimestamp(),
+      system: true,
+    })
+    
     updateDoc(doc(db, 'Conversations', id, 'Participants', userID), {
       removed: true,
     });
+
     deleteDoc(doc(db, 'Users', userID, 'My Conversations', id));
   }
 
@@ -451,9 +507,10 @@ export default function Details({ route, navigation }) {
     
     await addDoc(collection(db, 'Conversations', id, 'Comments'), {
       comment: theComment,
-      author: getAuth().currentUser.displayName,
-      authorID: getAuth().currentUser.uid,
-      timeStamp: serverTimestamp()
+      author: user.displayName,
+      authorID: user.uid,
+      timeStamp: serverTimestamp(),
+      system: false
     })
   }
 
@@ -716,12 +773,19 @@ export default function Details({ route, navigation }) {
                         allComments.map(comment => {
                           return (
                             <View style={styles.listItem} key={comment.id}>
-                              {(comment.authorID == user.uid) ? (
-                                <RenderComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} />
+                              {comment.system ? (
+                                <SystemMessage comment={comment} />
                               ) : (
-                                <RenderOthersComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} />
-                              )
-                              }
+                                <>
+                                  {(comment.authorID == user.uid) ? (
+                                    <RenderComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} />
+                                  ) : (
+                                    <RenderOthersComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} />
+                                  )
+                                  }
+                                </>
+                              )}
+                              
                             </View>
                           )
                         })
@@ -764,7 +828,7 @@ export default function Details({ route, navigation }) {
               <Text style={{color:'#8b8c41', fontSize:20, marginLeft:10, fontWeight:'bold'}}>Conversation not available</Text>
             </View>
             <View style={styles.naBody}>
-              <Text style={{fontSize:18, color:'#8b8c41'}}>The owner may have removed you, or it has been deleted</Text>
+              <Text style={{fontSize:18, color:'#8b8c41'}}>It may have been deleted, or you are no longer a participant</Text>
             </View>
           </View>
         )

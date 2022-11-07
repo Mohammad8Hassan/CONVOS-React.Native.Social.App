@@ -45,7 +45,8 @@ const styles = StyleSheet.create({
   },
   commentView: {
     backgroundColor: '#c0f0ff',
-    padding: 10,
+    padding: 5,
+    paddingLeft:8,
     marginRight: 20,
     marginLeft: 50,
     borderRadius: 17,

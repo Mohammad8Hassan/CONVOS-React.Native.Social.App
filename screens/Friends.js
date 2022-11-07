@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     alignItems:'center',
     backgroundColor: '#613a5f',
-    padding: 15,
+    padding: 5,
     elevation:15
   },
   outerView: {

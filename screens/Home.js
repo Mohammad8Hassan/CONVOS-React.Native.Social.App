@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback} from 'react';
+import { useState, useEffect, useCallback, useRef} from 'react';
 import { StyleSheet, Text, View, Button, FlatList, TouchableOpacity, ImageBackground, Modal,
   KeyboardAvoidingView, ScrollView, Alert, Image, TouchableWithoutFeedback, TextInput, Pressable, ToastAndroid,
   ActivityIndicator, } from 'react-native';
@@ -8,7 +8,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import Form from '../shared/Form';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy,
-   doc, deleteDoc, setDoc, Timestamp, where, documentId, getDoc } from 'firebase/firestore'
+   doc, deleteDoc, setDoc, Timestamp, where, documentId, getDoc, getDocs } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,7 +17,7 @@ import avatar from '../assets/Imgs/avatar.png';
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import _, { set } from 'lodash';
-import { LinearGradient } from 'expo-linear-gradient';
+import * as FileSystem from "expo-file-system";
 
 // component
 export default function Home({ navigation }) {
@@ -35,46 +35,151 @@ export default function Home({ navigation }) {
   const user = getAuth().currentUser;
 
   const focused = useIsFocused();
+  const authors = useRef({});
+  const flag = useRef('first render');
 
   useEffect(() => {
-    setModalVisible(false);
-    setShowPassword(false);
-    setPassword('');
-    setResponse(null);
+    const focusTasks = async () => {
+      setModalVisible(false);
+      setShowPassword(false);
+      setPassword('');
+      setResponse(null);
+
+      const colRef = collection(db, 'Users', user.uid, 'My Conversations');
+      const q = query(colRef, orderBy('lastAccessed', 'desc'));
+      const convs = await getDocs(q);
+
+      if(flag.current != 'first render' && focused) {
+        setConversations(prev => {
+          prev = [];
+          
+          for(let conv of convs.docs) {
+            const empty = conv.data().dateCreated === null ? Timestamp.now() : conv.data().dateCreated;
+            prev.push({id: conv.id, ...conv.data(), 
+              dateCreated: empty.toDate(),
+              uri: authors.current[conv.data().authorID+'Photo'], 
+              author: authors.current[conv.data().authorID+'Name']});
+          }
+          return [...prev];
+        });
+      }
+    }
+
+    focusTasks();
+    
   }, [focused])
+
+  // useEffect(() => {
+  //   console.log('display conversations: ', conversations)
+  // }, [conversations])
 
   useEffect(() => {
     const colRef = collection(db, 'Users', user.uid, 'My Conversations');
-    
-    onSnapshot(colRef, async snapShot => {
-      let result = [];
-      
-      for (const conv of snapShot.docs) {
-        const author = await getDoc(doc(db, 'Users', conv.data().authorID))
-        const empty = conv.data().dateCreated === null ? Timestamp.now() : conv.data().dateCreated;
-        const refc = ref(storage, 'Profile Photos/' + conv.data().authorID);
-        let url_Temp = null;
-        try{
-          url_Temp = await getDownloadURL(refc);
-        }
-        catch{
-          url_Temp = defaultImg;
-        }
+    const q = query(colRef, orderBy('lastAccessed'));
+    let result = [];
+    // let authors = {};
 
-        result.push({id: conv.id, ...conv.data(), dateCreated: empty.toDate(), uri: url_Temp, author: author.data().Name});
+    const unsubscribe1 = onSnapshot(q, async snapShot => {
+      for(let change of snapShot.docChanges()) {
+        console.log('change: ', change.type, change.doc.data());
+        if(change.type === 'added') {
+          if(authors.current[change.doc.data().authorID+'ID'] == undefined) {
+            const info = await getDoc(doc(db, 'Users', change.doc.data().authorID));
+
+            const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+
+            authors.current[info.id + 'Name'] = info.data().Name;
+            authors.current[info.id + 'Photo'] = photo;
+            authors.current[info.id + 'ID'] = info.id;
+          }
+
+          const empty = change.doc.data().dateCreated === null ? Timestamp.now() : change.doc.data().dateCreated;
+          
+          result.unshift({id: change.doc.id, ...change.doc.data(), dateCreated: empty.toDate(), 
+            uri: authors.current[change.doc.data().authorID+'Photo'], 
+            author: authors.current[change.doc.data().authorID+'Name']});
+        }
+        else if(change.type === 'removed') {
+          const index = result.map(e => e.id).indexOf(change.doc.id);
+          result.splice(index,1);
+        }
+        
       }
       
-      console.log(result);
-      setConversations(result);
-
-    
+      // console.log('result: ', result);
+      setConversations(prev => {prev = result; return[...prev]});
+      flag.current = 'rendered';
     })
     
+    return () => {
+      unsubscribe1();
+    }
   }, [])
 
+
+  async function findImageInCache(uri) {
+    try {
+      let info = await FileSystem.getInfoAsync(uri);
+      return { ...info, err: false };
+    } catch (error) {
+      return {
+        exists: false,
+        err: true,
+        msg: error,
+      };
+    }
+  }
+
+  async function cacheImage(uri, cacheUri, callback) {
+    // console.log('will download');
+    try {
+      const downloadImage = FileSystem.createDownloadResumable(
+        uri,
+        cacheUri,
+        {},
+        callback
+      );
+      const downloaded = await downloadImage.downloadAsync();
+      return {
+        cached: true,
+        err: false,
+        path: downloaded.uri,
+      };
+    } catch (error) {
+      return {
+        cached: false,
+        err: true,
+        msg: error,
+      };
+    }
+  }
+
+  async function prepareImg(photo, photoExtension) {
+    const newUri = /[^=]*$/.exec(photo)[0];
+    const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
+    const isNew = await findImageInCache(cacheFileUri);
+    if (isNew.exists) {
+      // console.log("cached!");
+      return cacheFileUri;
+    } else {
+      let cached = await cacheImage(photo, cacheFileUri, () => {});
+      if (cached.cached) {
+        // console.log("cached new!");
+        return cached.path;
+      } else {
+        // console.log("Couldn't load Image!");
+        // console.log(cached.msg)
+      }
+    }
+  }
+
   const deletePost = (id) => {
-    deleteDoc(doc(db, 'Conversations', id));
     deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
+    deleteDoc(doc(db, 'Conversations', id));
+    
+    // updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
+    //   removed: true,
+    // });
   }
 
   const showAlert = (id) => {
@@ -97,6 +202,43 @@ export default function Home({ navigation }) {
     )
   }
 
+  const leaveConversations = async (id) => {
+    // await updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
+    //   removed: true,
+    // });
+
+    // await addDoc(collection(db, 'Conversations', id, 'Comments'), {
+    //   comment: 'left',
+    //   author: user.displayName,
+    //   authorID: user.uid,
+    //   timeStamp: serverTimestamp(),
+    //   system: true,
+    // })
+
+    await deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
+  }
+
+
+  const showAlertLeave = (id) => {
+    Alert.alert(
+      'Leave Conversation?',
+      'Are you sure you want to leave this conversation?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: "confirm",
+          onPress: () => leaveConversations(id)
+        }
+      ],
+      {
+        cancelable: true
+      }
+    )
+  }
+
   const clickOut = () => {
     setModalVisible(false);
     setConvID('');
@@ -108,6 +250,8 @@ export default function Home({ navigation }) {
   const joinConversation = async () => {
     setShowIndicator(true);
     setResponse(null);
+
+    const convRef = await getDoc(doc(db, 'Conversations', convID));
     if(showPassword == false) {
       console.log('11111');
       if(convID == '') {
@@ -115,9 +259,8 @@ export default function Home({ navigation }) {
         setResponse('No conversations found!');
         return;
       }
-      const convExists = await getDoc(doc(db, 'Conversations', convID));
-
-      if(convExists.exists()) {
+      
+      if(convRef.exists()) {
         console.log('22222');
         const checkExist = await getDoc(doc(db, 'Conversations', convID, 'Participants', user.uid));
         if(checkExist.exists() && checkExist.data().removed == false) {
@@ -132,9 +275,8 @@ export default function Home({ navigation }) {
           setShowIndicator(false);
           return;
         }
-        //redundant api cal!!
-        const passCheck = await getDoc(doc(db, 'Conversations', convID));
-        if(passCheck.data().password) {
+        
+        if(convRef.data().password) {
           console.log('enter password');
           setShowPassword(true);
           setShowIndicator(false);
@@ -147,12 +289,18 @@ export default function Home({ navigation }) {
           removed: false,
         })
 
-        //redundant api cal!!
-        const getConvInfo = await getDoc(doc(db, 'Conversations', convID));
+        await addDoc(collection(db, 'Conversations', convID, 'Comments'), {
+          comment: 'joined',
+          author: user.displayName,
+          authorID: user.uid,
+          timeStamp: serverTimestamp(),
+          system: true,
+        })
+
         await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {
-          authorID: getConvInfo.data().authorID,
-          title: getConvInfo.data().title,
-          body: getConvInfo.data().body,
+          authorID: convRef.data().authorID,
+          title: convRef.data().title,
+          body: convRef.data().body,
           dateCreated: serverTimestamp()
         })
         console.log('enter 1 ..');
@@ -166,19 +314,17 @@ export default function Home({ navigation }) {
     }
     else {
       console.log('44444');
-      // redundant api call!!
-      const passCheck = await getDoc(doc(db, 'Conversations', convID));
-      if(password == passCheck.data().password) {
+      if(password == convRef.data().password) {
         await setDoc(doc(db, 'Conversations', convID, 'Participants', user.uid), {
           ID: user.uid,
           Name: user.displayName,
           removed: false,
         })
-        const getConvInfo = await getDoc(doc(db, 'Conversations', convID));
+
         await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {
-          authorID: getConvInfo.data().authorID,
-          title: getConvInfo.data().title,
-          body: getConvInfo.data().body,
+          authorID: convRef.data().authorID,
+          title: convRef.data().title,
+          body: convRef.data().body,
           dateCreated: serverTimestamp()
         })
         console.log('enter 2 ..');
@@ -292,20 +438,21 @@ export default function Home({ navigation }) {
                 <View style={styles.content}>
                   <View style={styles.header}>
                     <Text style={globalStyles.titleText}>{ item.title }</Text>
-                    
-                    {(getAuth().currentUser.uid == item.authorID) &&
                       <Menu>
                         <MenuTrigger>
                           <MaterialIcons name='more-horiz' size={24} color="grey"/>
                         </MenuTrigger>
                         <MenuOptions>
-                          <MenuOption onSelect={() => showAlert(item.id)}>
-                            <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
+                          {(getAuth().currentUser.uid == item.authorID) &&
+                            <MenuOption onSelect={() => showAlert(item.id)}>
+                              <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
+                            </MenuOption>
+                          }
+                          <MenuOption onSelect={() => showAlertLeave(item.id)}>
+                            <Text style={{color: "red", fontSize: 18, margin: 5}}>Leave Conversation</Text>
                           </MenuOption>
                         </MenuOptions>
                       </Menu>
-                    }
-                    
                   </View>
                   <Text style={styles.body} numberOfLines={2}>{ item.body }</Text>
                 </View>
@@ -318,7 +465,7 @@ export default function Home({ navigation }) {
                         <Text style={styles.createdAuthor}>{ item.author }</Text>
                       )
                     }
-                    <Text style={styles.createdTime}>{ item.dateCreated.toDateString()}</Text>
+                    {/* <Text style={styles.createdTime}>{ item.dateCreated.toDateString()}</Text> */}
                   </View>
                   {item.author == user.displayName? (
                       <Image source={{uri: user.photoURL}} style={styles.pic} />
@@ -392,7 +539,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems:'center',
     backgroundColor: '#613a5f',
-    padding: 10
+    padding: 5
   },
   createdAuthor: {
     fontSize: 15,
