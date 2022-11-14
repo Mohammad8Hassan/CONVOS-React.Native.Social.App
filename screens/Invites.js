@@ -58,8 +58,8 @@ export default function Friends({ navigation }) {
    })
 
    // Others Invites
-   const colRef2 = collection(db, 'Users', user.uid, 'Others Invites');
-   const q2 = query(colRef2, orderBy('dateCreated'));
+   const colRef2 = collection(db, 'Users', user.uid, 'Other Invites');
+   const q2 = query(colRef2, orderBy('timeStamp'));
    onSnapshot(q2, async snapShot => {
      let result = [];
      let num = 0;
@@ -68,7 +68,7 @@ export default function Friends({ navigation }) {
        const empty = dok.data().timeStamp === null ? Timestamp.now() : dok.data().timeStamp;
        const user = await getDoc(doc(db, 'Users', dok.data().authorID));
 
-       result.push({...dok.data(), ID: dok.id,  timeStamp: empty.toDate(), name: user.data().Name, uri: user.data().Photo});
+       result.push({...dok.data(), ID: dok.id,  timeStamp: empty.toDate(), Name: user.data().Name, Photo: user.data().Photo});
        num++;
      }
 
@@ -130,6 +130,7 @@ export default function Friends({ navigation }) {
  }
 
  const selectOthers = () => {
+  console.log('OtherInvites ', OthersInvites);
   setData(OthersInvites); 
   setSelector('others'); 
   setTitle('Invites - '); 
@@ -183,7 +184,7 @@ export default function Friends({ navigation }) {
       authorID: user.uid,
       timeStamp: serverTimestamp(),
       system: true,
-    })
+    });
   
     ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
   
@@ -197,22 +198,36 @@ export default function Friends({ navigation }) {
  }
 
 
- const joinOtherConversation = (id) => {
-  setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
-    Name: user.displayName,
-    ID: user.uid,
-    removed: false,
-  });
+ const joinOtherConversation = async (id, title, body, authorID) => {
+  const checkExists = await getDoc(doc(db, 'Users', user.uid, 'Others Invites', id));
+  if(checkExists.exists()) {
+    setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
+      Name: user.displayName,
+      ID: user.uid,
+      removed: false,
+    });
+  
+    deleteDoc(doc(db, 'Users', user.uid, 'Others Invites', id));
+  
+    setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
+      authorID: authorID,
+      title: title,
+      body: body,
+      dateCreated: serverTimestamp()
+    });
 
-  deleteDoc(doc(db, 'Users', user.uid, 'Others Invites', id));
-
-  setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
-    dateCreated: serverTimestamp()
-  });
-
-  ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
-
-  navigation.navigate('Details', { id });
+    addDoc(collection(db, 'Conversations', id, 'Comments'), {
+      comment: 'joined',
+      author: user.displayName,
+      authorID: user.uid,
+      timeStamp: serverTimestamp(),
+      system: true,
+    });
+  
+    ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
+  
+    navigation.navigate('Details', { id });
+  }
  }
 
  const deleteOtherInvite = (id) => {
@@ -232,7 +247,7 @@ export default function Friends({ navigation }) {
           <View style={styles.item}>
 
             <View style={{margin:15}}>
-              <Text style={{color:'white', fontSize:20, padding:5, backgroundColor:'#613a5f'}}>{ item.title }</Text>
+              <Text style={{color:'white', fontSize:20, padding:5, backgroundColor:'#613a5f'}} numberOfLines={2}>{ item.title }</Text>
             </View>
 
             <View style={{flexDirection:'row', alignItems:'center', marginHorizontal:8}}>
@@ -275,7 +290,7 @@ export default function Friends({ navigation }) {
     joinFriendConversation(id, title, body, authorID);
   }
   else {
-    joinOtherConversation(id);
+    joinOtherConversation(id, title, body, authorID);
   }
  }
 

@@ -12,9 +12,11 @@ import { Formik } from 'formik';
 const reviewSchema = yup.object({
   title: yup.string()
     .required()
+    .max(30)
     .min(1),
   body: yup.string()
     .required()
+    .max(300)
     .min(1),
 });
 
@@ -144,6 +146,14 @@ export default function NewConv({ navigation }) {
         ID: user.uid,
         removed: false
       });
+
+      addDoc(collection(db, 'Conversations', ref.id, 'Comments'), {
+        comment: 'joined',
+        author: user.displayName,
+        authorID: user.uid,
+        timeStamp: serverTimestamp(),
+        system: true,
+      })
 
 
       ToastAndroid.show('Conversation Created', ToastAndroid.SHORT);

@@ -8,7 +8,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import Form from '../shared/Form';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy,
-   doc, deleteDoc, setDoc, Timestamp, where, documentId, getDoc, getDocs } from 'firebase/firestore'
+   doc, deleteDoc, setDoc, Timestamp, updateDoc, getDoc, getDocs } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,11 +40,13 @@ export default function Home({ navigation }) {
 
   useEffect(() => {
     const focusTasks = async () => {
+      if(focused) enterConversation.cancel();
+      
       setModalVisible(false);
       setShowPassword(false);
       setPassword('');
       setResponse(null);
-
+      
       const colRef = collection(db, 'Users', user.uid, 'My Conversations');
       const q = query(colRef, orderBy('lastAccessed', 'desc'));
       const convs = await getDocs(q);
@@ -177,9 +179,6 @@ export default function Home({ navigation }) {
     deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
     deleteDoc(doc(db, 'Conversations', id));
     
-    // updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
-    //   removed: true,
-    // });
   }
 
   const showAlert = (id) => {
@@ -203,17 +202,17 @@ export default function Home({ navigation }) {
   }
 
   const leaveConversations = async (id) => {
-    // await updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
-    //   removed: true,
-    // });
+    await updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
+      removed: true,
+    });
 
-    // await addDoc(collection(db, 'Conversations', id, 'Comments'), {
-    //   comment: 'left',
-    //   author: user.displayName,
-    //   authorID: user.uid,
-    //   timeStamp: serverTimestamp(),
-    //   system: true,
-    // })
+    await addDoc(collection(db, 'Conversations', id, 'Comments'), {
+      comment: 'left',
+      author: user.displayName,
+      authorID: user.uid,
+      timeStamp: serverTimestamp(),
+      system: true,
+    })
 
     await deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
   }
@@ -437,7 +436,7 @@ export default function Home({ navigation }) {
               <Card>
                 <View style={styles.content}>
                   <View style={styles.header}>
-                    <Text style={globalStyles.titleText}>{ item.title }</Text>
+                    <Text style={styles.titleText} numberOfLines={1}>{ item.title }</Text>
                       <Menu>
                         <MenuTrigger>
                           <MaterialIcons name='more-horiz' size={24} color="grey"/>
@@ -502,8 +501,8 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   content:{
-    marginHorizontal: 18,
-    marginTop: 20,
+    marginHorizontal: 13,
+    marginTop: 10,
   },
   createdView: {
     flexDirection: 'row',
@@ -541,6 +540,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#613a5f',
     padding: 5
   },
+  titleText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+    marginRight: 50
+  },
   createdAuthor: {
     fontSize: 15,
     color: '#545303',
@@ -551,7 +557,7 @@ const styles = StyleSheet.create({
     marginLeft: 'auto'
   },
   body: {
-    marginTop: 15,
+    marginTop: 10,
     fontSize: 20,
   },
   header: {
@@ -578,7 +584,7 @@ const styles = StyleSheet.create({
   createdViewContainer: {
     flexDirection:'row', 
     alignItems:'center', 
-    marginTop: 20,
+    marginTop: 15,
   },
   outerView: {
     flex: 1,

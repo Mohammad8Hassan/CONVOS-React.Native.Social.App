@@ -41,7 +41,7 @@ export default function Details({ route, navigation }) {
   const [areFriends, setAreFriends] = useState([]);
   const [notFriends, setNotFriends] = useState([]);
   const [commentsFlag, setCommentsFlag] = useState('first render');
-  const [friendsFlag, setFriendsFlag] = useState('first render');
+  // const [friendsFlag, setFriendsFlag] = useState('first render');
 
   // const refreshComments = useRef(false);
 
@@ -50,6 +50,7 @@ export default function Details({ route, navigation }) {
   const defaultImg = Image.resolveAssetSource(avatar).uri;
   const user = getAuth().currentUser;
   const mount = useRef(false);
+  const friendsFlag = useRef('first render');
 
   useEffect(() => {
     mount.current = true;
@@ -262,7 +263,7 @@ export default function Details({ route, navigation }) {
   // }, [allParticipants])
 
   useEffect(() => {
-    if(participantsIDs != null && friendsFlag == 'first render') {
+    if(participantsIDs != null && friendsFlag.current == 'first render') {
       loadFriends();
     }
   }, [participantsIDs])
@@ -283,7 +284,7 @@ export default function Details({ route, navigation }) {
   }, [expanded])
 
   const loadComments = useCallback(() => {
-    console.log("loading comments...")
+    
     const colRef = collection(db, 'Conversations', id, 'Comments');
     const q = query(colRef, orderBy('timeStamp'));
     
@@ -291,7 +292,7 @@ export default function Details({ route, navigation }) {
       let comments = allComments;
 
       // console.log('allParticipants: ', allParticipants);
-
+      console.log('comments fired...')
       for (const change of snapShot.docChanges()) {
         if(change.type === 'added') {
           const empty = change.doc.data().timeStamp === null ? Timestamp.now() : change.doc.data().timeStamp;
@@ -309,20 +310,24 @@ export default function Details({ route, navigation }) {
         }
       }
 
-      setAllComments(prev => {
-        prev = comments;
-        return [...prev];
-      });
-
-      setCommentsFlag('rendered');
+      if(mount.current) {
+        setAllComments(prev => {
+          prev = comments;
+          return [...prev];
+        });
+  
+        setCommentsFlag('rendered');
+      }
+      else {
+        console.log("else...")
+        return () => {
+          console.log('RETURNED!!');
+          unsubscribe2();
+        }
+        
+      }
     })
 
-    
-
-    return () => {
-      console.log('RETURNED!!');
-      unsubscribe2();
-    }
   }, [allParticipants])
 
   const loadFriends = useCallback(() => {
@@ -337,43 +342,79 @@ export default function Details({ route, navigation }) {
       let arrayNotFriends = notFriends;
       
       for (const change of snapShot.docChanges()) {
-        if(change.type === 'added') {
-          arrayFriends.push(change.doc.data());
+        console.log(change.doc.data().Name);
+        let participant = participantsIDs.find(e => e.id === change.doc.data().ID);
+        if(participant) {
+          if(change.type === 'added') {
+            arrayFriends.push(change.doc.data());
+            arrayAreFriends.push(participant);
 
-          let user = participantsIDs.find(e => e.id === change.doc.data().ID);
-          if(user) {
-            arrayAreFriends.push(user);
+            if(arrayNotFriends.find(e => e.id === change.doc.data().ID)) {
+              // console.log('exists not friend');
+              const index = arrayNotFriends.map(e => e.id).indexOf(change.doc.id);
+              arrayNotFriends.splice(index,1);
+              console.log('removed from arrayNotFriends: ', arrayNotFriends);
+            }
           }
-          
+          else if(change.type === 'removed') {
+            console.log('removed');
+            // if(!arrayNotFriends.find(e => e.id === change.doc.data().ID))
+            arrayNotFriends.push(participant);
+
+            if(arrayAreFriends.find(e => e.id === change.doc.data().ID)) {
+              console.log('exists friend');
+              const index = arrayAreFriends.map(e => e.id).indexOf(change.doc.id);
+              arrayAreFriends.splice(index,1);
+              console.log('removed from arrayAreFriends: ', arrayAreFriends);
+
+              const index2 = arrayFriends.map(e => e.ID).indexOf(change.doc.id);
+              arrayFriends.splice(index2,1);
+            } 
+          }
+        }
+        
+        // console.log('arrayFriends: ', arrayFriends);
+        
+      }
+        
+      if(friendsFlag.current == 'first render') {
+        console.log('friendsFlag ', friendsFlag.current);
+        console.log('participantsIDS: ', participantsIDs);
+        for (const participant of participantsIDs) {
+          if(!(arrayFriends.find(e => e.ID === participant['id']) || participant['id'] == user.uid)) {
+            
+            arrayNotFriends.push(participant);
+          }
         }
       }
-
-      // console.log('arrayFriends: ', arrayFriends);
       
-      for (const participant of participantsIDs) {
-        // console.log('user.id: ', participant.id);
-        // console.log('friend?: ', arrayFriends.find(e => e.ID === participant.id));
 
-        if(!(arrayFriends.find(e => e.ID === participant.id) || participant.id == user.uid)) {
-          arrayNotFriends.push(participant);
+      console.log('final arrayAreFriends: ', arrayAreFriends);
+      console.log('final arrayNotFriends: ', arrayNotFriends);
+
+      if(mount.current) {
+        setFriends(arrayFriends);
+        setAreFriends(arrayAreFriends);
+        setNotFriends(arrayNotFriends);
+
+        if(friendsFlag.current != 'first render') {
+          friendsFlag.current = 'rendered';
+          setData(prev => {
+            return [...prev];
+          })
+        }
+        
+      }
+      else {
+        return () => {
+          unsubscribe4();
+          console.log('RETURNED Friends!!');
         }
       }
-
-      // console.log('final arrayAreFriends: ', arrayAreFriends);
-      // console.log('final arrayNotFriends: ', arrayNotFriends);
-
-      setFriends(arrayFriends);
-      setAreFriends(arrayAreFriends);
-      setNotFriends(arrayNotFriends);
-      setFriendsFlag('rendered');
+      
     })
 
-    
-
-    return () => {
-      unsubscribe4();
-    }
-  }, [participantsIDs])
+  }, [participantsIDs, areFriends, notFriends, friends])
 
   async function findImageInCache(uri) {
     try {
@@ -555,14 +596,14 @@ export default function Details({ route, navigation }) {
   }
 
   const selectFriends = () => {
-    console.log(areFriends);
+    // console.log(areFriends);
     setData(areFriends);
     setSelector('friends');
     setNum(areFriends.length);
   }
 
   const selectOthers = () => {
-    console.log(notFriends);
+    // console.log(notFriends);
     setData(notFriends); 
     setSelector('others'); 
     setNum(notFriends.length);
@@ -663,59 +704,63 @@ export default function Details({ route, navigation }) {
               <View style={{zIndex:999}}>
                 {expanded ? (
                   <View style={styles.card}>
-                  <View style={styles.cardContent}>
-                    {/* <Text style={{color:'grey'}}>Title</Text> */}
-                    <Text style={{borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:18}}>{ post.title }</Text>
+                    <View style={styles.cardContent}>
+                      {/* <Text style={{color:'grey'}}>Title</Text> */}
+                      <Text style={{borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:15, color:'grey'}}>{ post.title }</Text>
+                      
+                      <ScrollView style={{maxHeight:200}}>
+                        <Text style={{marginTop:10, fontSize:18, marginHorizontal:8}}>{ post.body }</Text>
+                      </ScrollView>
 
-                    <Text style={{marginTop:20, fontSize:18}}>{ post.body }</Text>
-
-                    <View style={styles.createdView}>
-                      {/* <Text style={{fontSize: 13}}>By: </Text> */}
-                      <Image source={{uri: uri}} style={{width:25, height:25, borderRadius:60, borderColor:'#613a5f', borderWidth:1, marginRight:5}} />
-                      <Text style={styles.createdAuthor}>{ post.author }</Text>
-                      <Text style={styles.createdTime}>{post.dateCreated.toDate().toDateString()}</Text>
-                    </View>
-                  </View>
-                  <View style={{flexDirection:'row', justifyContent:'flex-end', alignItems:'center', marginHorizontal:3}}>
-                    <View style={{alignItems:'flex-end', flex:5, marginRight:6}}>
-                      <Text style={{color: 'grey'}} >{ id }</Text>
-                    </View>
-                    <Pressable
-                      onPress={copyToClipboard}
-                      style={({ pressed }) => [
-                        {opacity: pressed ? 0.5: 1}, styles.copyID
-                      ]}
-                    >
-                      <View style={{flexDirection:'row', alignItems:'center',}}>
-                        <MaterialIcons name='file-copy' size={13} color='#806b96' />
+                      <View style={styles.createdView}>
+                        {/* <Text style={{fontSize: 13}}>By: </Text> */}
+                        <Image source={{uri: uri}} style={{width:25, height:25, borderRadius:60, borderColor:'#613a5f', borderWidth:1, marginRight:5}} />
+                        <Text style={styles.createdAuthor}>{ post.author }</Text>
+                        <Text style={styles.createdTime}>{post.dateCreated.toDate().toDateString()}</Text>
                       </View>
-                    </Pressable>
+                    </View>
+                    <View style={{flexDirection:'row', justifyContent:'flex-end', alignItems:'center', marginHorizontal:3,}}>
+                      <View style={{alignItems:'flex-end', flex:5, marginRight:6}}>
+                        <Text style={{color: 'grey'}} >{ id }</Text>
+                      </View>
+                      <Pressable
+                        onPress={copyToClipboard}
+                        style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1}, styles.copyID
+                        ]}
+                      >
+                        <View style={{flexDirection:'row', alignItems:'center',}}>
+                          <MaterialIcons name='file-copy' size={16} color='#806b96' />
+                        </View>
+                      </Pressable>
 
-                    <Menu style={styles.more}>
-                      <MenuTrigger style={{backgroundColor: '#d4c86e', alignItems:'center', borderRadius:20}}>
-                        <MaterialIcons name='more-horiz' size={26} color='#806b96' />
-                      </MenuTrigger>
-                      <MenuOptions>
-                        <MenuOption onSelect={() => setModalOpen(true)}>
-                          <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>View Participants</Text>
-                        </MenuOption>
-                        <MenuOption onSelect={() => showAlert(item.id)}>
-                          <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>Invite Participant</Text>
-                        </MenuOption>
-                        { (post.authorID == user.uid) &&
-                          <MenuOption onSelect={() => showAlert(item.id)}>
-                          <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
+                      <Menu style={styles.more}>
+                        <MenuTrigger>
+                          <View style={{backgroundColor: '#d4c86e', alignItems:'center', borderRadius:20}}>
+                            <MaterialIcons name='more-horiz' size={22} color='#806b96' />
+                          </View>
+                        </MenuTrigger>
+                        <MenuOptions>
+                          <MenuOption onSelect={() => setModalOpen(true)}>
+                            <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>View Participants</Text>
                           </MenuOption>
-                        }
-                        
-                      </MenuOptions>
-                    </Menu>
-                  </View>
+                          <MenuOption onSelect={() => showAlert(item.id)}>
+                            <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>Invite Participant</Text>
+                          </MenuOption>
+                          { (post.authorID == user.uid) &&
+                            <MenuOption onSelect={() => showAlert(item.id)}>
+                            <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
+                            </MenuOption>
+                          }
+                          
+                        </MenuOptions>
+                      </Menu>
+                    </View>
                 </View>
                 ) : (
                   <>
                   <View style={styles.card}>
-                    <Text style={{fontSize:18, marginBottom:10, marginLeft:5, marginTop:5}}>{ post.body }</Text>
+                    <Text style={{fontSize:18, marginBottom:10, marginLeft:5, marginTop:5}} numberOfLines={2}>{ post.body }</Text>
                     <View style={{flexDirection:'row', justifyContent:'flex-end', alignItems:'center', marginHorizontal:3}}>
                       <View style={{alignItems:'flex-end', flex:5, marginRight:4}}>
                         <Text style={{color: 'grey'}} >{ id }</Text>
@@ -727,13 +772,13 @@ export default function Details({ route, navigation }) {
                         ]}
                       >
                         <View style={{flexDirection:'row', alignItems:'center',}}>
-                          <MaterialIcons name='file-copy' size={17} color='#806b96' />
+                          <MaterialIcons name='file-copy' size={16} color='#806b96' />
                         </View>
                       </Pressable>
 
                       <Menu style={styles.more}>
                         <MenuTrigger style={{backgroundColor: '#d4c86e', alignItems:'center', borderRadius:20}}>
-                          <MaterialIcons name='more-horiz' size={30} color='#806b96' />
+                          <MaterialIcons name='more-horiz' size={22} color='#806b96' />
                         </MenuTrigger>
                         <MenuOptions>
                           <MenuOption onSelect={() => showAlert(item.id)}>
@@ -847,8 +892,6 @@ const styles = StyleSheet.create({
     backgroundColor:'#fff',
     elevation: 8,
     padding:3,
-    // borderBottomWidth: 1,
-    // borderBottomColor: '#613a5f'
   },
   na: {
     marginHorizontal:40,
@@ -861,7 +904,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   cardContent:{
-    margin:10,
+    // marginHorizontal:10,
     padding:5,
     borderRadius:10,
   },
@@ -985,7 +1028,7 @@ const styles = StyleSheet.create({
   createdView: {
     flexDirection: 'row',
     marginTop: 10,
-    alignItems:'center'
+    alignItems:'center',
   },
   createdAuthor: {
     fontSize: 13,
@@ -997,7 +1040,7 @@ const styles = StyleSheet.create({
     marginLeft: 'auto'
   },
   copyID: {
-    padding: 6.5,
+    padding: 3,
     backgroundColor: '#d4c86e',
     alignItems: 'center',
     borderRadius:20,
