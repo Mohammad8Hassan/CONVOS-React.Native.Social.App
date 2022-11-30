@@ -31,7 +31,7 @@ export default function Friends({ navigation }) {
    // Friends Invites
    const colRef3 = collection(db, 'Users', user.uid, 'Friends Invites');
    const q3 = query(colRef3, orderBy('timeStamp'));
-   onSnapshot(q3, async snapShot => {
+   const unsubscribe1 = onSnapshot(q3, async snapShot => {
      let result = [];
      let num = 0;
 
@@ -45,22 +45,21 @@ export default function Friends({ navigation }) {
         console.log(err);
       }
       
-      console.log(empty);
-      result.push({...dok.data(), ID: dok.id, timeStamp: empty.toDate(), Name: user.data().Name, Photo: user.data().Photo});
+      result.unshift({...dok.data(), ID: dok.id, timeStamp: empty.toDate(), Name: user.data().Name, Photo: user.data().Photo});
       num++;
      }
      console.log(result);
      setSelector('friends');
      setFriendsInvites(result);
      setFriendsInvitesNum(num);
-     setTitle('Invites - ')
+     setTitle('Friends Conversations Invites - ')
      setData(result);
-   })
+   }, error => {console.log(error)})
 
    // Others Invites
    const colRef2 = collection(db, 'Users', user.uid, 'Other Invites');
    const q2 = query(colRef2, orderBy('timeStamp'));
-   onSnapshot(q2, async snapShot => {
+   const unsubscribe2 = onSnapshot(q2, async snapShot => {
      let result = [];
      let num = 0;
 
@@ -68,13 +67,18 @@ export default function Friends({ navigation }) {
        const empty = dok.data().timeStamp === null ? Timestamp.now() : dok.data().timeStamp;
        const user = await getDoc(doc(db, 'Users', dok.data().authorID));
 
-       result.push({...dok.data(), ID: dok.id,  timeStamp: empty.toDate(), Name: user.data().Name, Photo: user.data().Photo});
+       result.unshift({...dok.data(), ID: dok.id,  timeStamp: empty.toDate(), Name: user.data().Name, Photo: user.data().Photo});
        num++;
      }
 
      setOthersInvites(result);
      setOthersInvitesNum(num);
-   })
+   }, error => {console.log(error)})
+
+   return () => {
+    unsubscribe1();
+    unsubscribe2();
+   }
  }, [])
 
 
@@ -125,7 +129,7 @@ export default function Friends({ navigation }) {
  const selectFriends = () => {
   setData(FriendsInvites); 
   setSelector('friends'); 
-  setTitle('Invites - '); 
+  setTitle('Friends Conversations Invites - '); 
   setNum(FriendsInvitesNum)
  }
 
@@ -133,39 +137,18 @@ export default function Friends({ navigation }) {
   console.log('OtherInvites ', OthersInvites);
   setData(OthersInvites); 
   setSelector('others'); 
-  setTitle('Invites - '); 
+  setTitle('Others Conversations Invites - '); 
   setNum(OthersInvitesNum)
  }
 
 
- const showAlert = (id, person) => {
-   console.log(id);
-   const ID = id;
-   Alert.alert(
-     'Remove Friend?',
-     'Are you sure you want to remove ' + person + ' from your friends list?',
-     [
-       {
-         text: 'Cancel',
-         style: 'cancel'
-       },
-       {
-         text: "confirm",
-         onPress: () => removeFriend(ID)
-       }
-     ],
-     {
-       cancelable: true
-     }
-   )
- }
-
  const joinFriendConversation = async (id, title, body, authorID) => {
-  const checkExists = await getDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
+  const checkExists = await getDoc(doc(db, 'Conversations', id));
   if(checkExists.exists()) {
-    setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
+    await setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
       Name: user.displayName,
       ID: user.uid,
+      Admin: false,
       removed: false,
     });
   
@@ -190,33 +173,53 @@ export default function Friends({ navigation }) {
   
     navigation.navigate('Details', { id });
   }
-  
+  else {
+    Alert.alert(
+      'Error',
+      'Conversation no longer exist',
+      [
+        {
+          text: 'Close',
+          style: 'cancel'
+        },
+      ],
+      {
+        cancelable: true
+      }
+    )
+
+    deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
+  }
+
  }
 
  const deleteFriendInvite = (id) => {
+  //need confirm....
   deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
  }
 
 
  const joinOtherConversation = async (id, title, body, authorID) => {
-  const checkExists = await getDoc(doc(db, 'Users', user.uid, 'Others Invites', id));
+  const checkExists = await getDoc(doc(db, 'Conversations', id));
   if(checkExists.exists()) {
-    setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
+    console.log('exists');
+    await setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
       Name: user.displayName,
       ID: user.uid,
+      Admin: false,
       removed: false,
     });
   
-    deleteDoc(doc(db, 'Users', user.uid, 'Others Invites', id));
+    deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', id));
   
-    setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
+    await setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
       authorID: authorID,
       title: title,
       body: body,
       dateCreated: serverTimestamp()
     });
 
-    addDoc(collection(db, 'Conversations', id, 'Comments'), {
+    await addDoc(collection(db, 'Conversations', id, 'Comments'), {
       comment: 'joined',
       author: user.displayName,
       authorID: user.uid,
@@ -228,6 +231,24 @@ export default function Friends({ navigation }) {
   
     navigation.navigate('Details', { id });
   }
+  else {
+    Alert.alert(
+      'Error',
+      'Conversation no longer exist',
+      [
+        {
+          text: 'Close',
+          style: 'cancel'
+        },
+      ],
+      {
+        cancelable: true
+      }
+    )
+
+    deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', id));
+  }
+
  }
 
  const deleteOtherInvite = (id) => {
@@ -238,22 +259,22 @@ export default function Friends({ navigation }) {
   return(
     <View style={{flex:1, marginBottom:20}}>
       <View style={{flexDirection: 'row', backgroundColor:'#745f8a', alignItems:'center', paddingLeft:8}}>
-        <Text style={{color:"white", fontSize:25}}>{ listTitle }</Text>
-        <Text style={{color:'white', fontSize:25, marginLeft:5}}>{ listNum }</Text>
+        <Text style={{color:"white", fontSize:19, fontFamily:'Solway-Regular'}}>{ listTitle }</Text>
+        <Text style={{color:'#f55fd2', fontSize:19, marginLeft:5, fontFamily:'Solway-Regular'}}>{ listNum }</Text>
       </View>
 
       <View style={{flex:1, marginTop:5, padding:4}}>
-        <FlatList data={data} renderItem={({ item }) => (
+        <FlatList data={data} removeClippedSubviews={false} renderItem={({ item }) => (
           <View style={styles.item}>
 
             <View style={{margin:15}}>
-              <Text style={{color:'white', fontSize:20, padding:5, backgroundColor:'#613a5f'}} numberOfLines={2}>{ item.title }</Text>
+              <Text style={{color:'white', fontSize:20, padding:5, backgroundColor:'#613a5f'}} numberOfLines={2} selectable>{ item.title }</Text>
             </View>
 
             <View style={{flexDirection:'row', alignItems:'center', marginHorizontal:8}}>
               <Image source={{uri: item.Photo}} style={{height:30, width:30, borderRadius:50}} />
-              <Text style={{color:'white', fontSize:15, marginLeft:10}}>{ item.Name }</Text>
-              <Text style={{color:'white', fontSize:11, marginLeft:'auto'}}>{ item.timeStamp.toDateString() }</Text>
+              <Text style={{color:'white', fontSize:15, marginLeft:10}} selectable>{ item.Name }</Text>
+              <Text style={{color:'white', fontSize:11, marginLeft:'auto'}} selectable>{ item.timeStamp.toDateString() }</Text>
             </View>
 
             <View style={{flexDirection:'row', marginTop:5, padding:10, backgroundColor:'#613a5f', justifyContent:'flex-end', alignItems:'center'}}>
@@ -306,7 +327,7 @@ export default function Friends({ navigation }) {
  return (
    <SafeAreaView style={{flex: 1, backgroundColor:'#806b96'}}>
      <View style={styles.homeHeader}>
-       <Text style={{fontSize:19, color:'white'}}>Invites</Text>
+       <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Invites</Text>
      </View>
 
      
@@ -348,9 +369,9 @@ export default function Friends({ navigation }) {
        
        {/* Lists */}
 
-       {(selector=='friends') && renderList(FriendsInvites, 'Invites - ', FriendsInvitesNum)}
+       {(selector=='friends') && renderList(FriendsInvites, title, FriendsInvitesNum)}
 
-       {(selector=='others') && renderList(OthersInvites, 'Invites - ', OthersInvitesNum)}
+       {(selector=='others') && renderList(OthersInvites, title, OthersInvitesNum)}
        
      </View>
    </SafeAreaView>

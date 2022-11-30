@@ -19,9 +19,9 @@ export default function SystemMessage(props) {
 
   const status = () => {
     switch(props.comment.comment) {
-      case 'joined': return ' has joined the conversation.';
-      case 'left': return ' has left the conversation.';
-      case 'removed': return ' was removed from the conversation.';
+      case 'joined': return ' has joined the conversation';
+      case 'left': return ' has left the conversation';
+      case 'removed': return ' was removed from the conversation';
     }
   }
 
@@ -38,8 +38,8 @@ export default function SystemMessage(props) {
     <View style={[styles.container, {borderColor:color()}]}>
       <View style={{flexDirection:'row', alignItems:'center', flexWrap:'wrap'}}>
         <Image source={{uri: props.comment.uri}} style={{height:25, width:25, borderRadius:50, }} />
-        <Text style={{color:'#3380a3', marginLeft:5, fontSize:15, fontWeight:'bold'}}>{ props.comment.Name }</Text>
-        <Text style={{color:color(), fontSize:15, fontStyle:'italic'}}>{ status() }</Text>
+        <Text style={{color:'#3380a3', marginLeft:5, fontSize:13, fontWeight:'bold'}}>{ props.comment.Name }</Text>
+        <Text style={{color:color(), fontSize:13, fontStyle:'italic'}}>{ status() }</Text>
       </View>
     </View>
   )
@@ -47,8 +47,8 @@ export default function SystemMessage(props) {
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 40,
-    marginVertical:8,
+    marginHorizontal: 5,
+    marginVertical:6,
     padding:4,
     borderRadius: 10,
     borderWidth:1,

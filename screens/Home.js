@@ -28,6 +28,7 @@ export default function Home({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
   const [showIndicator, setShowIndicator] = useState(false);
+  const [conversationsIndicator, setConversationsIndicator] = useState(true);
 
   const db = getFirestore();
   const storage = getStorage();
@@ -47,24 +48,24 @@ export default function Home({ navigation }) {
       setPassword('');
       setResponse(null);
       
-      const colRef = collection(db, 'Users', user.uid, 'My Conversations');
-      const q = query(colRef, orderBy('lastAccessed', 'desc'));
-      const convs = await getDocs(q);
 
-      if(flag.current != 'first render' && focused) {
-        setConversations(prev => {
-          prev = [];
+      // if(flag.current != 'first render' && focused) {
+      //   const colRef = collection(db, 'Users', user.uid, 'My Conversations');
+      //   const q = query(colRef, orderBy('lastAccessed', 'desc'));
+      //   const convs = await getDocs(q);
+      //   setConversations(prev => {
+      //     prev = [];
           
-          for(let conv of convs.docs) {
-            const empty = conv.data().dateCreated === null ? Timestamp.now() : conv.data().dateCreated;
-            prev.push({id: conv.id, ...conv.data(), 
-              dateCreated: empty.toDate(),
-              uri: authors.current[conv.data().authorID+'Photo'], 
-              author: authors.current[conv.data().authorID+'Name']});
-          }
-          return [...prev];
-        });
-      }
+      //     for(let conv of convs.docs) {
+      //       const empty = conv.data().dateCreated === null ? Timestamp.now() : conv.data().dateCreated;
+      //       prev.push({id: conv.id, ...conv.data(), 
+      //         dateCreated: empty.toDate(),
+      //         uri: authors.current[conv.data().authorID+'Photo'], 
+      //         author: authors.current[conv.data().authorID+'Name']});
+      //     }
+      //     return [...prev];
+      //   });
+      // }
     }
 
     focusTasks();
@@ -83,7 +84,6 @@ export default function Home({ navigation }) {
 
     const unsubscribe1 = onSnapshot(q, async snapShot => {
       for(let change of snapShot.docChanges()) {
-        console.log('change: ', change.type, change.doc.data());
         if(change.type === 'added') {
           if(authors.current[change.doc.data().authorID+'ID'] == undefined) {
             const info = await getDoc(doc(db, 'Users', change.doc.data().authorID));
@@ -105,13 +105,34 @@ export default function Home({ navigation }) {
           const index = result.map(e => e.id).indexOf(change.doc.id);
           result.splice(index,1);
         }
+        else if(change.type === 'modified') {
+          const index = result.map(e => e.id).indexOf(change.doc.id);
+          result.splice(index,1);
+
+          if(authors.current[change.doc.data().authorID+'ID'] == undefined) {
+            const info = await getDoc(doc(db, 'Users', change.doc.data().authorID));
+
+            const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+
+            authors.current[info.id + 'Name'] = info.data().Name;
+            authors.current[info.id + 'Photo'] = photo;
+            authors.current[info.id + 'ID'] = info.id;
+          }
+
+          const empty = change.doc.data().dateCreated === null ? Timestamp.now() : change.doc.data().dateCreated;
+          
+          result.unshift({id: change.doc.id, ...change.doc.data(), dateCreated: empty.toDate(), 
+            uri: authors.current[change.doc.data().authorID+'Photo'], 
+            author: authors.current[change.doc.data().authorID+'Name']});
+        }
         
       }
       
       // console.log('result: ', result);
       setConversations(prev => {prev = result; return[...prev]});
+      setConversationsIndicator(false);
       flag.current = 'rendered';
-    })
+    }, error => {console.log(error)})
     
     return () => {
       unsubscribe1();
@@ -183,8 +204,8 @@ export default function Home({ navigation }) {
 
   const showAlert = (id) => {
     Alert.alert(
-      'Delete Post?',
-      'Are you sure you want to delete this post?',
+      'Delete Conversation?',
+      'Are you sure you want to delete this conversation?',
       [
         {
           text: 'Cancel',
@@ -246,9 +267,12 @@ export default function Home({ navigation }) {
     setPassword('');
   }
 
-  const joinConversation = async () => {
+  const joinConversation = async (convID) => {
     setShowIndicator(true);
     setResponse(null);
+    console.log('before: ', "'" + convID + "'");
+    convID = convID.replace(/\s/g,'');
+    console.log('after: ', "'" + convID + "'");
 
     const convRef = await getDoc(doc(db, 'Conversations', convID));
     if(showPassword == false) {
@@ -265,6 +289,7 @@ export default function Home({ navigation }) {
         if(checkExist.exists() && checkExist.data().removed == false) {
           console.log('already joined!');
           navigation.navigate('Details', { id: convID });
+          return;
         }
     
         const checkBan = await getDoc(doc(db, 'Conversations', convID, 'Banned Users', user.uid));
@@ -285,6 +310,7 @@ export default function Home({ navigation }) {
         await setDoc(doc(db, 'Conversations', convID, 'Participants', user.uid), {
           ID: user.uid,
           Name: user.displayName,
+          Admin: false,
           removed: false,
         })
 
@@ -317,6 +343,7 @@ export default function Home({ navigation }) {
         await setDoc(doc(db, 'Conversations', convID, 'Participants', user.uid), {
           ID: user.uid,
           Name: user.displayName,
+          Admin: false,
           removed: false,
         })
 
@@ -368,7 +395,7 @@ export default function Home({ navigation }) {
                 {response && <Text style={{color:'white', fontSize:17, marginHorizontal:15, alignSelf:'center'}}>{ response }</Text> }
                 {showIndicator==false? (
                     <Pressable
-                      onPress={joinConversation}
+                      onPress={() => joinConversation(convID)}
                       style={({ pressed }) => [
                         {opacity: pressed ? 0.5: 1}, styles.changeEmail
                       ]}
@@ -393,7 +420,7 @@ export default function Home({ navigation }) {
         <View style={{elevation:15, backgroundColor:'#613a5f'}}>
           <View style={styles.homeHeader}>
             {/* <Ionicons name='chevron-back-circle' size={27} color="white" /> */}
-            <Text style={{fontSize:19, color:'white',}}>Conversations</Text>
+            <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Conversations</Text>
           </View>
           
           {/* Page Contents */}
@@ -420,63 +447,72 @@ export default function Home({ navigation }) {
 
         <View style={{flexDirection:'row', padding:10,}}>
           <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={styles.joinConv}>
-              <Text style={{color:'white', fontSize:16, marginRight:5}}>Join</Text>
+              <Text style={{color:'white', fontSize:16, marginRight:5, fontFamily:'Solway-Regular'}}>Join</Text>
               <Ionicons name='arrow-redo-outline' size={20} color='white' />
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => navigation.navigate('New Conversation')} style={styles.newConv}>
-              <Text style={{color:'white', fontSize:16, marginRight:5}}>New</Text>
+              <Text style={{color:'white', fontSize:16, marginRight:5, fontFamily:'Solway-Regular'}}>New</Text>
               <MaterialIcons name='add' size={20} color='white' />
           </TouchableOpacity>
         </View>
 
         <View style={{flex: 1}}>
-          <FlatList data={conversations} renderItem={({ item }) => (
-            <TouchableOpacity onPress={() => enterConversation(item.id)} style={styles.item}>
-              <Card>
-                <View style={styles.content}>
-                  <View style={styles.header}>
-                    <Text style={styles.titleText} numberOfLines={1}>{ item.title }</Text>
-                      <Menu>
-                        <MenuTrigger>
-                          <MaterialIcons name='more-horiz' size={24} color="grey"/>
-                        </MenuTrigger>
-                        <MenuOptions>
-                          {(getAuth().currentUser.uid == item.authorID) &&
-                            <MenuOption onSelect={() => showAlert(item.id)}>
-                              <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Post</Text>
-                            </MenuOption>
-                          }
-                          <MenuOption onSelect={() => showAlertLeave(item.id)}>
-                            <Text style={{color: "red", fontSize: 18, margin: 5}}>Leave Conversation</Text>
-                          </MenuOption>
-                        </MenuOptions>
-                      </Menu>
+          {conversationsIndicator? (
+            <ActivityIndicator size={80} color='#613a5f' animating={conversationsIndicator} style={{flex:1}} />
+          ) : (
+            <FlatList data={conversations} renderItem={({ item }) => (
+              <TouchableOpacity onPress={() => enterConversation(item.id)} style={styles.item}>
+                <Card>
+                  <View style={styles.content}>
+                    <View style={styles.header}>
+                      <Text style={styles.titleText} numberOfLines={1}>{ item.title }</Text>
+                        <Menu>
+                          <MenuTrigger>
+                            <MaterialIcons name='more-horiz' size={24} color="grey"/>
+                          </MenuTrigger>
+                          <MenuOptions>
+                            {user.uid == item.authorID ? (
+                              <MenuOption onSelect={() => showAlert(item.id)}>
+                                <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Conversation</Text>
+                              </MenuOption>
+                            ) : null
+                            }
+                            {item.authorID != user.uid ? (
+                              <MenuOption onSelect={() => showAlertLeave(item.id)}>
+                                <Text style={{color: "red", fontSize: 18, margin: 5}}>Leave Conversation</Text>
+                              </MenuOption>
+                            ) : null
+                            }
+                          </MenuOptions>
+                        </Menu>
+                    </View>
+                    <Text style={styles.body} numberOfLines={2}>{ item.body }</Text>
                   </View>
-                  <Text style={styles.body} numberOfLines={2}>{ item.body }</Text>
-                </View>
-               
-                <View style={styles.createdViewContainer}>
-                  <View style={styles.createdView}>
+                 
+                  <View style={styles.createdViewContainer}>
+                    <View style={styles.createdView}>
+                      {item.author == user.displayName? (
+                          <Text style={styles.createdAuthor}>{ user.displayName }</Text>
+                        ) : (
+                          <Text style={styles.createdAuthor}>{ item.author }</Text>
+                        )
+                      }
+                      {/* <Text style={styles.createdTime}>{ item.dateCreated.toDateString()}</Text> */}
+                    </View>
                     {item.author == user.displayName? (
-                        <Text style={styles.createdAuthor}>{ user.displayName }</Text>
+                        <Image source={{uri: user.photoURL}} style={styles.pic} />
                       ) : (
-                        <Text style={styles.createdAuthor}>{ item.author }</Text>
+                        <Image source={{uri: item.uri}} style={styles.pic} />
                       )
                     }
-                    {/* <Text style={styles.createdTime}>{ item.dateCreated.toDateString()}</Text> */}
                   </View>
-                  {item.author == user.displayName? (
-                      <Image source={{uri: user.photoURL}} style={styles.pic} />
-                    ) : (
-                      <Image source={{uri: item.uri}} style={styles.pic} />
-                    )
-                  }
-                </View>
-
-              </Card>
-            </TouchableOpacity>
-          )}/>
+  
+                </Card>
+              </TouchableOpacity>
+            )}/>
+          )}
+          
         </View>
         
       </View>

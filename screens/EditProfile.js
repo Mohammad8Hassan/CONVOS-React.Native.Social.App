@@ -1,6 +1,6 @@
 import { useEffect, useState,} from 'react'
 import { StyleSheet, Text, View, Image, Pressable, TextInput, KeyboardAvoidingView,
-   ScrollView, Modal, ToastAndroid } from 'react-native'
+   ScrollView, Modal, ToastAndroid, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { getAuth, signOut, reauthenticateWithCredential, updateProfile, EmailAuthProvider,
   updateEmail } from 'firebase/auth';
@@ -12,16 +12,13 @@ import { updateDoc, getFirestore, doc,  } from 'firebase/firestore';
 
 
 export default function EditProfile({ navigation }) {
-  const [profilePic, setProfilePic] = useState(null);
   const [userName, setUserName] = useState('');
-  const [email, setEmail] = useState(null);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [userId, setUserId] = useState('');
-  const [url, setUrl] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [indicator, setIndicator] = useState(false);
 
   const db = getFirestore();
   const storage = getStorage();
@@ -35,26 +32,27 @@ export default function EditProfile({ navigation }) {
       tabBarStyle: {display: 'none'}
     });
 
-    setProfilePic(user.photoURL);
-    setUserName(user.displayName);
-    setEmail(user.email);
-    setUserId(user.uid);
+    // setProfilePic(user.photoURL);
+    // setUserName(user.displayName);
+    // setEmail(user.email);
+    // setUserId(user.uid);
 
     return () => {
       tab.setOptions({
         tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
       });
     }
-  },)
+  }, [])
 
-  useEffect(() => {
-    setEmail(user.email);
-  }, [focused])
+  // useEffect(() => {
+  //   setEmail(user.email);
+  // }, [focused])
 
   useEffect(() => {
     setFirstName(userName.substring(0, userName.indexOf(' ')));
     setLastName(userName.substring(userName.indexOf(' ') + 1));
   }, [userName])
+
 
   const changePhoto = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -65,13 +63,12 @@ export default function EditProfile({ navigation }) {
     });
 
     if(!result.cancelled) {
-      setUrl(result.uri);
-      const refc = ref(storage, 'Profile Photos/' + userId)
+      setIndicator(true);
+      const refc = ref(storage, 'Profile Photos/' + user.uid)
       const img = await fetch(result.uri);
       const bytes = await img.blob();
       
-      
-      const uploaded = await uploadBytes(refc, bytes);
+      await uploadBytes(refc, bytes);
       
       const url_Temp = await getDownloadURL(refc);
       const meta = await getMetadata(refc);
@@ -80,21 +77,27 @@ export default function EditProfile({ navigation }) {
         photoURL: url_Temp,
       });
 
-      setUrl(url_Temp)
-
-      await updateDoc(doc(db, 'Users', userId), {
+      await updateDoc(doc(db, 'Users', user.uid), {
         Photo: url_Temp,
         photoExtension: meta.contentType.split('/')[1],
       })
+
+      setIndicator(false);
     };
   }
 
   const changeName = async () => {
-    await updateProfile(user, {
+    updateProfile(user, {
       displayName: firstName + ' ' + lastName,
     });
 
-    setUserName(firstName + ' ' + lastName)
+    updateDoc(doc(db, 'Users', user.uid), {
+      Name: firstName + ' ' + lastName,
+    })
+
+    setUserName(firstName + ' ' + lastName);
+
+    ToastAndroid.show('Name changed successfuly', ToastAndroid.SHORT);
   }
 
   const changeEmail = () => {
@@ -104,6 +107,9 @@ export default function EditProfile({ navigation }) {
       .then(() => {
         updateEmail(user, newEmail)
           .then(() => {
+            updateDoc(doc(db, 'Users', user.uid), {
+              email: newEmail,
+            });
             console.log('email updated');
             setModalVisible(false);
             ToastAndroid.show('email updated successfully', ToastAndroid.SHORT);
@@ -129,7 +135,7 @@ export default function EditProfile({ navigation }) {
         <ScrollView contentContainerStyle={{ flexGrow: 1}}>
           
           <View style={styles.homeHeader}>
-            <Text style={{fontSize:18, color:'white'}}>Edit Profile</Text>
+            <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Edit Profile</Text>
           </View>
 
           {/* MODAL */}
@@ -150,11 +156,11 @@ export default function EditProfile({ navigation }) {
                   <Pressable  
                     onPress={changeEmail}
                     style={({ pressed }) => [
-                      {opacity: pressed ? 0.5: 1}, styles.changeEmail
+                      {opacity: pressed ? 0.5: 1}, styles.changeEmailInside
                     ]}
                   >
                     <View style={{flexDirection:'row', alignItems:'center'}}>
-                      <Text style={{color:"#806b96", fontSize: 16,}}>Change</Text>
+                      <Text style={{color:"white", fontSize: 16,}}>Apply</Text>
                     </View>
                   </Pressable>
                 </View>
@@ -168,84 +174,89 @@ export default function EditProfile({ navigation }) {
           <View style={styles.container}>
 
             {/* profile picture  */}
-            <View>
-              <Text style={{color:"white", fontSize: 20, marginTop:20, marginLeft: 10}}>Profile Picture</Text>
+            <View style={{backgroundColor:'#8c7699', elevation:15, marginBottom:20, paddingVertical:8, marginTop:15}}>
+              <View>
+                <Text style={{color:"white", fontSize: 20, marginLeft: 10, marginBottom:10}}>Profile Picture</Text>
+              </View>
+
+              <View style={styles.header}>
+                <View style={styles.ppContainer}>
+                  {!indicator? (
+                    <Image source={{uri: user.photoURL}} style={{width:120, height:120, borderRadius:100, borderWidth:2, borderColor:'#806b96',}}/>
+                  ) : (
+                    <ActivityIndicator size={80} color='#613a5f' animating={indicator} style={{width:120, height:120, borderRadius:100, borderWidth:2, borderColor:'#806b96',}} />
+                  )}
+                </View>
+                
+                <View style={styles.userInfo}>
+                  <Pressable  
+                      onPress={changePhoto}
+                      style={({ pressed }) => [
+                      {opacity: pressed ? 0.5: 1}, styles.edit
+                    ]}
+                  >
+                    <View style={{flexDirection:'row', alignItems:'center'}}>
+                      <Text style={{color:"#806b96", fontSize: 20,}}>Change</Text>
+                    </View>
+                  </Pressable>
+                </View>
+
+              </View>
             </View>
 
-            <View style={styles.header}>
-              <View>
-                <Image source={{uri: profilePic}} style={{width:120, height:120, borderRadius:100, borderWidth:2, borderColor:'#806b96',}}/>
+            {/* Name  */}
+            <View style={{backgroundColor:'#8c7699', elevation:15, marginBottom:20, paddingVertical:8 }}>
+              <View style={{flexDirection:'row',}}>
+                <Text style={{color:"white", fontSize: 20, marginLeft: 10, flex:1}}>Name</Text>
+                <Text style={{color:"#d4c86e", fontSize: 20, fontWeight:'bold', flex:3,}}>{ user.displayName }</Text>
               </View>
-              
-              <View style={styles.userInfo}>
+
+              <View style={{paddingVertical:5, marginTop:10, paddingRight:5}}>
+                <View style={{flexDirection:'row', alignItems:'center', paddingHorizontal:8}}>
+                  <Text style={{color:'white', fontSize:16, marginRight:5, flex:1}}> First Name </Text>
+                  <TextInput placeholder='first name' value={firstName} onChangeText={text => setFirstName(text)} style={styles.input}/> 
+                </View>
+
+                <View style={{flexDirection:'row', alignItems:'center', paddingHorizontal:8}}>
+                  <Text style={{color:'white', fontSize:16, marginRight:5, flex:1}}> Last Name </Text>
+                  <TextInput placeholder='last name' value={lastName} onChangeText={text => setLastName(text)} style={styles.input}/> 
+                </View>
+
                 <Pressable  
-                    onPress={changePhoto}
-                    style={({ pressed }) => [
-                    {opacity: pressed ? 0.5: 1}, styles.edit
+                  onPress={changeName}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.apply
                   ]}
                 >
                   <View style={{flexDirection:'row', alignItems:'center'}}>
-                    <Text style={{color:"#806b96", fontSize: 20,}}>Change</Text>
+                    <Text style={{color:"white", fontSize: 20,}}>Apply</Text>
+                  </View>
+                </Pressable>
+                
+              </View>
+            </View>
+
+            {/* Email  */}
+            <View style={{backgroundColor:'#8c7699', elevation:15, marginBottom:15, paddingVertical:10 }}>
+              <View>
+                <Text style={{color:"white", fontSize: 20, marginLeft: 10}}>Email</Text>
+              </View>
+
+              <View style={{flexDirection:'row', justifyContent:'space-between', marginRight:8, alignItems:'center'}}> 
+                <Text style={styles.inputE}>
+                  { user.email }
+                </Text>
+                <Pressable  
+                  onPress={() => setModalVisible(true)}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.changeEmail
+                  ]}
+                >
+                  <View style={{flexDirection:'row', alignItems:'center'}}>
+                    <Text style={{color:"#806b96", fontSize: 16,}}>Change</Text>
                   </View>
                 </Pressable>
               </View>
-            </View>
-            
-            {/* Name  */}
-            <View style={{flexDirection:'row',}}>
-              <Text style={{color:"white", fontSize: 20, marginTop:20, marginLeft: 10}}>Name</Text>
-              <Text style={{color:"white", fontSize: 20, marginTop:20, marginLeft: 100, fontWeight:'bold'}}>{userName}</Text>
-            </View>
-
-            <View style={{marginHorizontal:3, paddingVertical:5, marginTop:20,}}>
-              <View style={{flexDirection:'row', alignItems:'center', paddingHorizontal:8}}>
-                <Text style={{color:'#1b101f', fontSize:18, 
-                  padding:5}}>
-                    First Name
-                </Text>
-                <TextInput placeholder='first name' value={firstName} onChangeText={text => setFirstName(text)} style={styles.input}/> 
-              </View>
-
-              <View style={{flexDirection:'row', alignItems:'center', paddingHorizontal:8}}>
-                <Text style={{color:'#1b101f', fontSize:18, 
-                  padding:5}}>
-                    Last Name
-                </Text>
-                <TextInput placeholder='last name' value={lastName} onChangeText={text => setLastName(text)} style={styles.input}/> 
-              </View>
-
-              <Pressable  
-                onPress={changeName}
-                style={({ pressed }) => [
-                  {opacity: pressed ? 0.5: 1}, styles.apply
-                ]}
-              >
-                <View style={{flexDirection:'row', alignItems:'center'}}>
-                  <Text style={{color:"white", fontSize: 20,}}>Apply</Text>
-                </View>
-              </Pressable>
-              
-            </View>
-            
-            {/* Email  */}
-            <View>
-              <Text style={{color:"white", fontSize: 20, marginTop:20, marginLeft: 10}}>Email</Text>
-            </View>
-
-            <View style={{flexDirection:'row', justifyContent:'space-between', marginRight:8, alignItems:'center'}}> 
-              <Text style={styles.inputE}>
-                {email}
-              </Text>
-              <Pressable  
-                onPress={() => setModalVisible(true)}
-                style={({ pressed }) => [
-                  {opacity: pressed ? 0.5: 1}, styles.changeEmail
-                ]}
-              >
-                <View style={{flexDirection:'row', alignItems:'center'}}>
-                  <Text style={{color:"#806b96", fontSize: 16,}}>Change</Text>
-                </View>
-              </Pressable>
             </View>
 
             
@@ -272,12 +283,16 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    margin: 5,
-    padding: 10,
+    marginHorizontal: 15,
     alignItems: 'center'
   },
   userInfo: {
-    marginLeft: 40
+    flex:1,
+    alignItems:'flex-start'
+  },
+  ppContainer: {
+    flex:1,
+    alignItems:'center'
   },
   edit: {
     padding: 10,
@@ -292,12 +307,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     padding: 4,
     paddingLeft: 10,
-    borderTopRightRadius: 18,
-    borderBottomRightRadius: 18,
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
-    flex: 1,
-    marginLeft: 6,
+    borderRadius: 5,
+    flex: 3,
     marginTop: 5,
     elevation:8
   },
@@ -311,29 +322,37 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 18,
     marginLeft: 6,
     marginTop: 5,
-    marginRight: 10,
-    flex:1,
+    flex:4,
     color: 'white',
     fontWeight:'bold'
   },
   changeEmail: {
     padding: 8,
+    flex:1,
     backgroundColor: '#d4c86e',
     alignItems: 'center',
-    borderRadius:20,
+    borderRadius:10,
     elevation:10,
-    marginHorizontal: 10
+    marginRight:8
+  },
+  changeEmailInside: {
+    padding: 10,
+    backgroundColor: '#7c9e42',
+    alignItems: 'center',
+    marginHorizontal:50,
+    borderRadius:15,
+    elevation:8,
   },
   apply: {
     padding: 10,
     backgroundColor: '#7c9e42',
-    width: 150,
     alignItems: 'center',
-    alignSelf:'flex-end',
-    marginTop:10,
-    borderRadius: 25,
-    marginRight:10,
-    elevation:8
+    marginTop:15,
+    borderRadius: 15,
+    marginRight:8,
+    elevation:8,
+    alignSelf:'stretch',
+    marginLeft:120
   },
   outerView: {
     flex: 1,
@@ -352,10 +371,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     padding: 6,
     paddingLeft: 10,
-    borderTopRightRadius: 18,
-    borderBottomRightRadius: 18,
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
+    borderRadius:5,
     elevation:8,
     marginHorizontal: 25,
     marginBottom: 10

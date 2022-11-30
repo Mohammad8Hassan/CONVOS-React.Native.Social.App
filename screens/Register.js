@@ -18,16 +18,17 @@ export default function Register({ navigation }) {
   
     const db = getFirestore();
     const storage = getStorage();
-  
+    const downloadUrl = 'https://firebasestorage.googleapis.com/v0/b/pilot-react-native.appspot.com/o/Profile%20Photos%2Favatar.png?alt=media&token=9a128f8f-77ae-438c-9bfd-282643320d23';
+    
     const HandleRegister = async () => {
       try{
         const credentials = await createUserWithEmailAndPassword(getAuth(), email, password)
-        const refc = ref(storage, 'Profile Photos/avatar.png');
-        const url = await getDownloadURL(refc);
+        // const refc = ref(storage, 'Profile Photos/avatar.png');
+        // const url = await getDownloadURL(refc);
         
         await updateProfile(credentials.user, {
           displayName: firstName + ' ' + lasttName,
-          photoURL: url,
+          photoURL: downloadUrl,
         });
 
         console.log(credentials.user);
@@ -36,7 +37,7 @@ export default function Register({ navigation }) {
           Name: firstName + ' ' + lasttName,
           ID: getAuth().currentUser.uid,
           email: credentials.user.email,
-          Photo: getAuth().currentUser.photoURL,
+          Photo: downloadUrl,
           photoExtension: '.png',
           dateRegistered: serverTimestamp(),
         })

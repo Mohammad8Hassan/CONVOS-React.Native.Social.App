@@ -8,10 +8,7 @@ import Details from './screens/Details'
 import About from './screens/About'
 import Login from './screens/Login'
 import Register from './screens/Register'
-import ByMe from './screens/ByMe';
-import Conversations from './screens/Conversations';
 import Settings from './screens/Settings';
-import Private from './screens/Private';
 import NewConv from './screens/NewConv';
 import EditProfile from './screens/EditProfile';
 import { StyleSheet, Text, View, Button, TouchableOpacity, StatusBar} from 'react-native';
@@ -29,6 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ChangeEmail from './screens/ChangeEmail';
 import Friends from './screens/Friends';
 import Invites from './screens/Invites';
+import ErrorScreen from './screens/ErrorScreen';
 import * as NavigationBar from 'expo-navigation-bar';
 
 const firebaseConfig = {
@@ -61,28 +59,13 @@ function HomeStackScreens() {
     <HomeStack.Navigator screenOptions={() => ({ 
       headerShown: false,
       })}>
-      <HomeStack.Screen name="Public Conversations" component={Home} options={({ navigation }) => ({
-        headerRight: () => <Button title="Log Out" onPress={() => {
-          signOut(getAuth())
-            .then(() => {
-              console.log('signed out')
-            })
-            .catch(error => {
-              console.log(error)
-            })
-        }}/>,
-        headerLeft: () => 
-          <TouchableOpacity>
-            <MaterialIcons name='menu' size={25} color='black' 
-            onPress={() => navigation.dispatch(DrawerActions.toggleDrawer)} style={styles.menu} />
-          </TouchableOpacity>
-        })}/>
+      <HomeStack.Screen name="My Conversations" component={Home} />
       <HomeStack.Screen name="Details" component={Details} />
       <HomeStack.Screen name="New Conversation" component={NewConv} />
+      <HomeStack.Screen name="Error" component={ErrorScreen} />
     </HomeStack.Navigator>
   );
 }
-
 
 function DrawerScreens() {
   return(
@@ -141,65 +124,11 @@ function TabScreens() {
       <Tabs.Screen name="Home" component={HomeStackScreens}/>
       <Tabs.Screen name="Invites" component={Invites} />
       <Tabs.Screen name="Friends" component={Friends} />
-      {/* <Tabs.Screen name="By Me" component={ByMeScreens}/>
-      <Tabs.Screen name="Conversations" component={ConversationsStackScreens}/> */}
       <Tabs.Screen name="Settings" component={SettingsScreens} />
     </Tabs.Navigator>
   )
 }
-
-function ByMeScreens() {
-  return(
-    <ByMeStack.Navigator screenOptions={() => ({ 
-      headerShown: false,
-      })}>
-      <ByMeStack.Screen name="By me" component={ByMe} options={({ navigation }) => ({
-        headerRight: () => <Button title="Log Out" onPress={() => {
-          signOut(getAuth())
-            .then(() => {
-              console.log('signed out')
-            })
-            .catch(error => {
-              console.log(error)
-            })
-        }}/>,
-        headerLeft: () => 
-          <TouchableOpacity>
-            <MaterialIcons name='menu' size={25} color='black' 
-            onPress={() => navigation.dispatch(DrawerActions.toggleDrawer)} style={styles.menu} />
-          </TouchableOpacity>
-        })}/>
-      <ByMeStack.Screen name="Details" component={Details} />
-    </ByMeStack.Navigator>
-  );
-}
-
-function ConversationsStackScreens() {
-  return(
-    <ByMeStack.Navigator screenOptions={() => ({ 
-      headerShown: false,
-      })}>
-      <ByMeStack.Screen name="Active Conversations" component={Conversations} options={({ navigation }) => ({
-        headerRight: () => <Button title="Log Out" onPress={() => {
-          signOut(getAuth())
-            .then(() => {
-              console.log('signed out')
-            })
-            .catch(error => {
-              console.log(error)
-            })
-        }}/>,
-        headerLeft: () => 
-          <TouchableOpacity>
-            <MaterialIcons name='menu' size={25} color='black' 
-            onPress={() => navigation.dispatch(DrawerActions.toggleDrawer)} style={styles.menu} />
-          </TouchableOpacity>
-        })}/>
-      <ByMeStack.Screen name="Details" component={Details} />
-    </ByMeStack.Navigator>
-  );
-}
-
+// need to change stack name!
 function SettingsScreens() {
   return(
     <ByMeStack.Navigator screenOptions={() => ({ 
@@ -212,32 +141,34 @@ function SettingsScreens() {
   );
 }
 
-function getHeaderTitles(route) {
-  const routeName = getFocusedRouteNameFromRoute(route) ?? 'Home';
+// function getHeaderTitles(route) {
+//   const routeName = getFocusedRouteNameFromRoute(route) ?? 'Home';
 
-  switch(routeName) {
-    case 'Home':
-      return 'Home';
-    case 'Details':
-      return 'Details';
-  }
-}
+//   switch(routeName) {
+//     case 'Home':
+//       return 'Home';
+//     case 'Details':
+//       return 'Details';
+//   }
+// }
 
 
 // component
 
 export default function App() {
   const [isFontsLoaded, setFontsLoaded] = useState(false);
-  const [isSignedin, setIsSignedin] = useState(false);
+  const [isSignedin, setIsSignedin] = useState(null);
 
-  // useEffect hook
+
   useEffect(() => {
     async function prepare() {
       try {
         await SplashScreen.preventAutoHideAsync();
 
         await Font.loadAsync({
-          'Kanit-Light': require('./assets/fonts/Kanit-ExtraLight.ttf')
+          'Kanit-Light': require('./assets/fonts/Kanit-ExtraLight.ttf'),
+          'Solway-Regular': require('./assets/fonts/Solway-Regular.ttf'),
+          'Solway-Bold': require('./assets/fonts/Solway-Bold.ttf'),
         });
 
         
@@ -245,7 +176,7 @@ export default function App() {
         console.warn(e);
       } finally {
         setFontsLoaded(true);
-        await SplashScreen.hideAsync();
+        
       }
     } 
 
@@ -253,7 +184,7 @@ export default function App() {
 
     NavigationBar.setBackgroundColorAsync("#613a5f");
 
-    const unsubscribe = getAuth().onAuthStateChanged(user => {
+    getAuth().onAuthStateChanged(user => {
       if(user) {
         setIsSignedin(true);
       } else {
@@ -261,32 +192,41 @@ export default function App() {
       }
     })
 
-    return unsubscribe;
+    
   }, []);
 
-  if(!isFontsLoaded){
+  useEffect(() => {
+    if(isFontsLoaded && isSignedin != null) {
+      SplashScreen.hideAsync();
+    }
+  }, [isFontsLoaded, isSignedin])
+
+  if(!isFontsLoaded || isSignedin == null){
     return null;
   }
 
   return (
     <MenuProvider backHandler={true}>
+      
       <StatusBar
         animated={true}
         backgroundColor="#613a5f" 
       />
+
       <NavigationContainer>
         <MainStack.Navigator screenOptions={() => ({ headerShown: false,})}>
-          { isSignedin == false ? (
+          { (isSignedin == false || isSignedin == null) ? (
             <>
               <MainStack.Screen name="Login" component={Login} />
               <MainStack.Screen name="Register" component={Register} />
             </>
           ) : (
-            <MainStack.Screen name="Drawer" component={DrawerScreens} />
+            <MainStack.Screen name="Tab" component={TabScreens} />
           )
           }
         </MainStack.Navigator>
       </NavigationContainer>
+
     </MenuProvider>
   );
 

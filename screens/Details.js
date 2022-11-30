@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, Button, ImageBackground, Image, KeyboardAvoidingView,
-  TextInput, ScrollView, FlatList, Modal, Alert, Pressable, Keyboard, ToastAndroid
+  TextInput, ScrollView, FlatList, Modal, Alert, Pressable, Keyboard, ToastAndroid, ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,7 @@ import * as FileSystem from "expo-file-system";
 import * as Clipboard from 'expo-clipboard';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider, } from 'react-native-popup-menu';
 import SystemMessage from '../shared/SystemMessage';
+import ErrorScreen from './ErrorScreen';
 
 export default function Details({ route, navigation }) {
 
@@ -40,8 +41,9 @@ export default function Details({ route, navigation }) {
   const [num, setNum] = useState(0);
   const [areFriends, setAreFriends] = useState([]);
   const [notFriends, setNotFriends] = useState([]);
-  const [commentsFlag, setCommentsFlag] = useState('first render');
+  // const [commentsFlag, setCommentsFlag] = useState('first render');
   // const [friendsFlag, setFriendsFlag] = useState('first render');
+  const [commentsIndicator, setCommentsIndicator] = useState(true);
 
   // const refreshComments = useRef(false);
 
@@ -51,6 +53,13 @@ export default function Details({ route, navigation }) {
   const user = getAuth().currentUser;
   const mount = useRef(false);
   const friendsFlag = useRef('first render');
+  const commentsFlag = useRef('first render');
+  const unsubscribe2 = useRef();
+  const yPosition = useRef(null);
+
+  const convAuthorID = useRef('');
+  const convAuthorUri = useRef(null);
+  const convAuthorName = useRef('');
 
   useEffect(() => {
     mount.current = true;
@@ -59,39 +68,30 @@ export default function Details({ route, navigation }) {
       tabBarStyle: {display: 'none'}
     });
     
-    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
-      if(scrollView != null) {
-        scrollView.current.scrollToEnd({animated:true});
-      }
-    })
-
+    
     updateDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
       lastAccessed: Timestamp.now(),
     });
 
     const unsubscribe = onSnapshot(doc(db, 'Conversations', id), snapShot => {
       if(snapShot.data()) {
-        getDoc(doc(db, 'Conversations', id, 'Participants', user.uid))
-          .then(res => {
-            if(res.exists()){
-              setPost(snapShot.data());
+
+        if(mount.current) {
+          setPost(snapShot.data());
       
-              setIsAvailable(true);
-              
-              getDoc(doc(db, 'Users', snapShot.data().authorID))
-                .then(author => {
-                  setUri(author.data().Photo);
-                })
-            }
-            else {
-              setIsAvailable(false);
-            }
-          })
+          setIsAvailable(true);
+        }
+        
+        // getDoc(doc(db, 'Users', snapShot.data().authorID))
+        //   .then(author => {
+        //     setUri(author.data().Photo);
+        //   })
       }
       else {
-        setIsAvailable(false);
+        // setIsAvailable(false);
+        navigation.replace('Error');
       }
-    })
+    }, error => {console.log(error)})
     
 
     let participants = {};
@@ -108,23 +108,22 @@ export default function Details({ route, navigation }) {
 
           const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
 
+          if(change.doc.data().Admin) {
+            convAuthorID.current = change.doc.id;
+            convAuthorUri.current = photo;
+            convAuthorName.current = info.data().Name;
+          }
+
+          if (change.doc.id != user.uid)
           participantsID.push({id: change.doc.id, photo: photo, name: info.data().Name, removed: change.doc.data().removed});
-          // console.log('3: ', participantsID);
 
           participants[change.doc.id + 'Name'] = info.data().Name;
           participants[change.doc.id + 'Photo'] = photo;
           participants[change.doc.id + 'ID'] = change.doc.id;
           participants[change.doc.id + 'REM'] = change.doc.data().removed;
 
-          // setAllComments(prev => {
-          //   prev.forEach(comment => {
-          //     if(comment['authorID'] == change.doc.id) {
-          //       comment['removed'] = false;
-          //     }
-          //   })
-            
-          //   return [...prev];
-          // })
+          // console.log('1participants: ', participants);
+          // console.log('1participantsID: ', participantsID);
         }
         else if(change.type === 'modified') {
           if(change.doc.data().removed == true) {
@@ -141,18 +140,21 @@ export default function Details({ route, navigation }) {
   
             participants[change.doc.id + 'REM'] = true;
 
-            setAllComments(prev => {
-              prev.forEach(comment => {
-                if(comment['authorID'] == change.doc.id) {
-                  comment['removed'] = true;
-                }
+            if(mount.current) {
+              setAllComments(prev => {
+                prev.forEach(comment => {
+                  if(comment['authorID'] == change.doc.id) {
+                    comment['removed'] = true;
+                  }
+                })
+                
+                return [...prev];
               })
-              
-              return [...prev];
-            })
-  
+            }
+            
             if(change.doc.id == user.uid) {
-              setIsAvailable(false);
+              // setIsAvailable(false);
+              navigation.replace('Error');
             }
           }
           else if(change.doc.data().removed == false) {
@@ -161,28 +163,34 @@ export default function Details({ route, navigation }) {
   
             participants[change.doc.id + 'REM'] = false;
 
-            setAllComments(prev => {
-              prev.forEach(comment => {
-                if(comment['authorID'] == change.doc.id) {
-                  comment['removed'] = false;
-                }
+            if(mount.current) {
+              setAllComments(prev => {
+                prev.forEach(comment => {
+                  if(comment['authorID'] == change.doc.id) {
+                    comment['removed'] = false;
+                  }
+                })
+                
+                return [...prev];
               })
-              
-              return [...prev];
-            })
+            }
+            
           }
           
         }
 
         
-      }));
+      }))
       
-      setAllParticipants(participants);
-      setParticipantsIDs(participantsID);
-      setData(prev => {prev = participantsID; return [...prev]});
-      setSelector('all');
-      setNum(participantsID.length);
-    })
+      if(mount.current) {
+        setAllParticipants(participants);
+        setParticipantsIDs(participantsID);
+        setData(prev => {prev = participantsID; return [...prev]});
+        setSelector('all');
+        setNum(participantsID.length);
+      }
+      
+    }, error => {console.log(error)});
 
     
 
@@ -190,10 +198,10 @@ export default function Details({ route, navigation }) {
       tab.setOptions({
         tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
       });
+      mount.current = false;
       unsubscribe();
       unsubscribe3();
-      showSubscription.remove();
-      mount.current = false;
+      unsubscribe2.current != undefined? unsubscribe2.current() : null;
     }
 
   }, [])
@@ -262,14 +270,15 @@ export default function Details({ route, navigation }) {
   //   loadComments();
   // }, [allParticipants])
 
-  useEffect(() => {
-    if(participantsIDs != null && friendsFlag.current == 'first render') {
-      loadFriends();
-    }
-  }, [participantsIDs])
+  // useEffect(() => {
+  //   if((participantsIDs != null && friendsFlag.current == 'first render' || addedFlag.)) {
+  //     loadFriends();
+  //   }
+  // }, [participantsIDs])
 
   useEffect(() => {
-    if((allParticipants != null && commentsFlag == 'first render')) {
+    if((allParticipants != null && commentsFlag.current == 'first render')) {
+      console.log('ConvAuthorID: ', convAuthorID.current);
       loadComments();
     }
   }, [allParticipants])
@@ -284,17 +293,18 @@ export default function Details({ route, navigation }) {
   }, [expanded])
 
   const loadComments = useCallback(() => {
-    
+    console.log('called - ', mount.current);
     const colRef = collection(db, 'Conversations', id, 'Comments');
     const q = query(colRef, orderBy('timeStamp'));
     
-    const unsubscribe2 = onSnapshot(q, async snapShot => {
+    unsubscribe2.current = onSnapshot(q, async snapShot => {
+      
       let comments = allComments;
+      console.log(user.displayName)
 
-      // console.log('allParticipants: ', allParticipants);
-      console.log('comments fired...')
       for (const change of snapShot.docChanges()) {
         if(change.type === 'added') {
+          console.log('comment added: ', change.doc.data().comment);
           const empty = change.doc.data().timeStamp === null ? Timestamp.now() : change.doc.data().timeStamp;
 
           comments.push({id: change.doc.id, ...change.doc.data(), timeStamp: empty, 
@@ -315,106 +325,108 @@ export default function Details({ route, navigation }) {
           prev = comments;
           return [...prev];
         });
-  
-        setCommentsFlag('rendered');
+        setCommentsIndicator(false);
       }
       else {
-        console.log("else...")
-        return () => {
-          console.log('RETURNED!!');
-          unsubscribe2();
-        }
-        
+        unsubscribe2.current();
+        console.log('else unsub...');
       }
-    })
-
+    }, error => {console.log(error)})
+    
   }, [allParticipants])
 
-  const loadFriends = useCallback(() => {
-    const friendsRef = collection(db, 'Users', user.uid, 'Friends');
+  // const loadFriends = useCallback(() => {
+  //   const friendsRef = collection(db, 'Users', user.uid, 'Friends');
 
-    const unsubscribe4 = onSnapshot(friendsRef, async snapShot => {
-      // console.log('initial arrayAreFriends: ', arrayAreFriends);
-      // console.log('initial arrayNotFriends: ', arrayNotFriends);
+  //   const unsubscribe4 = onSnapshot(friendsRef, async snapShot => {
+  //     // console.log('initial arrayAreFriends: ', arrayAreFriends);
+  //     // console.log('initial arrayNotFriends: ', arrayNotFriends);
 
-      let arrayFriends = friends;
-      let arrayAreFriends = areFriends;
-      let arrayNotFriends = notFriends;
+  //     let arrayFriends = friends;
+  //     let arrayAreFriends = areFriends;
+  //     let arrayNotFriends = notFriends;
       
-      for (const change of snapShot.docChanges()) {
-        console.log(change.doc.data().Name);
-        let participant = participantsIDs.find(e => e.id === change.doc.data().ID);
-        if(participant) {
-          if(change.type === 'added') {
-            arrayFriends.push(change.doc.data());
-            arrayAreFriends.push(participant);
+  //     for (const change of snapShot.docChanges()) {
+  //       // console.log(change.doc.data().Name);
+  //       let participant = participantsIDs.find(e => e.id === change.doc.data().ID);
+  //       if(participant) {
+  //         if(change.type === 'added') {
+  //           arrayFriends.push(change.doc.data());
+  //           arrayAreFriends.push(participant);
 
-            if(arrayNotFriends.find(e => e.id === change.doc.data().ID)) {
-              // console.log('exists not friend');
-              const index = arrayNotFriends.map(e => e.id).indexOf(change.doc.id);
-              arrayNotFriends.splice(index,1);
-              console.log('removed from arrayNotFriends: ', arrayNotFriends);
-            }
-          }
-          else if(change.type === 'removed') {
-            console.log('removed');
-            // if(!arrayNotFriends.find(e => e.id === change.doc.data().ID))
-            arrayNotFriends.push(participant);
+  //           if(arrayNotFriends.find(e => e.id === change.doc.data().ID)) {
+  //             // console.log('exists not friend');
+  //             const index = arrayNotFriends.map(e => e.id).indexOf(change.doc.id);
+  //             arrayNotFriends.splice(index,1);
+  //             // console.log('removed from arrayNotFriends: ', arrayNotFriends);
+  //           }
+  //         }
+  //         else if(change.type === 'removed') {
+  //           // console.log('removed');
+  //           // if(!arrayNotFriends.find(e => e.id === change.doc.data().ID))
+  //           arrayNotFriends.push(participant);
 
-            if(arrayAreFriends.find(e => e.id === change.doc.data().ID)) {
-              console.log('exists friend');
-              const index = arrayAreFriends.map(e => e.id).indexOf(change.doc.id);
-              arrayAreFriends.splice(index,1);
-              console.log('removed from arrayAreFriends: ', arrayAreFriends);
+  //           if(arrayAreFriends.find(e => e.id === change.doc.data().ID)) {
+  //             // console.log('exists friend');
+  //             const index = arrayAreFriends.map(e => e.id).indexOf(change.doc.id);
+  //             arrayAreFriends.splice(index,1);
+  //             // console.log('removed from arrayAreFriends: ', arrayAreFriends);
 
-              const index2 = arrayFriends.map(e => e.ID).indexOf(change.doc.id);
-              arrayFriends.splice(index2,1);
-            } 
-          }
-        }
+  //             const index2 = arrayFriends.map(e => e.ID).indexOf(change.doc.id);
+  //             arrayFriends.splice(index2,1);
+  //           } 
+  //         }
+  //       }
         
-        // console.log('arrayFriends: ', arrayFriends);
+  //       // console.log('arrayFriends: ', arrayFriends);
         
-      }
+  //     }
         
-      if(friendsFlag.current == 'first render') {
-        console.log('friendsFlag ', friendsFlag.current);
-        console.log('participantsIDS: ', participantsIDs);
-        for (const participant of participantsIDs) {
-          if(!(arrayFriends.find(e => e.ID === participant['id']) || participant['id'] == user.uid)) {
+  //     if(friendsFlag.current == 'first render') {
+  //       // console.log('friendsFlag ', friendsFlag.current);
+  //       // console.log('participantsIDS: ', participantsIDs);
+  //       for (const participant of participantsIDs) {
+  //         if(!(arrayFriends.find(e => e.ID === participant['id']) || participant['id'] == user.uid)) {
             
-            arrayNotFriends.push(participant);
-          }
-        }
-      }
+  //           arrayNotFriends.push(participant);
+  //         }
+  //       }
+  //     }
       
 
-      console.log('final arrayAreFriends: ', arrayAreFriends);
-      console.log('final arrayNotFriends: ', arrayNotFriends);
+  //     // console.log('final arrayAreFriends: ', arrayAreFriends);
+  //     // console.log('final arrayNotFriends: ', arrayNotFriends);
 
-      if(mount.current) {
-        setFriends(arrayFriends);
-        setAreFriends(arrayAreFriends);
-        setNotFriends(arrayNotFriends);
+  //     if(mount.current) {
+  //       setFriends(arrayFriends);
+  //       setAreFriends(arrayAreFriends);
+  //       setNotFriends(arrayNotFriends);
 
-        if(friendsFlag.current != 'first render') {
-          friendsFlag.current = 'rendered';
-          setData(prev => {
-            return [...prev];
-          })
-        }
+  //       if(friendsFlag.current != 'first render') {
+  //         friendsFlag.current = 'rendered';
+  //         setData(prev => {
+  //           return [...prev];
+  //         })
+  //       }
         
-      }
-      else {
-        return () => {
-          unsubscribe4();
-          console.log('RETURNED Friends!!');
-        }
-      }
+  //     }
+  //     else {
+  //       return () => {
+  //         unsubscribe4();
+  //         console.log('RETURNED Friends!!');
+  //       }
+  //     }
       
-    })
+  //   }, error => {console.log(error)})
 
-  }, [participantsIDs, areFriends, notFriends, friends])
+  // }, [participantsIDs, areFriends, notFriends, friends])
+
+  const initialScroll = () => {
+    if(commentsFlag.current == 'first render') {
+      scrollView.current.scrollToEnd({animated:false});
+      commentsFlag.current = 'rendered';
+    }
+  }
 
   async function findImageInCache(uri) {
     try {
@@ -474,8 +486,8 @@ export default function Details({ route, navigation }) {
 
   const showAlert = (id) => {
     Alert.alert(
-      'Delete Comment?',
-      'Are you sure you want to delete this comment?',
+      'Delete Message?',
+      'Are you sure you want to delete this Message?',
       [
         {
           text: 'Cancel',
@@ -528,17 +540,6 @@ export default function Details({ route, navigation }) {
     deleteDoc(doc(db, 'Users', userID, 'My Conversations', id));
   }
 
-  const addComment = () => {
-    setAddCommentButton(false);
-    setCommentBox(true);
-
-    scrollView.current.scrollToEnd();
-  };
-
-  const scrollToEnd = () => {
-    scrollView.current.scrollToEnd({animated:false});
-  }
-
   const postComment = async () => {
     const theComment = comment;
     if(comment == '') return;
@@ -550,14 +551,9 @@ export default function Details({ route, navigation }) {
       comment: theComment,
       author: user.displayName,
       authorID: user.uid,
-      timeStamp: serverTimestamp(),
+      timeStamp: Timestamp.now(),
       system: false
     })
-  }
-
-  const cancelComment = () => {
-    setAddCommentButton(true);
-    setCommentBox(false);
   }
 
   const deleteComment = (commentId) => {
@@ -626,65 +622,39 @@ export default function Details({ route, navigation }) {
               <Modal visible={modalOpen} animationType='slide' onRequestClose={() => setModalOpen(false)}>
                 <MenuProvider skipInstanceCheck style={{flex:1}}>
                   <View style={{flex:1, backgroundColor:'#806b96'}}>
-                    <View style={styles.homeHeader}>
-                      <Text style={{fontSize:18, color:'white'}}>Participants</Text>
-                    </View>
+                    <View style={styles.homeHeader}></View>
+   
+                    <Text style={{marginVertical:4, marginLeft:8, fontSize:18, color:'white', backgroundColor:'#8d8299', alignSelf:'flex-start', paddingHorizontal:3, fontWeight:'bold'}}>Participants  { num }</Text>
 
-                    {/* selectors */}
-                    <View style={{flexDirection:'row', justifyContent:'space-around', marginVertical:15, marginHorizontal:20, paddingVertical:5}}>
-                      <Pressable
-                        onPress={selectAll}
-                        style={({ pressed }) => [
-                          {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='all')? '#1f1f1f': 'grey'}
-                        ]}
-                      >
-                        <View style={{flexDirection:'row', alignItems:'center',}}>
-                          <Text style={{color:"white", fontSize: 19,}}>All</Text>
-                        </View>
-                      </Pressable>
-                      <Pressable
-                        onPress={selectFriends}
-                        style={({ pressed }) => [
-                          {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? '#1f1f1f': 'grey'}
-                        ]}
-                      >
-                        <View style={{flexDirection:'row', alignItems:'center',}}>
-                          <Text style={{color:"white", fontSize: 19,}}>Friends</Text>
-                        </View>
-                      </Pressable>
-                      <Pressable
-                        onPress={selectOthers}
-                        style={({ pressed }) => [
-                          {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='others')? '#1f1f1f': 'grey'}
-                        ]}
-                      >
-                        <View style={{flexDirection:'row', alignItems:'center',}}>
-                          <Text style={{color:"white", fontSize: 19,}}>Others</Text>
-                        </View>
-                      </Pressable>
+                    <View style={styles.itemUser}>
+                      <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20,}}>
+                        <Image source={{uri: user.photoURL}} style={{height:40, width:40, borderRadius:50, borderColor:'#4ebbed'}} />
+                        <Text style={{fontSize:18, marginLeft:10, color:'white'}}>{ user.displayName }</Text>
+                        <Text style={{fontSize:15, marginLeft:'auto', color:'white', fontStyle:'italic', marginRight:5}}>(you)</Text>
+                      </View>
                     </View>
-                    
-                    <Text style={{marginVertical:4, marginLeft:8, fontSize:18, color:'white'}}>{ num }</Text>
 
                     <View style={{flex:1, marginTop:5, padding:4}}>
-                      <FlatList data={data} extraData={[friends, areFriends, notFriends, participantsIDs]} renderItem={({ item }) => (
+                      <FlatList data={data} extraData={participantsIDs} renderItem={({ item }) => (
                         <View style={styles.item}>
 
                           <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20, opacity: (item.removed == true)? 0.5 : 1}}>
-                            <Image source={{uri: item.photo}} style={[{height:40, width:40, borderRadius:50, borderColor:'#4ebbed'}, {borderWidth: (item.id == user.uid)?2:0}]} />
-                            <Text style={[{fontSize:18, marginLeft:10}, {color: (item.id == user.uid)?'#4ebbed':'white'}]}>{ item.name }</Text>
-                            {(item.id != user.uid && item.removed == false) && 
+                            <Image source={{uri: item.photo}} style={{height:40, width:40, borderRadius:50, borderColor:'#4ebbed'}} />
+                            <Text style={{fontSize:18, marginLeft:10, color:'white'}}>{ item.name }</Text>
+                            {(item.removed == false) && 
                               <Menu style={styles.menu}>
                               <MenuTrigger>
                                 <MaterialIcons name='more-horiz' size={20} color='white'  />
                               </MenuTrigger>
                               <MenuOptions>
-                                <MenuOption onSelect={() => showAlertUser(item.id, item.name)}>
-                                  <Text style={{color: "red", fontSize: 18, margin: 5}}>Remove</Text>
-                                </MenuOption>
-
+                                {user.uid == convAuthorID.current? (
+                                  <MenuOption onSelect={() => showAlertUser(item.id, item.name)}>
+                                   <Text style={{color: "red", fontSize: 18, margin: 5}}>Remove</Text>
+                                  </MenuOption>
+                                ):null}
+                                
                                 <MenuOption onSelect={() => showAlert(item.id, item.name)}>
-                                  <Text style={{color: "red", fontSize: 18, margin: 5}}>Add to friends</Text>
+                                  <Text style={{fontSize: 18, margin: 5}}>Add to friends</Text>
                                 </MenuOption>
                                 
                               </MenuOptions>
@@ -706,17 +676,17 @@ export default function Details({ route, navigation }) {
                   <View style={styles.card}>
                     <View style={styles.cardContent}>
                       {/* <Text style={{color:'grey'}}>Title</Text> */}
-                      <Text style={{borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:15, color:'grey'}}>{ post.title }</Text>
+                      <Text style={{borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:15, color:'grey', paddingBottom:3}} selectable>{ post.title }</Text>
                       
                       <ScrollView style={{maxHeight:200}}>
-                        <Text style={{marginTop:10, fontSize:18, marginHorizontal:8}}>{ post.body }</Text>
+                        <Text style={{marginTop:10, fontSize:18, marginHorizontal:8}} selectable>{ post.body }</Text>
                       </ScrollView>
 
                       <View style={styles.createdView}>
                         {/* <Text style={{fontSize: 13}}>By: </Text> */}
-                        <Image source={{uri: uri}} style={{width:25, height:25, borderRadius:60, borderColor:'#613a5f', borderWidth:1, marginRight:5}} />
-                        <Text style={styles.createdAuthor}>{ post.author }</Text>
-                        <Text style={styles.createdTime}>{post.dateCreated.toDate().toDateString()}</Text>
+                        <Image source={{uri: convAuthorUri.current}} style={{width:25, height:25, borderRadius:60, borderColor:'#613a5f', borderWidth:1, marginRight:5}} />
+                        <Text style={styles.createdAuthor} selectable>{ convAuthorName.current }</Text>
+                        <Text style={styles.createdTime} selectable>{post.dateCreated.toDate().toDateString()}</Text>
                       </View>
                     </View>
                     <View style={{flexDirection:'row', justifyContent:'flex-end', alignItems:'center', marginHorizontal:3,}}>
@@ -811,38 +781,40 @@ export default function Details({ route, navigation }) {
               {/* comments */}
               <KeyboardAvoidingView style={styles.container}  >
                 <View style={{flex:1}}>
-                  <ScrollView ref={scrollView} onContentSizeChange={(w, h) => {scrollView.current.scrollToEnd({animated:false})}}>
-                    
-                    <View style={styles.listContainer}>
-                      {
-                        allComments.map(comment => {
-                          return (
-                            <View style={styles.listItem} key={comment.id}>
-                              {comment.system ? (
-                                <SystemMessage comment={comment} />
-                              ) : (
-                                <>
-                                  {(comment.authorID == user.uid) ? (
-                                    <RenderComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} />
-                                  ) : (
-                                    <RenderOthersComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} />
-                                  )
-                                  }
-                                </>
-                              )}
-                              
-                            </View>
-                          )
-                        })
-                      }
-                    </View>
-                    
-                  </ScrollView>
-
+                  {commentsIndicator? (
+                    <ActivityIndicator size={80} color='#d4c86e' animating={commentsIndicator} style={{flex:1}} />
+                  ) : (
+                    <ScrollView ref={scrollView} onContentSizeChange={(w, h) => initialScroll()}>
+                      <View style={styles.listContainer}>
+                        {
+                          allComments.map(comment => {
+                            return (
+                              <View style={styles.listItem} key={comment.id}>
+                                {comment.system ? (
+                                  <SystemMessage comment={comment} />
+                                ) : (
+                                  <>
+                                    {(comment.authorID == user.uid) ? (
+                                      <RenderComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} />
+                                    ) : (
+                                      <RenderOthersComment comment={comment} userID={getAuth().currentUser.uid} alert={showAlert} />
+                                    )
+                                    }
+                                  </>
+                                )}
+                                
+                              </View>
+                            )
+                          })
+                        }
+                      </View>
+                    </ScrollView>
+                  )}
+                  
                   <View style={styles.commentBox}>
                     <TextInput
                       style={styles.comment}
-                      placeholder='comment...'
+                      placeholder='Message...'
                       onChangeText={(value) => setComment(value)}
                       value={comment}
                       multiline
@@ -861,6 +833,7 @@ export default function Details({ route, navigation }) {
                       </Pressable>
                     </View>
                   </View>
+
                 </View>
               </KeyboardAvoidingView>
             </>
@@ -916,14 +889,15 @@ const styles = StyleSheet.create({
   comment: {
     backgroundColor: 'white',
     color: 'black',
-    padding: 7,
+    padding: 5,
     paddingLeft: 15,
     flex:4,
     fontSize: 18,
     borderColor: '#613a5f',
     borderWidth: 1,
     alignSelf:'flex-end',
-    borderRadius:20
+    borderRadius:20,
+    marginLeft:5
   },
   buttonGroup: {
     flexDirection: 'row',
@@ -964,6 +938,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 10,
   },
   pic: {
@@ -1067,7 +1042,14 @@ const styles = StyleSheet.create({
     flex:1, 
     marginBottom:10, 
     padding: 4,
-    backgroundColor:'#8d8299'
+    backgroundColor:'#8d8299',
+    marginHorizontal:3
+  },
+  itemUser: {
+    marginTop: 5,
+    marginBottom:10, 
+    padding: 4,
+    backgroundColor:'#8d8299',
   },
   friendsOp: {
     padding: 8,

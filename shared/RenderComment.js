@@ -4,7 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 export default function RenderComment(props) {
   return (
-    <>
+    <View style={{flexDirection:'row', alignItems:'center', flex:1}}>
       <View style={styles.commentView} >
         <View style={styles.commentViewInner}>
           <Text style={styles.theComment} selectable>{props.comment.comment}</Text>
@@ -18,7 +18,7 @@ export default function RenderComment(props) {
       <View style={styles.delete} >
         <MaterialIcons name='delete' color='grey' size={25} onPress={() => props.alert(props.comment.id)}/>
       </View>
-    </>
+    </View>
   )
 }
 

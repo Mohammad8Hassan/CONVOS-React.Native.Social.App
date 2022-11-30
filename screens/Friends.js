@@ -41,12 +41,13 @@ export default function Friends() {
   const [title, setTitle] = useState('');
   const [num, setNum] = useState(0);
   const [showIndicator, setShowIndicator] = useState(false);
+  const [listIndicator, setListIndicator] = useState(true);
 
   useEffect(() => {
     // Sent Requests
     const colRef = collection(db, 'Users', user.uid, 'Sent Requests');
     const q = query(colRef, orderBy('timestamp'));
-    onSnapshot(q, async snapShot => {
+    const unsubscribe1 = onSnapshot(q, async snapShot => {
       let result = [];
       let num = 0;
 
@@ -59,12 +60,12 @@ export default function Friends() {
 
       setSentRequestsNum(num);
       setSentRequests(result);
-    })
+    }, error => {console.log(error)})
     
     // Received Requests
     const colRef2 = collection(db, 'Users', user.uid, 'Received Requests');
     const q2 = query(colRef2, orderBy('timestamp'));
-    onSnapshot(q2, async snapShot => {
+    const unsubscribe2 = onSnapshot(q2, async snapShot => {
       let result = [];
       let num = 0;
 
@@ -79,12 +80,12 @@ export default function Friends() {
       // console.log("ran here");
       setReceivedRequests(result);
       setReceivedRequestsNum(num);
-    })
+    }, error => {console.log(error)})
 
     // Friends List
     const colRef3 = collection(db, 'Users', user.uid, 'Friends');
     const q3 = query(colRef3, orderBy('Name'));
-    onSnapshot(q3, async snapShot => {
+    const unsubscribe3 = onSnapshot(q3, async snapShot => {
       let result = [];
       let num = 0;
 
@@ -98,7 +99,14 @@ export default function Friends() {
       setSelector('friends');
       setFriends(result);
       setFriendsNum(num);
-    })
+      setListIndicator(false);
+    }, error => {console.log(error)})
+
+    return () => {
+      unsubscribe1();
+      unsubscribe2();
+      unsubscribe3();
+    }
   }, [])
 
   useEffect(() => {
@@ -349,7 +357,6 @@ export default function Friends() {
 
   const cancelRequest = (id) => {
     setShowIndicator(true);
-    console.log('runningggggg');
     deleteDoc(doc(db, 'Users', id, 'Received Requests', user.uid))
 
     deleteDoc(doc(db, 'Users', user.uid, 'Sent Requests', id))
@@ -364,36 +371,54 @@ export default function Friends() {
     })
   }
 
-  const approveRequest = (id) => {
+  const approveRequest = async (id) => {
     setShowIndicator(true);
-    getDoc(doc(db, 'Users', id))
-      .then(res => {
-        deleteDoc(doc(db, 'Users', id, 'Sent Requests', user.uid))
+    const requestCheck = await getDoc(doc(db, 'Users', user.uid, 'Received Requests', id));
+    if(requestCheck.exists()) {
+      getDoc(doc(db, 'Users', id))
+        .then(res => {
+          deleteDoc(doc(db, 'Users', id, 'Sent Requests', user.uid))
 
-        deleteDoc(doc(db, 'Users', user.uid, 'Received Requests', id))
+          deleteDoc(doc(db, 'Users', user.uid, 'Received Requests', id))
 
-        setDoc(doc(db, 'Users', user.uid, 'Friends', id), {
-          Name: res.data().firstName + ' ' + res.data().lasttName,
-          ID: res.data().ID,
-          Email: res.data().email,
-          Photo: res.data().photoURL,
-          since: serverTimestamp()
-        });
+          setDoc(doc(db, 'Users', user.uid, 'Friends', id), {
+            Name: res.data().Name,
+            ID: res.data().ID,
+            Email: res.data().email,
+            Photo: res.data().Photo,
+            since: serverTimestamp()
+          });
 
-        setDoc(doc(db, 'Users', id, 'Friends', user.uid), {
-          Name: user.displayName,
-          ID: user.uid,
-          Email: user.email,
-          Photo: user.photoURL,
-          since: serverTimestamp()
-        });
-      })
-      .catch(err => {
-        console.log(err);
-      })
+          setDoc(doc(db, 'Users', id, 'Friends', user.uid), {
+            Name: user.displayName,
+            ID: user.uid,
+            Email: user.email,
+            Photo: user.photoURL,
+            since: serverTimestamp()
+          });
+        })
+        .catch(err => {
+          console.log(err);
+        })
 
-    setModalVisible(false);
-    ToastAndroid.show('Added Sucessfully', ToastAndroid.SHORT);
+      setModalVisible(false);
+      ToastAndroid.show('Added Sucessfully', ToastAndroid.SHORT);
+    }
+    else {
+      Alert.alert(
+        'Error',
+        'Friend request could not be found!',
+        [
+          {
+            text: 'Close',
+            style: 'cancel'
+          },
+        ],
+        {
+          cancelable: true
+        }
+      )
+    }
   }
 
   const removeFriend = (id) => {
@@ -430,8 +455,8 @@ export default function Friends() {
     return(
       <View style={{flex:1, marginBottom:20}}>
         <View style={{flexDirection: 'row', backgroundColor:'#745f8a', alignItems:'center', paddingLeft:8}}>
-          <Text style={{color:"white", fontSize:25}}>{ listTitle }</Text>
-          <Text style={{color:'white', fontSize:25, marginLeft:5}}>{ listNum }</Text>
+          <Text style={{color:"white", fontSize:19, fontFamily:'Solway-Regular'}}>{ listTitle }</Text>
+          <Text style={{color:'#f55fd2', fontSize:19, marginLeft:5}}>{ listNum }</Text>
         </View>
 
         
@@ -512,7 +537,7 @@ export default function Friends() {
   return (
     <SafeAreaView style={{flex: 1, backgroundColor:'#806b96'}}>
       <View style={styles.homeHeader}>
-        <Text style={{fontSize:19, color:'white'}}>Friends</Text>
+        <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Friends</Text>
       </View>
 
         <Modal visible={modalVisible} animationType='fade' transparent={true}
@@ -612,16 +637,17 @@ export default function Friends() {
         </View>
         
         {/* Titles */}
+        
+        {listIndicator? ( <ActivityIndicator size={80} color='#613a5f' animating={listIndicator} style={{flex:1}} /> ) : null}
 
-        {(selector == 'friends') && renderList(Friends, 'Friends - ', FriendsNum)}
+        {(selector == 'friends' && !listIndicator)? ( renderList(Friends, 'Friends - ', FriendsNum) ): null}
 
-        {(selector == 'received') && renderList(receivedRequests, 'Received Requests - ', receivedRequestsNum)}
+        {(selector == 'received' && !listIndicator)? ( renderList(receivedRequests, 'Received Friend Requests - ', receivedRequestsNum) ) : null}
 
-        {(selector == 'sent') && renderList(sentRequests, 'Sent Requests - ', sentRequestsNum)}
+        {(selector == 'sent' && !listIndicator)? ( renderList(sentRequests, 'Sent Friend Requests - ', sentRequestsNum) ) : null}
 
         <View style={{alignItems:'flex-end'}}>
           <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={styles.addbtn}>
-            {/* <Text style={{fontSize:16, marginRight:8}}>add friend</Text> */}
             <MaterialIcons name='person-add' size={33} color="#574866"/>
           </TouchableOpacity>
         </View>
@@ -774,7 +800,7 @@ const styles = StyleSheet.create({
     backgroundColor:'white',
     paddingHorizontal:20,
     paddingVertical:5,
-    borderRadius:20,
+    borderRadius:17,
     alignItems:'center',
     justifyContent:'center',
     flexDirection:'row',

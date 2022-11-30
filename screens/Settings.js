@@ -34,7 +34,7 @@ export default function Settings({ navigation }) {
   return (
     <SafeAreaView style={{flex:1,}}>
       <View style={styles.homeHeader}>
-        <Text style={{fontSize:19, color:'white'}}>Settings</Text>
+        <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Settings</Text>
       </View>
       
       <View style={styles.container}>
@@ -80,17 +80,17 @@ export default function Settings({ navigation }) {
           <Text style={{color:"white", fontSize: 20, marginTop:20, marginLeft: 10}}>Settings</Text>
         </View>
 
-        <View style={{marginHorizontal:3, backgroundColor:'#dad1e3', paddingVertical:5, marginTop:20, flex:1, elevation:8}}>
+        <View style={{marginHorizontal:3, backgroundColor:'#dad1e3', paddingVertical:5, marginVertical:20, flex:1, elevation:8}}>
           <Text style={{color:'#201d21', fontSize:18, backgroundColor:'white', padding:5, opacity:0.7}}>Appearance</Text>
         </View>
         
-        <View>
+        {/* <View>
           <Text style={{color:"white", fontSize: 20, marginTop:20, marginLeft: 10}}>Version</Text>
         </View>
 
         <View style={{marginHorizontal:3, backgroundColor:'#dad1e3', padding:5, marginTop:20, marginBottom:20, elevation:8}}>
           <Text>0.2</Text>
-        </View>
+        </View> */}
 
         <Pressable  
           onPress={() => {
@@ -144,13 +144,14 @@ const styles = StyleSheet.create({
   },
   out: {
     padding: 10,
-    backgroundColor: 'red',
+    backgroundColor: '#853259',
     width: 150,
     alignItems: 'center',
     alignSelf:'center',
     marginTop:'auto',
-    marginBottom:40,
-    borderRadius: 25
+    marginBottom:20,
+    borderRadius: 25,
+    elevation:8
   },
   copyID: {
     padding: 5,

@@ -44,6 +44,7 @@ export default function NewConv({ navigation }) {
   const [displaySelected, setDisplaySelected] = useState([]);
   const [displayNames, setDisplayNames] = useState([]);
   const [email, setEmail] = useState('');
+  const [searchID, setSearchID] = useState('');
   const [searchStatus, setSearchStatus] = useState(null);
   const [hasPassword, setHasPassword] = useState(false);
 
@@ -135,6 +136,7 @@ export default function NewConv({ navigation }) {
         const convRef = doc(db, 'Users', person.ID, 'Other Invites', ref.id);
         setDoc(convRef, {
           title: values.title,
+          body: values.body,
           author: user.displayName,
           authorID: user.uid,
           timeStamp: serverTimestamp(),
@@ -144,6 +146,7 @@ export default function NewConv({ navigation }) {
       setDoc(doc(db, 'Conversations', ref.id, 'Participants', user.uid), {
         Name: user.displayName,
         ID: user.uid,
+        Admin: true,
         removed: false
       });
 
@@ -236,7 +239,12 @@ export default function NewConv({ navigation }) {
   
   const addOther = () => {
     Keyboard.dismiss();
-    const obj = selectedOthers.find(e => e.email === email);
+    if(searchID == user.uid) {
+      console.log('adding myself!');
+      setSearchStatus("You are already participating as the admin.");
+      return;
+    }
+    const obj = selectedOthers.find(e => e.ID === searchID);
     console.log(obj);
 
     if(obj){
@@ -245,7 +253,7 @@ export default function NewConv({ navigation }) {
     }
     else {
       const colRef = collection(db, 'Users');
-      const q = query(colRef, where('email', '==', email));
+      const q = query(colRef, where('ID', '==', searchID));
       getDocs(q)
         .then(res => {
           if(res.docs[0].exists()){
@@ -298,7 +306,7 @@ export default function NewConv({ navigation }) {
   return (
     <SafeAreaView style={{flex: 1, backgroundColor:'#806b96'}}>
       <View style={styles.homeHeader}>
-        <Text style={{fontSize:18, color:'white'}}>New Conversation</Text>
+        <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>New Conversation</Text>
       </View>
 
       {/* Modal */}
@@ -306,7 +314,7 @@ export default function NewConv({ navigation }) {
       <Modal visible={modalOpen} animationType='slide' onRequestClose={() => setModalOpen(false)}>
         <View style={{flex:1, backgroundColor:'#806b96'}}>
           <View style={styles.homeHeader}>
-            <Text style={{fontSize:18, color:'white'}}>Invite Participants</Text>
+            <Text style={{fontSize:18, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Invite Participants</Text>
           </View>
 
           {/* Selectors  */}
@@ -344,7 +352,7 @@ export default function NewConv({ navigation }) {
           
           {(selector=='others') &&
             <View style={{backgroundColor:'#ababab', marginHorizontal:15, padding:10, marginBottom:15}}>
-              <TextInput placeholder='Email' value={email} onChangeText={text => setEmail(text)} style={styles.inputP}/> 
+              <TextInput placeholder='user ID' value={searchID} onChangeText={text => setSearchID(text)} style={styles.inputP}/> 
               {searchStatus && <Text style={{marginTop:8, fontSize:18, alignSelf:'center', color:'#2c2433'}}>{ searchStatus }</Text>}
               <Pressable
                 onPress={addOther}
@@ -422,7 +430,7 @@ export default function NewConv({ navigation }) {
           >
             {props => (
               <View style={{alignItems:'flex-start', flex:1,}}>
-                <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginBottom:5}}>Title</Text>
+                <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginBottom:5, fontFamily:'Solway-Regular'}}>Title</Text>
                 <TextInput
                   style={styles.input}
                   placeholder='Title'
@@ -431,7 +439,7 @@ export default function NewConv({ navigation }) {
                 />
                 { props.touched.title && <Text style={styles.errorText}>{props.errors.title}</Text> }
 
-                <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginBottom:5, marginTop:10}}>Body</Text>
+                <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginBottom:5, marginTop:10, fontFamily:'Solway-Regular'}}>Body</Text>
                 <TextInput
                   style={styles.inputBody}
                   placeholder='Body'
@@ -442,20 +450,25 @@ export default function NewConv({ navigation }) {
                 />
                 { props.touched.body && <Text style={styles.errorText}>{props.errors.body}</Text> }
 
+                {/* participants */}
                 <TouchableOpacity style={styles.participants} onPress={() => setModalOpen(true)}>
                   <View style={{flexDirection:'row', alignItems:'center'}}>
-                    <Text style={{fontSize:22, color:'#574866', marginRight:30}}>Participants</Text>
-                    <View style={{flexDirection:'row'}}>
-                      {displaySelected.map(item => {
-                        return(
-                          <View key={item.ID}>
-                            <Image source={{uri: item.Photo}} style={{height:40, width:40, borderRadius:50}} />
-                          </View>
-                        )
-                      })}
-                    </View>
+                    <Text style={{fontSize:22, color:'#574866', marginRight:30, fontFamily:'Solway-Regular'}}>Participants</Text>
+                    {displaySelected.length != 0 ? (
+                      <View style={{flex:1,}} onStartShouldSetResponder={()=>true}>
+                        <ScrollView horizontal>
+                          {displaySelected.map(item => {
+                            return(
+                              <View key={item.ID}>
+                                <Image source={{uri: item.Photo}} style={{height:40, width:40, borderRadius:50}} />
+                              </View>
+                            )
+                          })}
+                        </ScrollView>
+                      </View>
+                    ): null}
                   </View>
-                  <View style={{flexDirection:'row', marginTop:5}}>
+                  <View style={{flexDirection:'row', marginTop:5, flexWrap:'wrap'}}>
                     {displaySelected.map(item => {
                       return(
                         <View key={item.ID}>
@@ -467,7 +480,7 @@ export default function NewConv({ navigation }) {
                 </TouchableOpacity>
 
                 <View style={{flexDirection:'row', marginTop:5, alignItems:'center'}}>
-                  <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginRight:5}}>Password</Text>
+                  <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginRight:5, fontFamily:'Solway-Regular'}}>Password</Text>
                   <Switch 
                     onValueChange={toggleSwitch}
                     value={hasPassword}
