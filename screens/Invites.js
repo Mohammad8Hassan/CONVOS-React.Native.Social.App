@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, TextInput,
-  Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, Alert } from 'react-native';
-import { useEffect, useState } from 'react';
+  Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, Alert, ActivityIndicator } from 'react-native';
+import { useEffect, useState, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
@@ -9,6 +9,8 @@ import { getAuth } from 'firebase/auth';
 import avatar from '../assets/Imgs/avatar.png';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
+import _ from 'lodash';
+import { useIsFocused } from '@react-navigation/native';
 
 export default function Friends({ navigation }) {
 
@@ -16,6 +18,7 @@ export default function Friends({ navigation }) {
  const storage = getStorage();
  const user = getAuth().currentUser;
  const defaultImg = Image.resolveAssetSource(avatar).uri;
+ const focused = useIsFocused();
 
  const [FriendsInvites, setFriendsInvites] = useState(null);
  const [FriendsInvitesNum, setFriendsInvitesNum] = useState(0);
@@ -25,9 +28,14 @@ export default function Friends({ navigation }) {
  const [selector, setSelector] = useState('');
  const [title, setTitle] = useState('');
  const [num, setNum] = useState(0);
+ const [listIndicator, setListIndicator] = useState(true);
 
  useEffect(() => {
-
+  if(focused)
+    joinResponse.cancel();
+ }, [focused])
+ 
+ useEffect(() => {
    // Friends Invites
    const colRef3 = collection(db, 'Users', user.uid, 'Friends Invites');
    const q3 = query(colRef3, orderBy('timeStamp'));
@@ -54,6 +62,7 @@ export default function Friends({ navigation }) {
      setFriendsInvitesNum(num);
      setTitle('Friends Conversations Invites - ')
      setData(result);
+     setListIndicator(false);
    }, error => {console.log(error)})
 
    // Others Invites
@@ -87,45 +96,6 @@ export default function Friends({ navigation }) {
  }, [FriendsInvitesNum])
 
 
- const approveRequest = (id) => {
-   getDoc(doc(db, 'Users', id))
-     .then(res => {
-       deleteDoc(doc(db, 'Users', id, 'Sent Requests', user.uid))
-
-       deleteDoc(doc(db, 'Users', user.uid, 'Received Requests', id))
-
-       setDoc(doc(db, 'Users', user.uid, 'Friends', id), {
-         Name: res.data().firstName + ' ' + res.data().lasttName,
-         ID: res.data().ID,
-         Email: res.data().email,
-         Photo: res.data().photoURL,
-         since: serverTimestamp()
-       });
-
-       setDoc(doc(db, 'Users', id, 'Friends', user.uid), {
-         Name: user.displayName,
-         ID: user.uid,
-         Email: user.email,
-         Photo: user.photoURL,
-         since: serverTimestamp()
-       });
-     })
-     .catch(err => {
-       console.log(err);
-     })
-
-   setModalVisible(false);
-   ToastAndroid.show('Added Sucessfully', ToastAndroid.SHORT);
- }
-
- const removeFriend = (id) => {
-   console.log(id);
-
-   deleteDoc(doc(db, 'Users', id, 'Friends', user.uid));
-
-   deleteDoc(doc(db, 'Users', user.uid, 'Friends', id));
- }
-
  const selectFriends = () => {
   setData(FriendsInvites); 
   setSelector('friends'); 
@@ -158,7 +128,8 @@ export default function Friends({ navigation }) {
       authorID: authorID,
       title: title,
       body: body,
-      dateCreated: serverTimestamp()
+      dateCreated: Timestamp.now(),
+      lastAccessed: Timestamp.now(),
     });
 
     addDoc(collection(db, 'Conversations', id, 'Comments'), {
@@ -167,6 +138,9 @@ export default function Friends({ navigation }) {
       authorID: user.uid,
       timeStamp: serverTimestamp(),
       system: true,
+      Name2: user.displayName,
+      uri2: user.photoURL,
+      removed2: false,
     });
   
     ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
@@ -216,7 +190,8 @@ export default function Friends({ navigation }) {
       authorID: authorID,
       title: title,
       body: body,
-      dateCreated: serverTimestamp()
+      dateCreated: Timestamp.now(),
+      lastAccessed: Timestamp.now(),
     });
 
     await addDoc(collection(db, 'Conversations', id, 'Comments'), {
@@ -225,6 +200,9 @@ export default function Friends({ navigation }) {
       authorID: user.uid,
       timeStamp: serverTimestamp(),
       system: true,
+      Name2: user.displayName,
+      uri2: user.photoURL,
+      removed2: false,
     });
   
     ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
@@ -273,13 +251,13 @@ export default function Friends({ navigation }) {
 
             <View style={{flexDirection:'row', alignItems:'center', marginHorizontal:8}}>
               <Image source={{uri: item.Photo}} style={{height:30, width:30, borderRadius:50}} />
-              <Text style={{color:'white', fontSize:15, marginLeft:10}} selectable>{ item.Name }</Text>
+              <Text style={{flex:1, color:'white', fontSize:15, marginLeft:10, marginRight:5}} selectable>{ item.Name }</Text>
               <Text style={{color:'white', fontSize:11, marginLeft:'auto'}} selectable>{ item.timeStamp.toDateString() }</Text>
             </View>
 
             <View style={{flexDirection:'row', marginTop:5, padding:10, backgroundColor:'#613a5f', justifyContent:'flex-end', alignItems:'center'}}>
               <Pressable
-                onPress={() => joinResponse(item.ID, item.title, item.body, item.authorID)}
+                onPress={() => joinResponse(item.ID, item.title, item.body, item.authorID, selector)}
                 style={({ pressed }) => [
                   {opacity: pressed ? 0.5: 1}, styles.join
                 ]}
@@ -289,7 +267,7 @@ export default function Friends({ navigation }) {
                 </View>
               </Pressable>
               <Pressable
-                onPress={() => deleteResponse(item.ID)}
+                onPress={() => deleteResponse(item.ID, selector)}
                 style={({ pressed }) => [
                   {opacity: pressed ? 0.5: 1}, styles.delete
                 ]}
@@ -306,17 +284,17 @@ export default function Friends({ navigation }) {
   )
  }
 
- const joinResponse = (id, title, body, authorID) => {
-  if(selector=='friends'){
+ const joinResponse = useCallback(_.debounce((id, title, body, authorID, selectorValue) => {
+  if(selectorValue=='friends'){
     joinFriendConversation(id, title, body, authorID);
   }
   else {
     joinOtherConversation(id, title, body, authorID);
   }
- }
+ }, 2000, {'leading':true, 'trailing':false}), [])
 
- const deleteResponse = (id) => {
-  if(selector=='friends'){
+ const deleteResponse = (id, selectorValue) => {
+  if(selectorValue=='friends'){
     deleteFriendInvite(id);
   }
   else {
@@ -332,48 +310,49 @@ export default function Friends({ navigation }) {
 
      
      {/* Page Contents */}
+     {listIndicator? ( <ActivityIndicator size={80} color='#613a5f' animating={listIndicator} style={{flex:1}} /> ) : (
+      <View style={{flex:1, padding:10, paddingBottom:20}}>
+      {/* selectors */}
 
-     <View style={{flex:1, padding:10, paddingBottom:20}}>
+      <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, justifyContent:'space-between', paddingTop:10}}>
+        <View style={{flex:1, alignItems:'flex-end', paddingTop:12, paddingRight:3, marginRight:3}}>
+          <Pressable
+            onPress={selectFriends}
+            style={({ pressed }) => [
+              {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? '#3d243c': 'grey'}
+            ]}
+          >
+            <View style={{flexDirection:'row', alignItems:'center',}}>
+              <Text style={{color:"white", fontSize: 16,}}>Friends Invites</Text>
+            </View>
+          </Pressable>
+          { (FriendsInvitesNum > 0) && <Text style={styles.badge}>{ FriendsInvitesNum }</Text> }
+        </View>
 
-       {/* selectors */}
+        <View style={{flex:1, alignItems:'flex-end', paddingTop:12, paddingRight:3}}>
+          <Pressable
+            onPress={selectOthers}
+            style={({ pressed }) => [
+              {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='others')? '#3d243c': 'grey'}
+            ]}
+          >
+            <View style={{flexDirection:'row', alignItems:'center',}}>
+              <Text style={{color:"white", fontSize: 16,}}>Others Invites</Text>
+            </View>
+          </Pressable>
+          { (OthersInvitesNum > 0) && <Text style={styles.badge}>{ OthersInvitesNum }</Text> }
+        </View>
+      </View>
+      
+      {/* Lists */}
 
-       <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, marginHorizontal:20, justifyContent:'space-around',paddingTop:10}}>
-          <View style={{alignItems:'flex-end', paddingTop:12, paddingRight:3}}>
-           <Pressable
-             onPress={selectFriends}
-             style={({ pressed }) => [
-               {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? '#1f1f1f': 'grey'}
-             ]}
-           >
-             <View style={{flexDirection:'row', alignItems:'center',}}>
-               <Text style={{color:"white", fontSize: 16,}}>Friends Invites</Text>
-             </View>
-           </Pressable>
-           { (FriendsInvitesNum > 0) && <Text style={styles.badge}>{ FriendsInvitesNum }</Text> }
-          </View>
+      {(selector=='friends') && renderList(FriendsInvites, title, FriendsInvitesNum)}
 
-         <View style={{alignItems:'flex-end', paddingTop:12, paddingRight:3}}>
-           <Pressable
-             onPress={selectOthers}
-             style={({ pressed }) => [
-               {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='others')? '#1f1f1f': 'grey'}
-             ]}
-           >
-             <View style={{flexDirection:'row', alignItems:'center',}}>
-               <Text style={{color:"white", fontSize: 16,}}>Others Invites</Text>
-             </View>
-           </Pressable>
-           { (OthersInvitesNum > 0) && <Text style={styles.badge}>{ OthersInvitesNum }</Text> }
-         </View>
-       </View>
-       
-       {/* Lists */}
+      {(selector=='others') && renderList(OthersInvites, title, OthersInvitesNum)} 
+    </View>
+    )}
 
-       {(selector=='friends') && renderList(FriendsInvites, title, FriendsInvitesNum)}
-
-       {(selector=='others') && renderList(OthersInvites, title, OthersInvitesNum)}
-       
-     </View>
+     
    </SafeAreaView>
  )
 }
@@ -388,7 +367,7 @@ const styles = StyleSheet.create({
  },
  join: {
    padding: 4,
-   backgroundColor: 'green',
+   backgroundColor: '#1da877',
    alignItems: 'center',
    borderRadius:20,
    elevation:3,
@@ -408,7 +387,8 @@ const styles = StyleSheet.create({
    padding: 8,
    backgroundColor: 'grey',
    alignItems: 'center',
-   borderRadius:20,
+   borderRadius:13,
+   alignSelf:'stretch'
  },
  item: {
    flex:1, 

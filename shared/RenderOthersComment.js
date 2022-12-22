@@ -8,15 +8,16 @@ export default function RenderOthersComment(props) {
       <View style={styles.delete} >
         {(props.userID == props.comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => showAlert(props.comment.id)}/>}
       </View>
+
       <View style={styles.commentView} >
-        <View style={styles.commentViewInner}>
-          <Text style={styles.theComment} selectable>{props.comment.comment}</Text>
-          <View style={styles.commentDetails}>
-            <Text style={styles.author} selectable>{ props.comment.Name }</Text>
-            <Text style={styles.commentDate}>  •  {props.comment.timeStamp.toDate().toDateString()}</Text>
-          </View>
+        <Text style={styles.theComment} selectable>{props.comment.comment}</Text>
+
+        <View style={styles.commentDetails}>
+          <Text style={styles.author} selectable>{ props.comment.Name }</Text>
+          <Text style={styles.commentDate}>{props.comment.timeStamp.toDate().toDateString()}  -  {props.comment.timeStamp.toDate().getHours().toString()}:{props.comment.timeStamp.toDate().getMinutes().toString()}</Text>
         </View>
       </View>
+
       <View style={{justifyContent:'center', alignItems:'center', marginRight:3}}>
         <Image source={{uri: props.comment.uri}} style={{width:35, height:35, borderRadius:60, marginRight:3, borderColor:'#613a5f', borderWidth:1, position:'absolute', alignSelf:'flex-end'}} />
       </View>
@@ -47,34 +48,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#c0f0ff',
     padding: 5,
     paddingLeft:8,
+    paddingRight: 25,
     marginRight: 20,
     marginLeft: 50,
     borderRadius: 17,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  commentViewInner: {
-    marginRight: 15
-  },
+  // commentViewInner: {
+  //   marginRight: 15
+  // },
   delete: {
     opacity: 0.5,
     marginRight: 'auto',
   },
   theComment: {
-    fontSize: 17,
-    fontFamily: 'Kanit-Light'
+    fontSize: 15,
+    fontFamily: 'Poppins-Light'
   },
   commentDetails: {
-    flexDirection: 'row',
     marginTop: 5,
-    alignItems: 'center'
+    alignItems: 'flex-end',
+    alignSelf:'flex-end'
   },
   author: {
     color: '#3380a3',
-    fontSize: 15
+    fontSize: 12
   },
   commentDate: {
-    color: 'grey'
+    color: 'grey',
+    fontSize: 12
   },
 })

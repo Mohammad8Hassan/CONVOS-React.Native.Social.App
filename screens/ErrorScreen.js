@@ -33,7 +33,7 @@ export default function ErrorScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   na: {
-    marginHorizontal:40,
+    marginHorizontal:20,
     marginTop: 50,
     alignItems: 'stretch'
   },
@@ -42,6 +42,8 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   naBody: {
+    marginHorizontal:20,
+    marginTop:10,
     alignItems: 'flex-start'
   },
 })

@@ -1,11 +1,12 @@
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, TextInput,
-  Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList,
-   Alert, RefreshControl, Switch } from 'react-native';
-import { useEffect, useState, useCallback } from 'react'
+  Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, 
+   Alert, RefreshControl, Switch, ActivityIndicator } from 'react-native';
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Form from '../shared/Form';
 import { getAuth } from 'firebase/auth';
-import { addDoc, serverTimestamp, setDoc, getFirestore, getDocs, collection, doc, getDoc, query, where, orderBy } from 'firebase/firestore';
+import { addDoc, serverTimestamp, setDoc, getFirestore, getDocs, 
+  collection, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import * as yup from 'yup';
 import { Formik } from 'formik';
 
@@ -47,6 +48,10 @@ export default function NewConv({ navigation }) {
   const [searchID, setSearchID] = useState('');
   const [searchStatus, setSearchStatus] = useState(null);
   const [hasPassword, setHasPassword] = useState(false);
+  const [activeIndicator, setActiveIndicator] = useState(false);
+  const [addIndicator, setAddIndicator] = useState(false);
+
+  const searchName = useRef('');
 
   useEffect(() => {
     const tab = navigation.getParent();
@@ -110,15 +115,15 @@ export default function NewConv({ navigation }) {
       author: user.displayName,
       authorID: user.uid,
       authorEmail: user.email,
-      dateCreated: serverTimestamp(),
+      dateCreated: Timestamp.now(),
     })
     .then(ref => {
       setDoc(doc(db, 'Users', user.uid, 'My Conversations', ref.id), {
         authorID: user.uid,
         title: values.title,
         body: values.body,
-        dateCreated: serverTimestamp(),
-        lastAccessed: serverTimestamp(),
+        dateCreated: Timestamp.now(),
+        lastAccessed: Timestamp.now(),
       });
 
       selectedFriends.forEach(person => {
@@ -128,7 +133,7 @@ export default function NewConv({ navigation }) {
           body: values.body,
           author: user.displayName,
           authorID: user.uid,
-          timeStamp: serverTimestamp(),
+          timeStamp: Timestamp.now(),
         })
       })
   
@@ -139,7 +144,7 @@ export default function NewConv({ navigation }) {
           body: values.body,
           author: user.displayName,
           authorID: user.uid,
-          timeStamp: serverTimestamp(),
+          timeStamp: Timestamp.now(),
         })
       })
 
@@ -154,7 +159,7 @@ export default function NewConv({ navigation }) {
         comment: 'joined',
         author: user.displayName,
         authorID: user.uid,
-        timeStamp: serverTimestamp(),
+        timeStamp: Timestamp.now(),
         system: true,
       })
 
@@ -203,7 +208,6 @@ export default function NewConv({ navigation }) {
     console.log('friends added ', selectedFriendsNum);
   }
 
-
   const removePerson = (id) => {
     const ID = id;
 
@@ -214,7 +218,6 @@ export default function NewConv({ navigation }) {
       removeOther(ID);
     }
   }
-
 
   const removeFriend = (id) => {
     const index = selectedFriends.map(e => e.ID).indexOf(id);
@@ -237,19 +240,44 @@ export default function NewConv({ navigation }) {
     console.log('friends removed ', selectedFriendsNum);
   }
   
-  const addOther = () => {
+  const addOther = async (searchID) => {
+    setAddIndicator(true);
+    setSearchStatus('');
     Keyboard.dismiss();
+    searchName.current = null;
+    
+    searchID = searchID.replace(/\s/g,'');
+
     if(searchID == user.uid) {
       console.log('adding myself!');
       setSearchStatus("You are already participating as the admin.");
+      setAddIndicator(false);
       return;
     }
+    const friendCheck = Friends.find(e => e.ID === searchID);
+    if(friendCheck) {
+      console.log('on ur friends list!');
+      searchName.current = friendCheck.Name;
+      setSearchStatus(' is on your friends list, you can add them from the friends tab.');
+      setAddIndicator(false);
+      return;
+    }
+
+    const checkBlocked = await getDoc(doc(db, "Users", searchID, 'Blocked', user.uid));
+    if(checkBlocked.exists()) {
+      setSearchStatus('No users found!');
+      setAddIndicator(false);
+      return;
+    }
+
     const obj = selectedOthers.find(e => e.ID === searchID);
     console.log(obj);
 
     if(obj){
       console.log('already exists');
-      setSearchStatus(obj.firstName + ' ' + obj.lasttName + ' is already added!');
+      setSearchStatus(' is already added!');
+      searchName.current = obj.Name;
+      setAddIndicator(false);
     }
     else {
       const colRef = collection(db, 'Users');
@@ -267,12 +295,14 @@ export default function NewConv({ navigation }) {
               prev.push({...res.docs[0].data()});
               return [...prev];
             });
+            setAddIndicator(false);
           }
           else throw 'No users found'
         })
         .catch(err => {
           console.log(err);
           setSearchStatus('No users found!');
+          setAddIndicator(false);
         })
     }
     
@@ -343,27 +373,37 @@ export default function NewConv({ navigation }) {
           
           {/* titles  */}
           <View style={{flexDirection:'row', justifyContent:'space-between'}}>
-            <Text style={{fontSize:20, color:'white', marginLeft:15, marginBottom:10}}>{ title }</Text>
+            <Text style={{fontFamily:'Solway-Regular', fontSize:20, color:'white', marginLeft:15, marginBottom:10}}>{ title }</Text>
             <View style={{flexDirection:'row', alignItems:'center', marginRight:15, marginBottom:10}}>
-              <Text style={{fontSize:20, color:'white',}}>Selected: </Text>
-              <Text style={{fontSize:20, color:'#f55fd2',}}>{ num }</Text>
+              <Text style={{fontFamily:'Solway-Regular', fontSize:20, color:'white',}}>Selected: </Text>
+              <Text style={{fontFamily:'Solway-Regular', fontSize:20, color:'#f55fd2',}}>{ num }</Text>
             </View>
           </View>
           
           {(selector=='others') &&
-            <View style={{backgroundColor:'#ababab', marginHorizontal:15, padding:10, marginBottom:15}}>
-              <TextInput placeholder='user ID' value={searchID} onChangeText={text => setSearchID(text)} style={styles.inputP}/> 
-              {searchStatus && <Text style={{marginTop:8, fontSize:18, alignSelf:'center', color:'#2c2433'}}>{ searchStatus }</Text>}
-              <Pressable
-                onPress={addOther}
-                style={({ pressed }) => [
-                  {opacity: pressed ? 0.5: 1}, styles.addOther,
-                ]}
-              >
-                <View style={{flexDirection:'row', alignItems:'center',}}>
-                  <Text style={{color:"white", fontSize: 19,}}>ADD</Text>
-                </View>
-              </Pressable>
+            <View style={{backgroundColor:'#8c7699', elevation:15, marginHorizontal:15, padding:10, marginBottom:15}}>
+              <TextInput placeholder='User ID' value={searchID} onChangeText={text => setSearchID(text)} style={styles.inputP}/> 
+              {searchStatus? (
+                <Text style={{marginTop:8, fontSize:18, alignSelf:'center', color:'white', fontStyle:'italic'}}>
+                  <Text style={{fontSize:18, color:'#d4c86e', fontStyle:'normal'}}>{ searchName.current }</Text>
+                  { searchStatus }
+                </Text>
+              ) : null }
+
+              {addIndicator? (
+                <ActivityIndicator size={50} color='#1da877' animating={addIndicator} style={{alignSelf:'center', marginTop:10}}/>
+              ) : (
+                <Pressable
+                  onPress={() => addOther(searchID)}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.addOther,
+                  ]}
+                >
+                  <View style={{flexDirection:'row', alignItems:'center',}}>
+                    <Text style={{color:"white", fontSize: 19,}}>Add</Text>
+                  </View>
+                </Pressable>
+              )}
             </View>
           }
 
@@ -372,7 +412,7 @@ export default function NewConv({ navigation }) {
             <FlatList data={Data} extraData={[selectedFriends, selectedOthers]} renderItem={({item}) => (
               <View style={[styles.item, {backgroundColor: (selectedFriends.find(e => e.ID === item.ID))? '#853271': '#8d8299'}]}>
                 <Image source={{uri: item.Photo}} style={{height:40, width:40, borderRadius:50}} />
-                <Text style={{color:'white', fontSize:18, marginLeft:10}}>{ item.Name }</Text>
+                <Text style={{flex:1, color:'white', fontSize:18, marginLeft:10, marginRight:5}}>{ item.Name }</Text>
               
                 {(selectedFriends.find(e => e.ID === item.ID) || selectedOthers.find(e => e.ID === item.ID)) ? (
                     <Pressable
@@ -425,7 +465,7 @@ export default function NewConv({ navigation }) {
         >
           <Formik
             initialValues={{title: '', body: '', password: ''}}
-            onSubmit={(values) => addConversation(values)}
+            onSubmit={(values) => {setActiveIndicator(true); addConversation(values)}}
             validationSchema={reviewSchema}
           >
             {props => (
@@ -487,17 +527,30 @@ export default function NewConv({ navigation }) {
 
                   />
                 </View>
-                {hasPassword && 
-                  <TextInput
-                    style={styles.input}
-                    placeholder='Password'
-                    onChangeText={props.handleChange('password')}
-                    value={props.values.password}
-                  />
+                {hasPassword ? (
+                    <TextInput
+                      style={styles.input}
+                      placeholder='Password'
+                      onChangeText={props.handleChange('password')}
+                      value={props.values.password}
+                    />
+                  ) : null 
                 }
-                <TouchableOpacity style={styles.buttonSubmit} onPress={props.handleSubmit}>
-                  <Text style={{color:'white', fontSize:18,}}>Create</Text>
-                </TouchableOpacity>
+
+                {activeIndicator? (
+                    <ActivityIndicator size={50} color='#1da877' animating={activeIndicator} style={styles.buttonSubmitAI}/>
+                  ) : (
+                    <Pressable  
+                      onPress={props.handleSubmit}
+                      style={({ pressed }) => [
+                        {opacity: pressed ? 0.5: 1}, styles.buttonSubmit
+                      ]}
+                    >
+                      <Text style={{color:'white', fontSize:18,}}>Create</Text>
+                    </Pressable>
+                  )   
+                }
+                
               </View>
             )}
           </Formik>
@@ -559,6 +612,11 @@ const styles = StyleSheet.create({
     alignItems:'center',
     marginHorizontal:30
   },
+  buttonSubmitAI: {
+    alignSelf:'center',
+    marginBottom: 20,
+    marginTop: 20,
+  },
   participants: {
     backgroundColor:'#cebce0', 
     alignSelf:'stretch', 
@@ -577,7 +635,7 @@ const styles = StyleSheet.create({
   },
   addOther: {
     padding: 8,
-    backgroundColor: 'green',
+    backgroundColor: '#1da877',
     alignItems: 'center',
     borderRadius:20,
     marginTop:10,
@@ -585,7 +643,7 @@ const styles = StyleSheet.create({
     elevation:10
   },
   add: {
-    backgroundColor:'green',
+    backgroundColor:'#1da877',
     alignItems: 'center',
     borderRadius:20,
     paddingHorizontal: 15,

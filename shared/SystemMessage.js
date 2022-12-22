@@ -36,10 +36,13 @@ export default function SystemMessage(props) {
 
   return (
     <View style={[styles.container, {borderColor:color()}]}>
-      <View style={{flexDirection:'row', alignItems:'center', flexWrap:'wrap'}}>
+      <View style={{flexDirection:'row', alignItems:'center', }}>
         <Image source={{uri: props.comment.uri}} style={{height:25, width:25, borderRadius:50, }} />
-        <Text style={{color:'#3380a3', marginLeft:5, fontSize:13, fontWeight:'bold'}}>{ props.comment.Name }</Text>
-        <Text style={{color:color(), fontSize:13, fontStyle:'italic'}}>{ status() }</Text>
+        <Text style={{color:'#3380a3', marginLeft:5, fontSize:13, fontWeight:'bold', flexShrink:1}}>
+          { props.comment.Name }
+          <Text style={{color:color(), fontSize:13, fontStyle:'italic', }}>{ status() }</Text>
+        </Text>
+        
       </View>
     </View>
   )
@@ -47,10 +50,11 @@ export default function SystemMessage(props) {
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 5,
+    marginHorizontal: 20,
     marginVertical:6,
     padding:4,
     borderRadius: 10,
     borderWidth:1,
+    
   }
 })

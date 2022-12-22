@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { DrawerActions, NavigationContainer } from '@react-navigation/native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Font from 'expo-font';
 import Home from './screens/Home'
 import Details from './screens/Details'
@@ -159,8 +159,11 @@ export default function App() {
   const [isFontsLoaded, setFontsLoaded] = useState(false);
   const [isSignedin, setIsSignedin] = useState(null);
 
+  const mounted = useRef(false);
 
   useEffect(() => {
+    mounted.current = true;
+
     async function prepare() {
       try {
         await SplashScreen.preventAutoHideAsync();
@@ -169,6 +172,12 @@ export default function App() {
           'Kanit-Light': require('./assets/fonts/Kanit-ExtraLight.ttf'),
           'Solway-Regular': require('./assets/fonts/Solway-Regular.ttf'),
           'Solway-Bold': require('./assets/fonts/Solway-Bold.ttf'),
+          'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
+          'Poppins-Italic': require('./assets/fonts/Poppins-Italic.ttf'),
+          'Poppins-Bold': require('./assets/fonts/Poppins-Bold.ttf'),
+          'Poppins-Light': require('./assets/fonts/Poppins-Light.ttf'),
+          'Poppins-LightItalic': require('./assets/fonts/Poppins-LightItalic.ttf'),
+          'Poppins-ThinItalic': require('./assets/fonts/Poppins-ThinItalic.ttf'),
         });
 
         
@@ -192,12 +201,16 @@ export default function App() {
       }
     })
 
-    
+    return () => {
+      mounted.current = false;
+      console.log('app unmounted');
+    }
   }, []);
 
   useEffect(() => {
     if(isFontsLoaded && isSignedin != null) {
-      SplashScreen.hideAsync();
+      if(mounted.current)
+        SplashScreen.hideAsync();
     }
   }, [isFontsLoaded, isSignedin])
 

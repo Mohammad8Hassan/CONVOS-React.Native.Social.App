@@ -19,6 +19,8 @@ export default function EditProfile({ navigation }) {
   const [newEmail, setNewEmail] = useState('');
   const [password, setPassword] = useState('');
   const [indicator, setIndicator] = useState(false);
+  const [emailIndicator, setEmailIndicator] = useState(false);
+  const [nameIndicator, setNameIndicator] = useState(false);
 
   const db = getFirestore();
   const storage = getStorage();
@@ -70,37 +72,46 @@ export default function EditProfile({ navigation }) {
       
       await uploadBytes(refc, bytes);
       
-      const url_Temp = await getDownloadURL(refc);
-      const meta = await getMetadata(refc);
+      const [url_Temp, meta] = await Promise.all([
+         getDownloadURL(refc),
+         getMetadata(refc)
+      ])
+
+      await Promise.all([
+        updateProfile(user, {
+          photoURL: url_Temp,
+        }),
+        updateDoc(doc(db, 'Users', user.uid), {
+          Photo: url_Temp,
+          photoExtension: meta.contentType.split('/')[1],
+        })
+      ])
       
-      await updateProfile(user, {
-        photoURL: url_Temp,
-      });
-
-      await updateDoc(doc(db, 'Users', user.uid), {
-        Photo: url_Temp,
-        photoExtension: meta.contentType.split('/')[1],
-      })
-
       setIndicator(false);
     };
   }
 
   const changeName = async () => {
-    updateProfile(user, {
-      displayName: firstName + ' ' + lastName,
-    });
+    setNameIndicator(true);
 
-    updateDoc(doc(db, 'Users', user.uid), {
-      Name: firstName + ' ' + lastName,
-    })
+    await Promise.all([
+      updateProfile(user, {
+        displayName: firstName + ' ' + lastName,
+      }),
 
+      updateDoc(doc(db, 'Users', user.uid), {
+        Name: firstName + ' ' + lastName,
+      })
+    ])
+    
     setUserName(firstName + ' ' + lastName);
 
+    setNameIndicator(false);
     ToastAndroid.show('Name changed successfuly', ToastAndroid.SHORT);
   }
 
   const changeEmail = () => {
+    setEmailIndicator(true);
     const cred = EmailAuthProvider.credential(user.email, password);
 
     reauthenticateWithCredential(user, cred)
@@ -112,15 +123,18 @@ export default function EditProfile({ navigation }) {
             });
             console.log('email updated');
             setModalVisible(false);
+            setEmailIndicator(false);
             ToastAndroid.show('email updated successfully', ToastAndroid.SHORT);
           })
           .catch(error => {
             console.log(error);
+            setEmailIndicator(false);
             ToastAndroid.show(error.message, ToastAndroid.LONG);
           })
       })
       .catch(error => {
         console.log(error);
+        setEmailIndicator(false);
         ToastAndroid.show(error.message, ToastAndroid.LONG);
       })
     
@@ -152,17 +166,21 @@ export default function EditProfile({ navigation }) {
 
                 <View style={styles.innerView}>
                   <TextInput placeholder='enter your new email..' value={newEmail} onChangeText={text => setNewEmail(text)} style={styles.inputP}/> 
-                  <TextInput placeholder='re-enter your password' value={password} onChangeText={text => setPassword(text)} style={styles.inputP}/> 
-                  <Pressable  
-                    onPress={changeEmail}
-                    style={({ pressed }) => [
-                      {opacity: pressed ? 0.5: 1}, styles.changeEmailInside
-                    ]}
-                  >
-                    <View style={{flexDirection:'row', alignItems:'center'}}>
-                      <Text style={{color:"white", fontSize: 16,}}>Apply</Text>
-                    </View>
-                  </Pressable>
+                  <TextInput placeholder='re-enter your password' value={password} onChangeText={text => setPassword(text)} style={styles.inputP} secureTextEntry/> 
+                  {emailIndicator? (
+                    <ActivityIndicator size={50} color='#1da877' animating={emailIndicator} style={{alignSelf:'center'}}/>
+                  ) : (
+                    <Pressable  
+                      onPress={changeEmail}
+                      style={({ pressed }) => [
+                        {opacity: pressed ? 0.5: 1}, styles.changeEmailInside
+                      ]}
+                    >
+                      <View style={{flexDirection:'row', alignItems:'center'}}>
+                        <Text style={{color:"white", fontSize: 16,}}>Apply</Text>
+                      </View>
+                    </Pressable>
+                  )}
                 </View>
               
 
@@ -176,39 +194,40 @@ export default function EditProfile({ navigation }) {
             {/* profile picture  */}
             <View style={{backgroundColor:'#8c7699', elevation:15, marginBottom:20, paddingVertical:8, marginTop:15}}>
               <View>
-                <Text style={{color:"white", fontSize: 20, marginLeft: 10, marginBottom:10}}>Profile Picture</Text>
+                <Text style={{fontFamily:'Solway-Regular', color:"white", fontSize: 20, marginLeft: 10, marginBottom:10}}>Profile Picture</Text>
               </View>
 
               <View style={styles.header}>
                 <View style={styles.ppContainer}>
                   {!indicator? (
-                    <Image source={{uri: user.photoURL}} style={{width:120, height:120, borderRadius:100, borderWidth:2, borderColor:'#806b96',}}/>
+                    <Image source={{uri: user.photoURL}} style={{width:120, height:120, borderRadius:100, borderWidth:2, borderColor:'#806b96', marginBottom:8}}/>
                   ) : (
-                    <ActivityIndicator size={80} color='#613a5f' animating={indicator} style={{width:120, height:120, borderRadius:100, borderWidth:2, borderColor:'#806b96',}} />
+                    <ActivityIndicator size={80} color='#613a5f' animating={indicator} style={{width:120, height:120, borderRadius:100, borderWidth:2, borderColor:'#806b96', marginBottom:8}} />
                   )}
                 </View>
                 
-                <View style={styles.userInfo}>
-                  <Pressable  
-                      onPress={changePhoto}
-                      style={({ pressed }) => [
-                      {opacity: pressed ? 0.5: 1}, styles.edit
-                    ]}
-                  >
-                    <View style={{flexDirection:'row', alignItems:'center'}}>
-                      <Text style={{color:"#806b96", fontSize: 20,}}>Change</Text>
-                    </View>
-                  </Pressable>
-                </View>
-
+                {indicator? null : (
+                  <View style={styles.userInfo}>
+                    <Pressable  
+                        onPress={changePhoto}
+                        style={({ pressed }) => [
+                        {opacity: pressed ? 0.5: 1}, styles.edit
+                      ]}
+                    >
+                      <View style={{flexDirection:'row', alignItems:'center'}}>
+                        <Text style={{color:"#806b96", fontSize: 20,}}>Change</Text>
+                      </View>
+                    </Pressable>
+                  </View>
+                )}
               </View>
             </View>
 
             {/* Name  */}
             <View style={{backgroundColor:'#8c7699', elevation:15, marginBottom:20, paddingVertical:8 }}>
               <View style={{flexDirection:'row',}}>
-                <Text style={{color:"white", fontSize: 20, marginLeft: 10, flex:1}}>Name</Text>
-                <Text style={{color:"#d4c86e", fontSize: 20, fontWeight:'bold', flex:3,}}>{ user.displayName }</Text>
+                <Text style={{fontFamily:'Solway-Regular', color:"white", fontSize: 20, marginLeft: 10, flex:1}}>Name</Text>
+                <Text style={{fontFamily:'Solway-Bold', color:"#d4c86e", fontSize: 20, flex:3,}}>{ user.displayName }</Text>
               </View>
 
               <View style={{paddingVertical:5, marginTop:10, paddingRight:5}}>
@@ -222,16 +241,20 @@ export default function EditProfile({ navigation }) {
                   <TextInput placeholder='last name' value={lastName} onChangeText={text => setLastName(text)} style={styles.input}/> 
                 </View>
 
-                <Pressable  
-                  onPress={changeName}
-                  style={({ pressed }) => [
-                    {opacity: pressed ? 0.5: 1}, styles.apply
-                  ]}
-                >
-                  <View style={{flexDirection:'row', alignItems:'center'}}>
-                    <Text style={{color:"white", fontSize: 20,}}>Apply</Text>
-                  </View>
-                </Pressable>
+                {nameIndicator? (
+                  <ActivityIndicator size={50} color='#1da877' animating={nameIndicator} style={{alignSelf:'center', marginTop:15}}/>
+                ) : (
+                  <Pressable  
+                    onPress={changeName}
+                    style={({ pressed }) => [
+                      {opacity: pressed ? 0.5: 1}, styles.apply
+                    ]}
+                  >
+                    <View style={{flexDirection:'row', alignItems:'center'}}>
+                      <Text style={{color:"white", fontSize: 20,}}>Apply</Text>
+                    </View>
+                  </Pressable>
+                )}
                 
               </View>
             </View>
@@ -239,7 +262,7 @@ export default function EditProfile({ navigation }) {
             {/* Email  */}
             <View style={{backgroundColor:'#8c7699', elevation:15, marginBottom:15, paddingVertical:10 }}>
               <View>
-                <Text style={{color:"white", fontSize: 20, marginLeft: 10}}>Email</Text>
+                <Text style={{fontFamily:'Solway-Regular', color:"white", fontSize: 20, marginLeft: 10}}>Email</Text>
               </View>
 
               <View style={{flexDirection:'row', justifyContent:'space-between', marginRight:8, alignItems:'center'}}> 
@@ -337,7 +360,7 @@ const styles = StyleSheet.create({
   },
   changeEmailInside: {
     padding: 10,
-    backgroundColor: '#7c9e42',
+    backgroundColor: '#1da877',
     alignItems: 'center',
     marginHorizontal:50,
     borderRadius:15,
@@ -345,14 +368,13 @@ const styles = StyleSheet.create({
   },
   apply: {
     padding: 10,
-    backgroundColor: '#7c9e42',
+    backgroundColor: '#1da877',
     alignItems: 'center',
     marginTop:15,
     borderRadius: 15,
-    marginRight:8,
     elevation:8,
     alignSelf:'stretch',
-    marginLeft:120
+    marginHorizontal: 50
   },
   outerView: {
     flex: 1,

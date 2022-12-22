@@ -6,6 +6,7 @@ import { globalStyles } from '../shared/globalStyles';
 import Card from '../shared/Card';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
+import { Entypo } from '@expo/vector-icons';
 import Form from '../shared/Form';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy,
    doc, deleteDoc, setDoc, Timestamp, updateDoc, getDoc, getDocs } from 'firebase/firestore'
@@ -16,7 +17,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import avatar from '../assets/Imgs/avatar.png';
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
-import _, { set } from 'lodash';
+import _ from 'lodash';
 import * as FileSystem from "expo-file-system";
 
 // component
@@ -85,6 +86,7 @@ export default function Home({ navigation }) {
     const unsubscribe1 = onSnapshot(q, async snapShot => {
       for(let change of snapShot.docChanges()) {
         if(change.type === 'added') {
+          console.log("triggered added: ", change.doc.data());
           if(authors.current[change.doc.data().authorID+'ID'] == undefined) {
             const info = await getDoc(doc(db, 'Users', change.doc.data().authorID));
 
@@ -102,10 +104,12 @@ export default function Home({ navigation }) {
             author: authors.current[change.doc.data().authorID+'Name']});
         }
         else if(change.type === 'removed') {
+          console.log("triggered removed: ", change.doc.id);
           const index = result.map(e => e.id).indexOf(change.doc.id);
           result.splice(index,1);
         }
         else if(change.type === 'modified') {
+          console.log("triggered modified: ", change.doc.data());
           const index = result.map(e => e.id).indexOf(change.doc.id);
           result.splice(index,1);
 
@@ -223,21 +227,26 @@ export default function Home({ navigation }) {
   }
 
   const leaveConversations = async (id) => {
-    await updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
-      removed: true,
-    });
-
-    await addDoc(collection(db, 'Conversations', id, 'Comments'), {
-      comment: 'left',
-      author: user.displayName,
-      authorID: user.uid,
-      timeStamp: serverTimestamp(),
-      system: true,
-    })
-
-    await deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
+    const checkExist = await getDoc(doc(db, 'Conversations', id, 'Participants', user.uid));
+    if(checkExist.data().removed == true) {
+      await deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
+    }
+    else {
+      updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
+        removed: true,
+      });
+  
+      addDoc(collection(db, 'Conversations', id, 'Comments'), {
+        comment: 'left',
+        author: user.displayName,
+        authorID: user.uid,
+        timeStamp: serverTimestamp(),
+        system: true,
+      })
+  
+      deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
+    }
   }
-
 
   const showAlertLeave = (id) => {
     Alert.alert(
@@ -320,13 +329,17 @@ export default function Home({ navigation }) {
           authorID: user.uid,
           timeStamp: serverTimestamp(),
           system: true,
+          Name2: user.displayName,
+          uri2: user.photoURL,
+          removed2: false,
         })
 
         await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {
           authorID: convRef.data().authorID,
           title: convRef.data().title,
           body: convRef.data().body,
-          dateCreated: serverTimestamp()
+          dateCreated: Timestamp.now(),
+          lastAccessed: Timestamp.now(),
         })
         console.log('enter 1 ..');
         navigation.navigate('Details', { id: convID });
@@ -351,7 +364,8 @@ export default function Home({ navigation }) {
           authorID: convRef.data().authorID,
           title: convRef.data().title,
           body: convRef.data().body,
-          dateCreated: serverTimestamp()
+          dateCreated: Timestamp.now(),
+          lastAccessed: Timestamp.now(),
         })
         console.log('enter 2 ..');
         navigation.navigate('Details', { id: convID });
@@ -374,6 +388,10 @@ export default function Home({ navigation }) {
   const enterConversation = useCallback(_.debounce((id) => {
     navigation.push('Details', { id });
   }, 2000, {'leading':true, 'trailing':false}), [])
+
+  const enter2 = (id) => {
+    navigation.navigate('Details', { id });
+  }
 
   return (
     <SafeAreaView style={{flex:1}}>
@@ -424,7 +442,7 @@ export default function Home({ navigation }) {
           </View>
           
           {/* Page Contents */}
-
+          
           <View style={{backgroundColor:'#613a5f', padding:5, flexDirection:'row', alignItems:'center',}}>
             <Image source={{uri: user.photoURL}} style={{height:40, width:40, borderRadius:50, borderColor:'#bab806', borderWidth:1}} />
             <View style={{marginHorizontal:4, flex:5}}>
@@ -453,16 +471,25 @@ export default function Home({ navigation }) {
 
           <TouchableOpacity onPress={() => navigation.navigate('New Conversation')} style={styles.newConv}>
               <Text style={{color:'white', fontSize:16, marginRight:5, fontFamily:'Solway-Regular'}}>New</Text>
-              <MaterialIcons name='add' size={20} color='white' />
+              <Entypo name='new-message' size={20} color='white' />
           </TouchableOpacity>
         </View>
+
+        {(conversations.length == 0 && !conversationsIndicator)? (
+          <TouchableOpacity onPress={() => navigation.navigate('New Conversation')} style={styles.newMid}>
+           <Entypo name='new-message' size={80} color='white' style={{opacity:0.5, marginBottom:10}}/>
+           <Text style={{color:'white', fontSize:18, fontFamily:'Solway-Regular', opacity:0.5}}>
+              Click to create a new conversation
+            </Text>
+          </TouchableOpacity>
+        ) : null}
 
         <View style={{flex: 1}}>
           {conversationsIndicator? (
             <ActivityIndicator size={80} color='#613a5f' animating={conversationsIndicator} style={{flex:1}} />
           ) : (
             <FlatList data={conversations} renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => enterConversation(item.id)} style={styles.item}>
+              <TouchableOpacity onPress={() => enter2(item.id)} style={styles.item}>
                 <Card>
                   <View style={styles.content}>
                     <View style={styles.header}>
@@ -493,9 +520,9 @@ export default function Home({ navigation }) {
                   <View style={styles.createdViewContainer}>
                     <View style={styles.createdView}>
                       {item.author == user.displayName? (
-                          <Text style={styles.createdAuthor}>{ user.displayName }</Text>
+                          <Text style={styles.createdAuthor} numberOfLines={1}>{ user.displayName }</Text>
                         ) : (
-                          <Text style={styles.createdAuthor}>{ item.author }</Text>
+                          <Text style={styles.createdAuthor} numberOfLines={1}>{ item.author }</Text>
                         )
                       }
                       {/* <Text style={styles.createdTime}>{ item.dateCreated.toDateString()}</Text> */}
@@ -570,6 +597,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderStyle: 'dashed'
   },
+  newMid: {
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f2f2f2',
+    padding: 10,
+    paddingVertical:30,
+    borderRadius: 10,
+    borderStyle: 'dashed',
+    alignSelf:'center',
+    marginTop:100,
+    opacity:0.5
+  },
   homeHeader: {
     flexDirection: 'row',
     alignItems:'center',
@@ -594,7 +633,7 @@ const styles = StyleSheet.create({
   },
   body: {
     marginTop: 10,
-    fontSize: 20,
+    fontSize: 17,
   },
   header: {
     flex: 1,
