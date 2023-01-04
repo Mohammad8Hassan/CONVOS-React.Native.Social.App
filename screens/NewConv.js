@@ -1,10 +1,11 @@
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, TextInput,
   Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, 
-   Alert, RefreshControl, Switch, ActivityIndicator } from 'react-native';
+   Alert, RefreshControl, Switch, ActivityIndicator, SafeAreaView, Platform } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { SafeAreaView } from 'react-native-safe-area-context';
+// import { SafeAreaView } from 'react-native-safe-area-context';
 import Form from '../shared/Form';
 import { getAuth } from 'firebase/auth';
+import { Ionicons } from '@expo/vector-icons'
 import { addDoc, serverTimestamp, setDoc, getFirestore, getDocs, 
   collection, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import * as yup from 'yup';
@@ -54,10 +55,10 @@ export default function NewConv({ navigation }) {
   const searchName = useRef('');
 
   useEffect(() => {
-    const tab = navigation.getParent();
-    tab.setOptions({
-      tabBarStyle: {display: 'none'}
-    });
+    // const tab = navigation.getParent();
+    // tab.setOptions({
+    //   tabBarStyle: {display: 'none'}
+    // });
 
     let friends = [];
     const friendsCollection = collection(db, 'Users', user.uid, 'Friends');
@@ -73,11 +74,11 @@ export default function NewConv({ navigation }) {
     setFriends(friends);
     console.log("RAN AGAIN!!")
 
-    return () => {
-      tab.setOptions({
-        tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
-      });
-    }
+    // return () => {
+    //   tab.setOptions({
+    //     tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
+    //   });
+    // }
   }, [])
 
   useEffect(() => {
@@ -163,8 +164,8 @@ export default function NewConv({ navigation }) {
         system: true,
       })
 
-
-      ToastAndroid.show('Conversation Created', ToastAndroid.SHORT);
+      if(Platform.OS === 'android')
+        ToastAndroid.show('Conversation Created', ToastAndroid.SHORT);
       navigation.popToTop();
     })
 
@@ -247,6 +248,12 @@ export default function NewConv({ navigation }) {
     searchName.current = null;
     
     searchID = searchID.replace(/\s/g,'');
+
+    if(searchID.trim().length === 0) {
+      setSearchStatus('No users found!');
+      setAddIndicator(false);
+      return;
+    }
 
     if(searchID == user.uid) {
       console.log('adding myself!');
@@ -334,16 +341,34 @@ export default function NewConv({ navigation }) {
   
 
   return (
-    <SafeAreaView style={{flex: 1, backgroundColor:'#806b96'}}>
+    <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}>
+      <View style={{flex:1, backgroundColor:'#806b96'}} >
       <View style={styles.homeHeader}>
-        <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>New Conversation</Text>
+        <Pressable 
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [
+            {opacity: pressed ? 0.5: 1},
+          ]}
+          >
+          <Ionicons name='chevron-back-circle' size={27} color="white" />
+        </Pressable>
+        <Text style={{flex:1, fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>New Conversation</Text>
       </View>
 
       {/* Modal */}
 
       <Modal visible={modalOpen} animationType='slide' onRequestClose={() => setModalOpen(false)}>
-        <View style={{flex:1, backgroundColor:'#806b96'}}>
+        <SafeAreaView style={{flex:1, backgroundColor:'#613a5f'}}>
+          <View style={{flex:1, backgroundColor:'#806b96'}}>
           <View style={styles.homeHeader}>
+            <Pressable 
+              onPress={() => setModalOpen(false)}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1},
+              ]}
+              >
+              <Ionicons name='chevron-back-circle' size={27} color="white" />
+            </Pressable>
             <Text style={{fontSize:18, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Invite Participants</Text>
           </View>
 
@@ -352,7 +377,7 @@ export default function NewConv({ navigation }) {
             <Pressable
               onPress={selectFriends}
               style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? '#1f1f1f': 'grey'}
+                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? '#3d243c': 'grey', marginRight:10}
               ]}
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
@@ -362,7 +387,7 @@ export default function NewConv({ navigation }) {
             <Pressable
               onPress={selectOthers}
               style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='others')? '#1f1f1f': 'grey'}
+                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='others')? '#3d243c': 'grey'}
               ]}
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
@@ -381,7 +406,7 @@ export default function NewConv({ navigation }) {
           </View>
           
           {(selector=='others') &&
-            <View style={{backgroundColor:'#8c7699', elevation:15, marginHorizontal:15, padding:10, marginBottom:15}}>
+            <View style={{backgroundColor:'#8c7699', elevation:15, marginHorizontal:15, padding:10, marginBottom:15, shadowOffset: {width:0, height:5}, shadowOpacity: 0.3, shadowRadius: 5,}}>
               <TextInput placeholder='User ID' value={searchID} onChangeText={text => setSearchID(text)} style={styles.inputP}/> 
               {searchStatus? (
                 <Text style={{marginTop:8, fontSize:18, alignSelf:'center', color:'white', fontStyle:'italic'}}>
@@ -455,7 +480,8 @@ export default function NewConv({ navigation }) {
               <Text style={{color:"#574866", fontSize: 18,}}>ADD PARTICIPANTS</Text>
             </View>
           </Pressable>
-        </View>
+          </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Page Contents */}
@@ -519,7 +545,7 @@ export default function NewConv({ navigation }) {
                   </View>
                 </TouchableOpacity>
 
-                <View style={{flexDirection:'row', marginTop:5, alignItems:'center'}}>
+                <View style={{flexDirection:'row', marginTop:20, alignItems:'center'}}>
                   <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginRight:5, fontFamily:'Solway-Regular'}}>Password</Text>
                   <Switch 
                     onValueChange={toggleSwitch}
@@ -529,7 +555,7 @@ export default function NewConv({ navigation }) {
                 </View>
                 {hasPassword ? (
                     <TextInput
-                      style={styles.input}
+                      style={[styles.input, {marginTop:10}]}
                       placeholder='Password'
                       onChangeText={props.handleChange('password')}
                       value={props.values.password}
@@ -556,15 +582,14 @@ export default function NewConv({ navigation }) {
           </Formik>
         </ScrollView>
       </View>
-      
+      </View>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
   homeHeader: {
-    flexDirection: 'row', 
-    justifyContent:'space-between', 
+    flexDirection: 'row',  
     alignItems:'center',
     backgroundColor: '#613a5f',
     padding: 10,
@@ -580,7 +605,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ede9f2',
     alignSelf:'stretch',
     marginRight: 50,
-    borderRadius:10
+    borderRadius:10,
   },
   errorText: {
     color: '#ff9cc3',
@@ -610,7 +635,10 @@ const styles = StyleSheet.create({
     marginTop: 20,
     alignSelf:'stretch',
     alignItems:'center',
-    marginHorizontal:30
+    marginHorizontal:30,
+    shadowOffset: {width:0, height:5},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   buttonSubmitAI: {
     alignSelf:'center',
@@ -630,7 +658,7 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: 'grey',
     alignItems: 'center',
-    borderRadius:20,
+    borderRadius:15,
     flex:1
   },
   addOther: {
@@ -640,7 +668,10 @@ const styles = StyleSheet.create({
     borderRadius:20,
     marginTop:10,
     marginHorizontal:100,
-    elevation:10
+    elevation:10,
+    shadowOffset: {width:0, height:5},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   add: {
     backgroundColor:'#1da877',
@@ -649,7 +680,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical:5,
     marginLeft:'auto',
-    elevation:10
+    elevation:10,
+    shadowOffset: {width:0, height:5},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   remove: {
     backgroundColor:'#9e8f37',
@@ -658,7 +692,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical:5,
     marginLeft:'auto',
-    elevation:10
+    elevation:10,
+    shadowOffset: {width:0, height:5},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   item: {
     flexDirection:'row',
@@ -676,7 +713,10 @@ const styles = StyleSheet.create({
     paddingVertical:10,
     elevation:10,
     marginVertical:20,
-    marginHorizontal:30
+    marginHorizontal:30,
+    shadowOffset: {width:0, height:5},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   inputP:{
     backgroundColor: 'white',

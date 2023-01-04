@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, Button, ImageBackground, Image, KeyboardAvoidingView,
-  TextInput, ScrollView, FlatList, Modal, Alert, Pressable, Keyboard, ToastAndroid, ActivityIndicator
+  TextInput, ScrollView, FlatList, Modal, Alert, Pressable, Keyboard, ToastAndroid, ActivityIndicator,
+  SafeAreaView,
+  Platform
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +12,7 @@ import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, o
   deleteDoc, Timestamp, setDoc, getDoc, getDocs, updateDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { Entypo } from '@expo/vector-icons'
-import { SafeAreaView } from 'react-native-safe-area-context';
+// import { SafeAreaView } from 'react-native-safe-area-context';
 import avatar from '../assets/Imgs/avatar.png';
 import CachableImage from '../shared/CachableImage';
 import RenderComment from '../shared/RenderComment';
@@ -20,6 +22,8 @@ import * as Clipboard from 'expo-clipboard';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider, } from 'react-native-popup-menu';
 import SystemMessage from '../shared/SystemMessage';
 import ErrorScreen from './ErrorScreen';
+const forge = require('node-forge');
+
 
 export default function Details({ route, navigation }) {
 
@@ -61,13 +65,9 @@ export default function Details({ route, navigation }) {
   const convAuthorUri = useRef(null);
   const convAuthorName = useRef('');
 
+
   useEffect(() => {
     mount.current = true;
-    const tab = navigation.getParent();
-    tab.setOptions({
-      tabBarStyle: {display: 'none'}
-    });
-    
     
     updateDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
       lastAccessed: Timestamp.now(),
@@ -84,6 +84,8 @@ export default function Details({ route, navigation }) {
           }
         }
         else {
+          // deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id))
+          //   .then(res => console.log('removed')).catch(err => console.log(err))
           navigation.replace('Error');
         }
         
@@ -95,6 +97,8 @@ export default function Details({ route, navigation }) {
       }
       else {
         // setIsAvailable(false);
+        // deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id))
+        //   .then(res => console.log('removed')).catch(err => console.log(err))
         navigation.replace('Error');
       }
     }, error => {console.log(error)})
@@ -203,9 +207,6 @@ export default function Details({ route, navigation }) {
     
 
     return () => {
-      tab.setOptions({
-        tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
-      });
       mount.current = false;
       unsubscribe();
       unsubscribe3();
@@ -242,8 +243,8 @@ export default function Details({ route, navigation }) {
 
       for (const change of snapShot.docChanges()) {
         if(change.type === 'added') {
-          console.log('comment added: ', change.doc.data().comment);
-          console.log('comment object: ', change.doc.data());
+          // console.log('comment added: ', change.doc.data().comment);
+          // console.log('comment object: ', change.doc.data());
           const empty = change.doc.data().timeStamp === null ? Timestamp.now() : change.doc.data().timeStamp;
 
           comments.push({id: change.doc.id, ...change.doc.data(), timeStamp: empty, 
@@ -424,7 +425,18 @@ export default function Details({ route, navigation }) {
 
   const postComment = async () => {
     const theComment = comment;
-    if(comment == '') return;
+    if(theComment.trim().length === 0) return;
+
+    // var rsa = forge.pki.rsa;
+
+    // const {privateKey, publicKey} =  rsa.generateKeyPair({bits: 2048, workers: 2}, (err, keypair) => {
+    //   console.log('doneit');
+    // });
+
+
+    // var md = forge.md.sha1.create();
+    // md.update('The quick brown fox jumps over the lazy dog');
+    // console.log(md.digest().toHex());
 
     scrollView.current.scrollToEnd();
     setComment('');
@@ -445,12 +457,28 @@ export default function Details({ route, navigation }) {
   const copyToClipboard = async () => {
     await Clipboard.setStringAsync(id);
 
-    ToastAndroid.show('conversation id copied', ToastAndroid.SHORT);
+    if(Platform.OS === 'android')
+      ToastAndroid.show('conversation id copied', ToastAndroid.SHORT);
+    else {
+      Alert.alert(
+        'conversation id copied',
+        '',
+        [
+          {
+            text: 'Ok',
+            style: 'ok'
+          },
+        ],
+        {
+          cancelable: true
+        }
+      )
+    }
   }
 
 
   return (
-    <SafeAreaView style={{flex:1}}>
+    <SafeAreaView style={{flex:1, backgroundColor:'#613a5f'}}>
       { isAvailable == true ? (
         <>
           { post &&
@@ -458,10 +486,21 @@ export default function Details({ route, navigation }) {
               {/* modal */}
               <Modal visible={modalOpen} animationType='slide' onRequestClose={() => setModalOpen(false)}>
                 <MenuProvider skipInstanceCheck style={{flex:1}}>
-                  <View style={{flex:1, backgroundColor:'#806b96'}}>
-                    <View style={styles.homeHeader}></View>
+                  <SafeAreaView style={{flex:1, backgroundColor:'#613a5f'}}>
+                    <View style={{flex:1, backgroundColor:'#806b96'}} >
+                    <View style={styles.homeHeader}>
+                      <Pressable 
+                        onPress={() => setModalOpen(false)}
+                        style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1},
+                        ]}
+                        >
+                        <Ionicons name='chevron-back-circle' size={27} color="white" />
+                      </Pressable>
+                      <Text style={{flex:1, fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Participants  { num }</Text>
+                    </View>
    
-                    <Text style={{marginVertical:4, marginLeft:8, fontSize:18, color:'white', backgroundColor:'#8d8299', alignSelf:'flex-start', paddingHorizontal:3, fontWeight:'bold'}}>Participants  { num }</Text>
+                    {/* <Text style={{marginVertical:4, marginLeft:8, fontSize:18, color:'white', backgroundColor:'#8d8299', alignSelf:'flex-start', paddingHorizontal:3, fontWeight:'bold'}}>Participants  { num }</Text> */}
 
                     <View style={styles.itemUser}>
                       <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20,}}>
@@ -500,7 +539,8 @@ export default function Details({ route, navigation }) {
                         </View>
                       )} />
                     </View>
-                  </View>
+                    </View>
+                  </SafeAreaView>
                 </MenuProvider>
               </Modal>
 
@@ -509,11 +549,20 @@ export default function Details({ route, navigation }) {
                 {expanded ? (
                   <View style={styles.card}>
                     <View style={styles.cardContent}>
-                      {/* <Text style={{color:'grey'}}>Title</Text> */}
-                      <Text style={{borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:15, color:'grey', paddingBottom:3}} selectable>{ post.title }</Text>
-                      
+                      <View style={{flexDirection:'row'}}>
+                        <Pressable 
+                          onPress={() => navigation.goBack()}
+                          style={({ pressed }) => [
+                            {opacity: pressed ? 0.5: 1}, {alignSelf:'flex-end'}
+                          ]}
+                          >
+                          <Ionicons name='chevron-back-circle' size={29} color="#d4c86e" />
+                        </Pressable>
+                        <Text style={{alignSelf:'center', flex:1, borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:Platform.OS==='android'?15:13, marginHorizontal:8, color:'grey', paddingBottom:3, marginLeft:3, marginRight:20}} selectable>{ post.title }</Text>
+                      </View>
+
                       <ScrollView style={{maxHeight:200}}>
-                        <Text style={{fontFamily: 'Poppins-Light', marginTop:10, fontSize:18, marginHorizontal:8}} selectable>{ post.body }</Text>
+                        <Text style={{fontFamily: 'Poppins-Light', marginTop:5, fontSize:Platform.OS==='android'?18:16, marginHorizontal:8}} selectable>{ post.body }</Text>
                       </ScrollView>
 
                       <View style={styles.createdView}>
@@ -526,7 +575,7 @@ export default function Details({ route, navigation }) {
                     </View>
                     <View style={{flexDirection:'row', justifyContent:'flex-end', alignItems:'center', marginHorizontal:3,}}>
                       <View style={{alignItems:'flex-end', flex:5, marginRight:6}}>
-                        <Text style={{color: 'grey'}} >{ id }</Text>
+                        <Text style={{color: 'grey', fontSize:11}} >{ id }</Text>
                       </View>
                       <Pressable
                         onPress={copyToClipboard}
@@ -565,7 +614,17 @@ export default function Details({ route, navigation }) {
                 ) : (
                   <>
                   <View style={styles.card}>
-                    <Text style={{fontSize:18, marginBottom:10, marginLeft:5, marginTop:5}} numberOfLines={2}>{ post.body }</Text>
+                    <View style={{flexDirection:'row', alignItems:'center', marginBottom:10}}>
+                      <Pressable 
+                        onPress={() => navigation.goBack()}
+                        style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1}, 
+                        ]}
+                        >
+                        <Ionicons name='chevron-back-circle' size={29} color="#d4c86e" />
+                      </Pressable>
+                      <Text style={{flex:1, fontSize:18, marginLeft:5, }} numberOfLines={1}>{ post.body }</Text>
+                    </View>
                     <View style={{flexDirection:'row', justifyContent:'flex-end', alignItems:'center', marginHorizontal:3}}>
                       <View style={{alignItems:'flex-end', flex:5, marginRight:4}}>
                         <Text style={{color: 'grey'}} >{ id }</Text>
@@ -614,7 +673,7 @@ export default function Details({ route, navigation }) {
               </View>
 
               {/* comments */}
-              <KeyboardAvoidingView style={styles.container}  >
+              <KeyboardAvoidingView style={styles.container} behavior={Platform.OS==='ios'? 'height' : null}>
                 <View style={{flex:1}}>
                   {commentsIndicator? (
                     <ActivityIndicator size={80} color='#d4c86e' animating={commentsIndicator} style={{flex:1}} />
@@ -700,6 +759,9 @@ const styles = StyleSheet.create({
     backgroundColor:'#fff',
     elevation: 8,
     padding:3,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   na: {
     marginHorizontal:40,
@@ -713,7 +775,7 @@ const styles = StyleSheet.create({
   },
   cardContent:{
     // marginHorizontal:10,
-    padding:5,
+    paddingHorizontal:3,
     borderRadius:10,
   },
   commentBox: {
@@ -837,12 +899,12 @@ const styles = StyleSheet.create({
   },
   createdView: {
     flexDirection: 'row',
-    marginTop: 10,
+    marginTop: 5,
     alignItems:'center',
   },
   createdAuthor: {
     flex: 5,
-    fontSize: 13,
+    fontSize: 12,
     color: '#a1a333',
   },
   createdTime: {
@@ -850,7 +912,7 @@ const styles = StyleSheet.create({
     alignItems:'flex-end',
   },
   createdTimeText: {
-    fontSize: 12,
+    fontSize: 11,
     color:'grey',
   },
   copyID: {
@@ -870,8 +932,9 @@ const styles = StyleSheet.create({
     color: '#613a5f',
     backgroundColor:'#d4c86e',
     padding: 1,
-    borderRadius:20,
+    borderRadius:10,
     position:'absolute',
+    overflow:'hidden'
   },
   caretContainer: {
     marginLeft:15,

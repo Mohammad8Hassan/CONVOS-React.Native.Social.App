@@ -1,7 +1,9 @@
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, TextInput,
-  Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, Alert, ActivityIndicator } from 'react-native';
+  Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, Alert, ActivityIndicator,
+  SafeAreaView, 
+  Platform} from 'react-native';
 import { useEffect, useState, useCallback } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
+//import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
  deleteDoc, Timestamp, setDoc, getDocs, where, getDoc, updateDoc } from 'firebase/firestore'
@@ -142,8 +144,9 @@ export default function Friends({ navigation }) {
       uri2: user.photoURL,
       removed2: false,
     });
-  
-    ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
+    
+    if(Platform.OS === 'android')
+      ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
   
     navigation.navigate('Details', { id });
   }
@@ -177,23 +180,26 @@ export default function Friends({ navigation }) {
   const checkExists = await getDoc(doc(db, 'Conversations', id));
   if(checkExists.exists()) {
     console.log('exists');
-    await setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
-      Name: user.displayName,
-      ID: user.uid,
-      Admin: false,
-      removed: false,
-    });
-  
-    deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', id));
-  
-    await setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
-      authorID: authorID,
-      title: title,
-      body: body,
-      dateCreated: Timestamp.now(),
-      lastAccessed: Timestamp.now(),
-    });
+    await Promise.all([
+      setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
+        Name: user.displayName,
+        ID: user.uid,
+        Admin: false,
+        removed: false,
+      }),
 
+      deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', id)),
+
+      setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
+        authorID: authorID,
+        title: title,
+        body: body,
+        dateCreated: Timestamp.now(),
+        lastAccessed: Timestamp.now(),
+      }),
+
+    ])
+    
     await addDoc(collection(db, 'Conversations', id, 'Comments'), {
       comment: 'joined',
       author: user.displayName,
@@ -203,9 +209,10 @@ export default function Friends({ navigation }) {
       Name2: user.displayName,
       uri2: user.photoURL,
       removed2: false,
-    });
-  
-    ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
+    })
+    
+    if(Platform.OS === 'android')
+      ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
   
     navigation.navigate('Details', { id });
   }
@@ -303,7 +310,8 @@ export default function Friends({ navigation }) {
  }
 
  return (
-   <SafeAreaView style={{flex: 1, backgroundColor:'#806b96'}}>
+   <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}> 
+    <View style={{flex:1, backgroundColor:'#806b96'}} >
      <View style={styles.homeHeader}>
        <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Invites</Text>
      </View>
@@ -352,7 +360,7 @@ export default function Friends({ navigation }) {
     </View>
     )}
 
-     
+    </View>
    </SafeAreaView>
  )
 }

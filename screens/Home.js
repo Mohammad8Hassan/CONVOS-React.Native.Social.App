@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef} from 'react';
 import { StyleSheet, Text, View, Button, FlatList, TouchableOpacity, ImageBackground, Modal,
   KeyboardAvoidingView, ScrollView, Alert, Image, TouchableWithoutFeedback, TextInput, Pressable, ToastAndroid,
-  ActivityIndicator, } from 'react-native';
+  ActivityIndicator, SafeAreaView, Platform,} from 'react-native';
 import { globalStyles } from '../shared/globalStyles';
 import Card from '../shared/Card';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -12,7 +12,7 @@ import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, o
    doc, deleteDoc, setDoc, Timestamp, updateDoc, getDoc, getDocs } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// import { SafeAreaView } from 'react-native-safe-area-context';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import avatar from '../assets/Imgs/avatar.png';
 import { useIsFocused } from '@react-navigation/native';
@@ -103,14 +103,19 @@ export default function Home({ navigation }) {
             uri: authors.current[change.doc.data().authorID+'Photo'], 
             author: authors.current[change.doc.data().authorID+'Name']});
         }
+  
+        //if deleted:
         else if(change.type === 'removed') {
           console.log("triggered removed: ", change.doc.id);
           const index = result.map(e => e.id).indexOf(change.doc.id);
           result.splice(index,1);
         }
+  
+        //if modified:
         else if(change.type === 'modified') {
           console.log("triggered modified: ", change.doc.data());
           const index = result.map(e => e.id).indexOf(change.doc.id);
+          if(index == -1) return;
           result.splice(index,1);
 
           if(authors.current[change.doc.data().authorID+'ID'] == undefined) {
@@ -301,13 +306,13 @@ export default function Home({ navigation }) {
           return;
         }
     
-        const checkBan = await getDoc(doc(db, 'Conversations', convID, 'Banned Users', user.uid));
-        if(checkBan.exists()) {
-          console.log('BANNED!');
-          setResponse('unable to join Conversation');
-          setShowIndicator(false);
-          return;
-        }
+        // const checkBan = await getDoc(doc(db, 'Conversations', convID, 'Banned Users', user.uid));
+        // if(checkBan.exists()) {
+        //   console.log('BANNED!');
+        //   setResponse('unable to join Conversation');
+        //   setShowIndicator(false);
+        //   return;
+        // }
         
         if(convRef.data().password) {
           console.log('enter password');
@@ -323,7 +328,7 @@ export default function Home({ navigation }) {
           removed: false,
         })
 
-        await addDoc(collection(db, 'Conversations', convID, 'Comments'), {
+        addDoc(collection(db, 'Conversations', convID, 'Comments'), {
           comment: 'joined',
           author: user.displayName,
           authorID: user.uid,
@@ -334,13 +339,16 @@ export default function Home({ navigation }) {
           removed2: false,
         })
 
-        await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {
-          authorID: convRef.data().authorID,
-          title: convRef.data().title,
-          body: convRef.data().body,
-          dateCreated: Timestamp.now(),
-          lastAccessed: Timestamp.now(),
-        })
+        if(!conversations.find(e => e.id == convID)) {
+          await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {
+            authorID: convRef.data().authorID,
+            title: convRef.data().title,
+            body: convRef.data().body,
+            dateCreated: Timestamp.now(),
+            lastAccessed: Timestamp.now(),
+          })
+        }
+        
         console.log('enter 1 ..');
         navigation.navigate('Details', { id: convID });
       } 
@@ -381,8 +389,23 @@ export default function Home({ navigation }) {
 
   const copyToClipboard = async () => {
     await Clipboard.setStringAsync(user.uid);
-
-    ToastAndroid.show('ID copied', ToastAndroid.SHORT);
+    if(Platform.OS === 'android')
+      ToastAndroid.show('ID copied', ToastAndroid.SHORT);
+    else {
+      Alert.alert(
+        'ID Copied to clipboard',
+        '',
+        [
+          {
+            text: 'Ok',
+            style: 'ok'
+          },
+        ],
+        {
+          cancelable: true
+        }
+      )
+    }
   }
 
   const enterConversation = useCallback(_.debounce((id) => {
@@ -394,8 +417,8 @@ export default function Home({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={{flex:1}}>
-      <View style={{...globalStyles.container, backgroundColor:'#806b96'}}>
+    <SafeAreaView style={{flex:1, backgroundColor:'#613a5f'}}>
+      <View style={{flex:1, backgroundColor:'#806b96'}}>
         
         <Modal visible={modalVisible} animationType='fade' transparent={true}
           onRequestClose={clickOut}
@@ -437,7 +460,6 @@ export default function Home({ navigation }) {
 
         <View style={{elevation:15, backgroundColor:'#613a5f'}}>
           <View style={styles.homeHeader}>
-            {/* <Ionicons name='chevron-back-circle' size={27} color="white" /> */}
             <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Conversations</Text>
           </View>
           
@@ -645,6 +667,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     backgroundColor:'white',
     elevation: 15,
+    shadowOffset: {width:0, height:5},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
     borderRadius:5
   },
   pic: {

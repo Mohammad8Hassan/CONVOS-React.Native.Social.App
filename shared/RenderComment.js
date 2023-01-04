@@ -1,14 +1,17 @@
-import { StyleSheet, Text, View, Image} from 'react-native'
+import { StyleSheet, Text, View, Image, Linking} from 'react-native'
 import React, { useEffect, useRef, useState } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
+import Hyperlink from 'react-native-hyperlink';
 
 export default function RenderComment(props) {
 
   return (
     <View style={{flexDirection:'row', alignItems:'center', flex:1}}>
       <View style={styles.commentView} >
-        <Text style={styles.theComment} selectable>{props.comment.comment}</Text>
-        
+        <Hyperlink onPress={link => Linking.openURL(link)} linkStyle={{color:'#574d06', fontStyle:'italic'}}>
+          <Text style={styles.theComment} selectable>{props.comment.comment}</Text>
+        </Hyperlink>
+
         <View style={styles.commentDetails}>
           <Text style={styles.author} selectable numberOfLines={1}>{ props.comment.Name }</Text>
           <Text style={styles.commentDate}>{props.comment.timeStamp.toDate().toDateString()}  -  {props.comment.timeStamp.toDate().getHours().toString()}:{props.comment.timeStamp.toDate().getMinutes().toString()}</Text>

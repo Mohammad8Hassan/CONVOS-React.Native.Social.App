@@ -38,9 +38,9 @@ export default function SystemMessage(props) {
     <View style={[styles.container, {borderColor:color()}]}>
       <View style={{flexDirection:'row', alignItems:'center', }}>
         <Image source={{uri: props.comment.uri}} style={{height:25, width:25, borderRadius:50, }} />
-        <Text style={{color:'#3380a3', marginLeft:5, fontSize:13, fontWeight:'bold', flexShrink:1}}>
+        <Text style={{color:'#3380a3', marginLeft:5, fontSize:Platform.OS==='android'?13:12, fontWeight:'bold', flexShrink:1}}>
           { props.comment.Name }
-          <Text style={{color:color(), fontSize:13, fontStyle:'italic', }}>{ status() }</Text>
+          <Text style={{color:color(), fontSize:Platform.OS==='android'?13:12, fontStyle:'italic', fontWeight:'normal'}}>{ status() }</Text>
         </Text>
         
       </View>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { StyleSheet, Text, View, Image, Pressable, ToastAndroid } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { StyleSheet, Text, View, Image, Pressable, ToastAndroid, SafeAreaView,
+Alert } from 'react-native'
+// import { SafeAreaView } from 'react-native-safe-area-context'
 import { getAuth, signOut } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
@@ -16,6 +17,7 @@ export default function Settings({ navigation }) {
   const user = getAuth().currentUser;
 
   useEffect(() => {
+    const tab = navigation.getParent();
     const user = getAuth().currentUser;
 
     setProfilePic(user.photoURL);
@@ -23,16 +25,32 @@ export default function Settings({ navigation }) {
     setEmail(user.email);
     setID(user.uid);
 
+
   }, [focused])
 
   const copyToClipboard = async () => {
     await Clipboard.setStringAsync(user.uid);
-
+    if(Platform.OS === 'android')
     ToastAndroid.show('ID copied', ToastAndroid.SHORT);
+    else {
+      Alert.alert(
+        'ID Copied to clipboard',
+        '',
+        [
+          {
+            text: 'Ok',
+            style: 'ok'
+          },
+        ],
+        {
+          cancelable: true
+        }
+      )
+    }
   }
 
   return (
-    <SafeAreaView style={{flex:1,}}>
+    <SafeAreaView style={{flex:1, backgroundColor:'#613a5f'}}>
       <View style={styles.homeHeader}>
         <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Settings</Text>
       </View>
@@ -77,7 +95,7 @@ export default function Settings({ navigation }) {
         </View>
 
         <View>
-          <Text style={{color:"white", fontSize: 20, marginTop:20, marginLeft: 10}}>Settings</Text>
+          <Text style={{color:"white", fontSize: 20, marginTop:20, marginLeft: 10}}>Settings (work in progress)</Text>
         </View>
 
         <View style={{marginHorizontal:3, backgroundColor:'#dad1e3', paddingVertical:5, marginVertical:20, flex:1, elevation:8}}>
@@ -151,6 +169,9 @@ const styles = StyleSheet.create({
     marginTop:'auto',
     marginBottom:20,
     borderRadius: 25,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
     elevation:8
   },
   copyID: {

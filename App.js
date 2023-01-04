@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import { DrawerActions, NavigationContainer } from '@react-navigation/native';
+import { DrawerActions, NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
 import * as Font from 'expo-font';
 import Home from './screens/Home'
@@ -11,23 +11,26 @@ import Register from './screens/Register'
 import Settings from './screens/Settings';
 import NewConv from './screens/NewConv';
 import EditProfile from './screens/EditProfile';
-import { StyleSheet, Text, View, Button, TouchableOpacity, StatusBar} from 'react-native';
+import { StyleSheet, StatusBar, Platform, } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as SplashScreen from 'expo-splash-screen';
-import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { onAuthStateChanged, getAuth, signOut } from 'firebase/auth';
+//import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { initializeApp } from "firebase/app";
+import { onAuthStateChanged, getAuth,} from 'firebase/auth';
+import {initializeAuth, getReactNativePersistence} from 'firebase/auth/react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SimpleLineIcons } from '@expo/vector-icons';
 import { MenuProvider } from 'react-native-popup-menu';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { FontAwesome} from '@expo/vector-icons'
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChangeEmail from './screens/ChangeEmail';
 import Friends from './screens/Friends';
 import Invites from './screens/Invites';
 import ErrorScreen from './screens/ErrorScreen';
 import * as NavigationBar from 'expo-navigation-bar';
+import { enableScreens } from 'react-native-screens';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzFP5s0WoP9MKd8Dk13QTDwNln7UXOoOs",
@@ -39,7 +42,10 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
+initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage)
+});
 
 
 const Drawer = createDrawerNavigator();
@@ -114,7 +120,10 @@ function TabScreens() {
 
         return <SimpleLineIcons name={iconName} size={27} color={iconColor} />;
       },
-      tabBarStyle: {backgroundColor: '#745f8a', elevation:15, borderTopWidth:0},
+      tabBarStyle: {backgroundColor: '#745f8a', elevation:15, borderTopWidth:0,
+       display: (getFocusedRouteNameFromRoute(route) == 'Details' || getFocusedRouteNameFromRoute(route) == 'New Conversation'
+       || getFocusedRouteNameFromRoute(route) == 'Error' || getFocusedRouteNameFromRoute(route) == 'Edit Profile')
+       ? 'none' : 'flex'},
       tabBarActiveTintColor: '#f55fd2',
       tabBarInactiveTintColor: '#f2f2f2',
       headerShown: false,
@@ -163,6 +172,7 @@ export default function App() {
 
   useEffect(() => {
     mounted.current = true;
+    enableScreens(false);
 
     async function prepare() {
       try {
@@ -191,7 +201,8 @@ export default function App() {
 
     prepare();
 
-    NavigationBar.setBackgroundColorAsync("#613a5f");
+    if(Platform.OS === 'android')
+      NavigationBar.setBackgroundColorAsync("#613a5f");
 
     getAuth().onAuthStateChanged(user => {
       if(user) {
@@ -219,28 +230,28 @@ export default function App() {
   }
 
   return (
-    <MenuProvider backHandler={true}>
-      
-      <StatusBar
-        animated={true}
-        backgroundColor="#613a5f" 
-      />
+      <MenuProvider backHandler={true}>  
+        <StatusBar
+          animated={true}
+          backgroundColor="#613a5f" 
+          barStyle='light-content'
+        />
 
-      <NavigationContainer>
-        <MainStack.Navigator screenOptions={() => ({ headerShown: false,})}>
-          { (isSignedin == false || isSignedin == null) ? (
-            <>
-              <MainStack.Screen name="Login" component={Login} />
-              <MainStack.Screen name="Register" component={Register} />
-            </>
-          ) : (
-            <MainStack.Screen name="Tab" component={TabScreens} />
-          )
-          }
-        </MainStack.Navigator>
-      </NavigationContainer>
+        <NavigationContainer>
+          <MainStack.Navigator screenOptions={() => ({ headerShown: false,})}>
+            { (isSignedin == false || isSignedin == null) ? (
+              <>
+                <MainStack.Screen name="Login" component={Login} />
+                <MainStack.Screen name="Register" component={Register} />
+              </>
+            ) : (
+              <MainStack.Screen name="Tab" component={TabScreens} />
+            )
+            }
+          </MainStack.Navigator>
+        </NavigationContainer>
 
-    </MenuProvider>
+      </MenuProvider>
   );
 
 }

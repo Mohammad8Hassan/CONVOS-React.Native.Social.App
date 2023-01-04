@@ -1,12 +1,13 @@
 import { useState, useCallback } from 'react'
 import { 
   StyleSheet, Text, View, Button, KeyboardAvoidingView, TouchableOpacity,
-  Pressable, ScrollView, TextInput, ToastAndroid
+  Pressable, ScrollView, TextInput, ToastAndroid, Platform
 } from 'react-native'
 import avatar from '../assets/Imgs/avatar.png'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { MaterialIcons } from '@expo/vector-icons'
+import { Ionicons } from '@expo/vector-icons'
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, deleteDoc, setDoc } from 'firebase/firestore'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import _ from 'lodash';
@@ -24,7 +25,8 @@ export default function Register({ navigation }) {
     const handleRegister = useCallback(_.debounce(async () => {
       try{
         const credentials = await createUserWithEmailAndPassword(getAuth(), email, password)
-        ToastAndroid.show("Registered Successfully", ToastAndroid.LONG);
+        if(Platform.OS === 'android')
+          ToastAndroid.show("Registered Successfully", ToastAndroid.LONG);
         
         await updateProfile(credentials.user, {
           displayName: firstName + ' ' + lasttName,
@@ -46,7 +48,8 @@ export default function Register({ navigation }) {
         const errorCode = error.code;
         const errorMessage = error.message;
         console.log(errorCode, errorMessage);
-        ToastAndroid.show(error.message, ToastAndroid.LONG);
+        if(Platform.OS === 'android')
+          ToastAndroid.show(error.message, ToastAndroid.LONG);
       }
     }, 3000, {'leading':true, 'trailing':false}), [email, password, firstName, lasttName])
 
@@ -112,9 +115,18 @@ export default function Register({ navigation }) {
   
   
     return (
-      <SafeAreaView style={{flex: 1,}}>
+      <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}>
+        <View style={{flex:1, backgroundColor:'#ebebeb'}}>
         <View style={styles.homeHeader}>
-          <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Create a new account</Text>
+          <Pressable 
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [
+              {opacity: pressed ? 0.5: 1},
+            ]}
+            >
+            <Ionicons name='chevron-back-circle' size={27} color="white" />
+          </Pressable>
+          <Text style={{flex:1, fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Create a new account</Text>
         </View>
         
         <ScrollView style={{flex: 1,}} contentContainerStyle={{paddingTop:100}}>
@@ -161,6 +173,7 @@ export default function Register({ navigation }) {
 
           </KeyboardAvoidingView>
         </ScrollView>
+        </View>
       </SafeAreaView>
     );
   }
@@ -172,8 +185,7 @@ export default function Register({ navigation }) {
       justifyContent:'center',
     },
     homeHeader: {
-      flexDirection: 'row', 
-      justifyContent:'space-between', 
+      flexDirection: 'row',  
       alignItems:'center',
       backgroundColor: '#613a5f',
       padding: 10,

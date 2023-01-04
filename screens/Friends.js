@@ -1,11 +1,12 @@
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, TextInput,
     Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, Alert, 
-    ActivityIndicator } from 'react-native';
+    ActivityIndicator, SafeAreaView, Cli, Platform } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
   deleteDoc, Timestamp, setDoc, getDocs, where, getDoc, updateDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
@@ -95,7 +96,7 @@ export default function Friends() {
       for (const doc of snapShot.docs) {
         const empty = doc.data().since === null ? Timestamp.now() : doc.data().since;
 
-        result.push({...doc.data(), since: empty.toDate()});
+        result.push({id: doc.id, ...doc.data(), since: empty.toDate()});
         num++;
       }
       
@@ -132,7 +133,7 @@ export default function Friends() {
 
     searchedID = searchedID.replace(/\s/g,'');
 
-    if(searchedID == '') {
+    if(searchedID.trim().length === 0) {
       setEmailResult("no users found!");
       setFound(true);
       setSearchIndicator(false);
@@ -392,6 +393,7 @@ export default function Friends() {
     }
 
     const docRef = doc(db, 'Users', searchedID);
+    console.log('searchedID: ', searchedID);
     getDoc(docRef)
       .then(res => {
         setDoc(doc(db, 'Users', searchedID, 'Received Requests', user.uid), {
@@ -412,7 +414,8 @@ export default function Friends() {
         })
 
         setModalVisible(false);
-        ToastAndroid.show('Request Sent.', ToastAndroid.SHORT);
+        if(Platform.OS === 'android')
+          ToastAndroid.show('Request Sent.', ToastAndroid.SHORT);
         setSelector('sent');
         clickOut();
       })
@@ -482,8 +485,25 @@ export default function Friends() {
         })
 
       setModalVisible(false);
-      ToastAndroid.show('Added Sucessfully', ToastAndroid.SHORT);
-    }
+      
+      if(Platform.OS === 'android')
+        ToastAndroid.show('Added Sucessfully', ToastAndroid.SHORT);
+      else {
+        Alert.alert(
+          'Added Sucessfully',
+          '',
+          [
+            {
+              text: 'Ok',
+              style: 'ok'
+            },
+          ],
+          {
+            cancelable: true
+          }
+        )
+      }
+      }
     else {
       Alert.alert(
         'Error',
@@ -558,7 +578,24 @@ export default function Friends() {
 
     deleteDoc(doc(db, 'Users', user.uid, 'Friends', id));
 
-    ToastAndroid.show('Removed Sucessfully', ToastAndroid.SHORT);
+    if(Platform.OS === 'android')
+      ToastAndroid.show('Removed Sucessfully', ToastAndroid.SHORT);
+      else {
+        Alert.alert(
+          'Removed Sucessfully',
+          '',
+          [
+            {
+              text: 'Ok',
+              style: 'ok'
+            },
+          ],
+          {
+            cancelable: true
+          }
+        )
+      }
+      
   }
 
   const blockFriend = (id) => {
@@ -568,7 +605,24 @@ export default function Friends() {
 
     removeFriend(id);
 
-    ToastAndroid.show('User Blocked', ToastAndroid.SHORT);
+    if(Platform.OS === 'android')
+      ToastAndroid.show('User Blocked', ToastAndroid.SHORT);
+    else {
+      Alert.alert(
+        'User Blocked',
+        '',
+        [
+          {
+            text: 'Ok',
+            style: 'ok'
+          },
+        ],
+        {
+          cancelable: true
+        }
+      )
+    }
+      
   }
 
   const blockUser = (id) => {
@@ -595,7 +649,24 @@ export default function Friends() {
       })
     
     clickOut();
-    ToastAndroid.show('User Blocked', ToastAndroid.SHORT);
+
+    if(Platform.OS === 'android')
+      ToastAndroid.show('User Blocked', ToastAndroid.SHORT);
+      else {
+        Alert.alert(
+          'User Blocked',
+          '',
+          [
+            {
+              text: 'Ok',
+              style: 'ok'
+            },
+          ],
+          {
+            cancelable: true
+          }
+        )
+      }
   }
 
   const unblockUser = async (id) => {
@@ -604,7 +675,24 @@ export default function Friends() {
     await deleteDoc(doc(db, 'Users', user.uid, 'Blocked', id))
 
     clickOut();
-    ToastAndroid.show('User Unblocked', ToastAndroid.SHORT);
+    
+    if(Platform.OS === 'android')
+      ToastAndroid.show('User Unblocked', ToastAndroid.SHORT);
+    else {
+      Alert.alert(
+        'User Unblocked',
+        '',
+        [
+          {
+            text: 'Ok',
+            style: 'ok'
+          },
+        ],
+        {
+          cancelable: true
+        }
+      )
+    }
   }
 
   const showAlert = (id, person) => {
@@ -651,6 +739,27 @@ export default function Friends() {
     )
   }
 
+  const copyToClipboard = async (id) => {
+    await Clipboard.setStringAsync(id);
+    if(Platform.OS === 'android')
+      ToastAndroid.show('ID copied', ToastAndroid.SHORT);
+    else {
+      Alert.alert(
+        'ID Copied to clipboard',
+        '',
+        [
+          {
+            text: 'Ok',
+            style: 'ok'
+          },
+        ],
+        {
+          cancelable: true
+        }
+      )
+    }
+  }
+
   const renderList = (data, listTitle, listNum) => {
     return(
       <View style={{flex:1, marginBottom:20}}>
@@ -661,13 +770,16 @@ export default function Friends() {
 
         
           <View style={{flex:1, marginTop:5, padding:4}}>
-            <FlatList data={data} renderItem={({ item }) => (
+            <FlatList data={data} removeClippedSubviews={false} renderItem={({ item }) => (
               <View style={[styles.item, {backgroundColor: (selector=='friends'? 'none': '#8d8299')}]}>
 
                 <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20}}>
                   <Image source={{uri: item.Photo}} style={{height:40, width:40, borderRadius:50}} />
-                  <Text style={{flex:1, color:'white', fontSize:18, marginLeft:10, marginRight:3}}>{ item.Name }</Text>
-                  
+                  <View style={{flex:1, marginLeft:10, marginRight:3, alignItems:'center', }}>
+                    <Text style={{color:'white', fontSize:18,}} selectable>{ item.Name }</Text>
+                    <Text style={{color:'#d1d1d1', fontSize:13, fontStyle:'italic'}} numberOfLines={1} > {item.id} </Text>
+                  </View>
+
                   {(selector == 'friends') && 
                     <Pressable
                       style={({ pressed }) => [
@@ -679,6 +791,9 @@ export default function Friends() {
                           <MaterialIcons name='more-horiz' size={20} color='white'  />
                         </MenuTrigger>
                         <MenuOptions>
+                          <MenuOption onSelect={() => copyToClipboard(item.ID)}>
+                            <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>Copy ID</Text>
+                          </MenuOption>
                           <MenuOption onSelect={() => showAlert(item.ID, item.Name)}>
                             <Text style={{color: "red", fontSize: 18, margin: 5}}>Remove friend</Text>
                           </MenuOption>
@@ -692,7 +807,7 @@ export default function Friends() {
                 </View>
 
                 {(selector == 'received') && 
-                  <View style={{flexDirection:'row', marginBottom:5, marginTop:3, marginRight:5, justifyContent:'flex-end', alignItems:'center'}}>
+                  <View style={{flexDirection:'row', marginBottom:5, marginTop:5, marginRight:5, justifyContent:'flex-end', alignItems:'center'}}>
                     <Pressable
                       onPress={() => approveRequest(item.ID)}
                       style={({ pressed }) => [
@@ -738,7 +853,8 @@ export default function Friends() {
 
 
   return (
-    <SafeAreaView style={{flex: 1, backgroundColor:'#806b96'}}>
+    <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}> 
+      <View style={{flex:1, backgroundColor:'#806b96'}} >
       <View style={styles.homeHeader}>
         <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Friends</Text>
       </View>
@@ -811,7 +927,7 @@ export default function Friends() {
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
                 {/* <FontAwesome5 name='user-friends' size={27} color='white' /> */}
-                <Text style={{color:"white", fontSize: 16,}}>Friends List</Text>
+                <Text style={{color:"white", fontSize: 16,}} adjustsFontSizeToFit numberOfLines={2}>Friends List</Text>
               </View>
             </Pressable>
           </View>
@@ -825,7 +941,7 @@ export default function Friends() {
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
                 {/* <MaterialCommunityIcons name='email-receive-outline' size={30} color='white' /> */}
-                <Text style={{color:"white", fontSize: 16,}}>Received Requests</Text>
+                <Text style={{color:"white", fontSize: 16,}} adjustsFontSizeToFit numberOfLines={2}>Received Requests</Text>
               </View>
             </Pressable>
             { (receivedRequestsNum > 0) && <Text style={styles.badge}>{ receivedRequestsNum }</Text> }
@@ -840,7 +956,7 @@ export default function Friends() {
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
                 {/* <MaterialCommunityIcons name='email-fast-outline' size={30} color='white' /> */}
-                <Text style={{color:"white", fontSize: 16,}}>Sent Requests</Text>
+                <Text style={{color:"white", fontSize: 16,}} adjustsFontSizeToFit numberOfLines={2}>Sent Requests</Text>
               </View>
             </Pressable>
             { (sentRequestsNum > 0) && <Text style={styles.badge}>{ sentRequestsNum }</Text> }
@@ -855,7 +971,7 @@ export default function Friends() {
 
         {(selector == 'sent' && !listIndicator)? ( renderList(sentRequests, 'Sent Friend Requests - ', sentRequestsNum) ) : null}
 
-        <View style={{alignItems:'flex-end'}}>
+        <View style={{alignItems:'flex-end', }}>
           <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={styles.addbtn}>
             <MaterialIcons name='person-add' size={33} color="#574866"/>
           </TouchableOpacity>
@@ -863,7 +979,7 @@ export default function Friends() {
         
       </View>
       )}
-      
+      </View>
     </SafeAreaView>
   )
 }
@@ -912,7 +1028,10 @@ const styles = StyleSheet.create({
     borderRadius:20,
     elevation:10,
     marginHorizontal: 15,
-    marginTop: 20
+    marginTop: 20,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   btnUnblock: {
     flex:2,
@@ -921,6 +1040,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius:20,
     elevation:10,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   btn: {
     flex:2,
@@ -929,6 +1051,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius:20,
     elevation:10,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   btnGrey: {
     flex:2,
@@ -937,6 +1062,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius:20,
     elevation:10,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   btnBlock: {
     flex:1,
@@ -945,7 +1073,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius:20,
     elevation:10,
-    marginLeft:10
+    marginLeft:10,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   approve: {
     padding: 8,
@@ -954,6 +1085,9 @@ const styles = StyleSheet.create({
     borderRadius:20,
     elevation:10,
     marginLeft:10,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   delete: {
     padding: 8,
@@ -961,7 +1095,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius:20,
     elevation:10,
-    marginLeft:10
+    marginLeft:10,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   cancel: {
     padding: 8,
@@ -971,7 +1108,11 @@ const styles = StyleSheet.create({
     elevation:10,
     marginRight:5,
     marginLeft:'auto',
-    marginBottom:5
+    marginBottom:5,
+    marginTop:5,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   menu: {
     alignItems: 'center',
@@ -986,6 +1127,9 @@ const styles = StyleSheet.create({
     borderRadius:20,
     elevation:10,
     marginLeft:10,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   searchCancel: {
     flex:1,
@@ -995,6 +1139,9 @@ const styles = StyleSheet.create({
     borderRadius:20,
     elevation:10,
     marginLeft:10,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   searchApprove: {
     flex:1,
@@ -1003,6 +1150,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius:20,
     elevation:10,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   friendsOp: {
     padding: 8,
@@ -1024,6 +1174,9 @@ const styles = StyleSheet.create({
     alignItems:'center',
     justifyContent:'center',
     flexDirection:'row',
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
     elevation:8
   },
   badge:{

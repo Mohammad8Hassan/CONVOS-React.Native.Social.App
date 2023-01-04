@@ -1,23 +1,32 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Text, View, Pressable, SafeAreaView } from 'react-native';
+//import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 
 export default function ErrorScreen({ navigation }) {
   useEffect(() => {
-    const tab = navigation.getParent();
-    tab.setOptions({
-      tabBarStyle: {display: 'none'}
-    });
+    // const tab = navigation.getParent();
+    // tab.setOptions({
+    //   tabBarStyle: {display: 'none'}
+    // });
 
-    return () => {
-      tab.setOptions({
-        tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
-      });
-    }
+    // return () => {
+    //   tab.setOptions({
+    //     tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
+    //   });
+    // }
   })
   return (
     <SafeAreaView style={{flex:1}}>
+      <Pressable 
+        onPress={() => navigation.goBack()}
+        style={({ pressed }) => [
+          {opacity: pressed ? 0.5: 1}, {alignSelf:'flex-start', marginTop:10, marginLeft:10}
+        ]}
+        >
+        <Ionicons name='chevron-back-circle' size={35} color="#853259" />
+      </Pressable>
       <View style={styles.na}>
         <View style={styles.naHeader}>
           <MaterialIcons name='warning' color='#853259' size={40} style={{flex:1}}/>

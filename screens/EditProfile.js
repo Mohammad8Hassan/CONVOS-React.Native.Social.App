@@ -1,10 +1,11 @@
 import { useEffect, useState,} from 'react'
 import { StyleSheet, Text, View, Image, Pressable, TextInput, KeyboardAvoidingView,
-   ScrollView, Modal, ToastAndroid, ActivityIndicator } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+   ScrollView, Modal, ToastAndroid, ActivityIndicator, SafeAreaView, Alert } from 'react-native'
+//import { SafeAreaView } from 'react-native-safe-area-context'
 import { getAuth, signOut, reauthenticateWithCredential, updateProfile, EmailAuthProvider,
   updateEmail } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { getStorage, ref, uploadBytes, getDownloadURL, getMetadata } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useIsFocused } from '@react-navigation/native';
@@ -29,21 +30,21 @@ export default function EditProfile({ navigation }) {
   const focused = useIsFocused();
 
   useEffect(() => {
-    const tab = navigation.getParent();
-    tab.setOptions({
-      tabBarStyle: {display: 'none'}
-    });
+    // const tab = navigation.getParent();
+    // tab.setOptions({
+    //   tabBarStyle: {display: 'none'}
+    // });
 
     // setProfilePic(user.photoURL);
     // setUserName(user.displayName);
     // setEmail(user.email);
     // setUserId(user.uid);
 
-    return () => {
-      tab.setOptions({
-        tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
-      });
-    }
+    // return () => {
+    //   tab.setOptions({
+    //     tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
+    //   });
+    // }
   }, [])
 
   // useEffect(() => {
@@ -107,7 +108,24 @@ export default function EditProfile({ navigation }) {
     setUserName(firstName + ' ' + lastName);
 
     setNameIndicator(false);
-    ToastAndroid.show('Name changed successfuly', ToastAndroid.SHORT);
+    
+    if(Platform.OS === 'android')
+      ToastAndroid.show('Name changed successfuly', ToastAndroid.SHORT);
+    else {
+      Alert.alert(
+        'Name changed successfuly',
+        '',
+        [
+          {
+            text: 'Ok',
+            style: 'ok'
+          },
+        ],
+        {
+          cancelable: true
+        }
+      )
+    }
   }
 
   const changeEmail = () => {
@@ -124,18 +142,66 @@ export default function EditProfile({ navigation }) {
             console.log('email updated');
             setModalVisible(false);
             setEmailIndicator(false);
-            ToastAndroid.show('email updated successfully', ToastAndroid.SHORT);
+            if(Platform.OS === 'android')
+              ToastAndroid.show('email updated successfully', ToastAndroid.SHORT);
+            else {
+              Alert.alert(
+                'email updated successfully',
+                '',
+                [
+                  {
+                    text: 'Ok',
+                    style: 'ok'
+                  },
+                ],
+                {
+                  cancelable: true
+                }
+              )
+            }
           })
           .catch(error => {
             console.log(error);
             setEmailIndicator(false);
-            ToastAndroid.show(error.message, ToastAndroid.LONG);
+            if(Platform.OS === 'android')
+              ToastAndroid.show(error.message, ToastAndroid.SHORT);
+            else {
+              Alert.alert(
+                'Error',
+                error.message,
+                [
+                  {
+                    text: 'Ok',
+                    style: 'ok'
+                  },
+                ],
+                {
+                  cancelable: true
+                }
+              )
+            }
           })
       })
       .catch(error => {
         console.log(error);
         setEmailIndicator(false);
-        ToastAndroid.show(error.message, ToastAndroid.LONG);
+        if(Platform.OS === 'android')
+          ToastAndroid.show(error.message, ToastAndroid.SHORT);
+        else {
+          Alert.alert(
+            'Error',
+            error.message,
+            [
+              {
+                text: 'Ok',
+                style: 'ok'
+              },
+            ],
+            {
+              cancelable: true
+            }
+          )
+        }
       })
     
   }
@@ -144,12 +210,20 @@ export default function EditProfile({ navigation }) {
 {/* Template */}  
 
   return (
-    <SafeAreaView style={{flex:1, backgroundColor:'red',}}>
-      <KeyboardAvoidingView style={{flex:1, backgroundColor:'blue',}}>
+    <SafeAreaView style={{flex:1, backgroundColor:'#613a5f',}}>
+      <KeyboardAvoidingView style={{flex:1, backgroundColor:'#613a5f',}}>
         <ScrollView contentContainerStyle={{ flexGrow: 1}}>
           
           <View style={styles.homeHeader}>
-            <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Edit Profile</Text>
+            <Pressable 
+              onPress={() => navigation.goBack()}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1},
+              ]}
+              >
+              <Ionicons name='chevron-back-circle' size={27} color="white" />
+            </Pressable>
+            <Text style={{flex:1, fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Edit Profile</Text>
           </View>
 
           {/* MODAL */}
@@ -232,12 +306,10 @@ export default function EditProfile({ navigation }) {
 
               <View style={{paddingVertical:5, marginTop:10, paddingRight:5}}>
                 <View style={{flexDirection:'row', alignItems:'center', paddingHorizontal:8}}>
-                  <Text style={{color:'white', fontSize:16, marginRight:5, flex:1}}> First Name </Text>
                   <TextInput placeholder='first name' value={firstName} onChangeText={text => setFirstName(text)} style={styles.input}/> 
                 </View>
 
                 <View style={{flexDirection:'row', alignItems:'center', paddingHorizontal:8}}>
-                  <Text style={{color:'white', fontSize:16, marginRight:5, flex:1}}> Last Name </Text>
                   <TextInput placeholder='last name' value={lastName} onChangeText={text => setLastName(text)} style={styles.input}/> 
                 </View>
 
@@ -294,7 +366,6 @@ export default function EditProfile({ navigation }) {
 const styles = StyleSheet.create({
   homeHeader: {
     flexDirection: 'row', 
-    justifyContent:'space-between', 
     alignItems:'center',
     backgroundColor: '#613a5f',
     padding: 10,

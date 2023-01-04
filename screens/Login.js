@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from 'react'
 import { 
   StyleSheet, Text, View, Button, KeyboardAvoidingView, TouchableOpacity,
-  Pressable, ScrollView, Modal, ActivityIndicator, ToastAndroid
+  Pressable, ScrollView, Modal, ActivityIndicator, ToastAndroid, Alert
 } from 'react-native'
 import { TextInput } from 'react-native-gesture-handler'
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
@@ -9,7 +9,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, se
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import _ from 'lodash';
-const {generateKeyPairSync} = require('crypto');
+
 
 
 export default function Login({ navigation }) {
@@ -27,13 +27,47 @@ export default function Login({ navigation }) {
         const user = credentials.user;
         console.log("step 2");
         console.log(user.email);
-        ToastAndroid.show("Logged in Successfully", ToastAndroid.LONG);
+        
+        if(Platform.OS === 'android')
+          ToastAndroid.show("Logged in Successfully", ToastAndroid.LONG);
+        else {
+          Alert.alert(
+            'Logged in Successfully',
+            '',
+            [
+              {
+                text: 'Ok',
+                style: 'ok'
+              },
+            ],
+            {
+              cancelable: true
+            }
+          )
+        }
       })
       .catch(error => {
         const errorCode = error.code;
         const errorMessage = error.message;
         console.log(errorCode, errorMessage);
-        ToastAndroid.show(error.message, ToastAndroid.LONG);
+        
+        if(Platform.OS === 'android')
+          ToastAndroid.show(error.message, ToastAndroid.LONG);
+        else {
+          Alert.alert(
+            'Error',
+            error.message,
+            [
+              {
+                text: 'Ok',
+                style: 'ok'
+              },
+            ],
+            {
+              cancelable: true
+            }
+          )
+        }
       });
   }, 3000, {'leading':true, 'trailing':false}), [email, password])
 
@@ -60,18 +94,54 @@ export default function Login({ navigation }) {
         console.log('email sent');
         setModalVisible(false);
         setShowIndicator(false);
-        ToastAndroid.show('reset email sent', ToastAndroid.LONG);
+        
+        if(Platform.OS === 'android')
+          ToastAndroid.show('reset email sent', ToastAndroid.LONG);
+        else {
+          Alert.alert(
+            'reset email sent',
+            '',
+            [
+              {
+                text: 'Ok',
+                style: 'ok'
+              },
+            ],
+            {
+              cancelable: true
+            }
+          )
+        }
       })
       .catch(error => {
         console.log('email send error', error.message);
         setModalVisible(false);
         setShowIndicator(false);
-        ToastAndroid.show(error.message, ToastAndroid.LONG);
+        
+        if(Platform.OS === 'android')
+          ToastAndroid.show(error.message, ToastAndroid.LONG);
+        else {
+          Alert.alert(
+            'Error',
+            error.message,
+            [
+              {
+                text: 'Ok',
+                style: 'ok'
+              },
+            ],
+            {
+              cancelable: true
+            }
+          )
+        }
       })
   }
 
   return (
-    <SafeAreaView style={{flex: 1}}>
+    <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}>
+      <View style={{flex:1, backgroundColor:'#ebebeb'}}>
+
       <View style={styles.homeHeader}>
         <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Login</Text>
       </View>
@@ -79,7 +149,7 @@ export default function Login({ navigation }) {
       <Modal visible={modalVisible} animationType='fade' transparent={true}
         onRequestClose={() => {setModalVisible(false)}}
       >
-        <View style={styles.outerView}>
+        <KeyboardAvoidingView style={styles.outerView} behavior={Platform.OS==='ios'? 'height' : null}>
             <View style={styles.innerView}>
               <TextInput placeholder='enter your email' onChangeText={text => emailToReset.current = text} style={styles.inputP}/> 
               {showIndicator? (
@@ -98,7 +168,7 @@ export default function Login({ navigation }) {
                 )
               }
             </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <KeyboardAvoidingView style={styles.container}>
@@ -142,7 +212,7 @@ export default function Login({ navigation }) {
 
           </ScrollView>
         </KeyboardAvoidingView>
-
+        </View>
     </SafeAreaView>
   );
 }
