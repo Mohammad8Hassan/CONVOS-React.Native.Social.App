@@ -15,7 +15,7 @@ import { StyleSheet, StatusBar, Platform, } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as SplashScreen from 'expo-splash-screen';
 //import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { onAuthStateChanged, getAuth,} from 'firebase/auth';
 import {initializeAuth, getReactNativePersistence} from 'firebase/auth/react-native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -31,6 +31,10 @@ import ErrorScreen from './screens/ErrorScreen';
 import * as NavigationBar from 'expo-navigation-bar';
 import { enableScreens } from 'react-native-screens';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import store from './store';
+import { Provider, useDispatch, useSelector } from 'react-redux';
+import { increment, decrement } from './features/counter/counterSlice';
+import Navigation from './Navigation';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzFP5s0WoP9MKd8Dk13QTDwNln7UXOoOs",
@@ -42,10 +46,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage)
-});
+!getApps().length? initializeAuth(initializeApp(firebaseConfig), {persistence: getReactNativePersistence(AsyncStorage)}): getApp();
 
 
 const Drawer = createDrawerNavigator();
@@ -89,6 +90,42 @@ function DrawerScreens() {
   );
 }
 
+
+// need to change stack name!
+function SettingsScreens() {
+  return(
+    <ByMeStack.Navigator screenOptions={() => ({ 
+      headerShown: false,
+      })}>
+      <ByMeStack.Screen name="Overview" component={Settings} />
+      <ByMeStack.Screen name="Edit Profile" component={EditProfile} />
+      <ByMeStack.Screen name="Change Email" component={ChangeEmail} />
+    </ByMeStack.Navigator>
+  );
+}
+
+// function getHeaderTitles(route) {
+//   const routeName = getFocusedRouteNameFromRoute(route) ?? 'Home';
+
+//   switch(routeName) {
+//     case 'Home':
+//       return 'Home';
+//     case 'Details':
+//       return 'Details';
+//   }
+// }
+
+
+// component
+
+export default function App() {
+  const [isFontsLoaded, setFontsLoaded] = useState(false);
+  const [isSignedin, setIsSignedin] = useState(null);
+
+  const mounted = useRef(false);
+
+  //const count = useSelector(state => state.counter.value);
+
 function TabScreens() {
   return(
     <Tabs.Navigator screenOptions={({route}) => ({
@@ -131,44 +168,12 @@ function TabScreens() {
       // tabBarShowLabel:false
     })}>
       <Tabs.Screen name="Home" component={HomeStackScreens}/>
-      <Tabs.Screen name="Invites" component={Invites} />
+      <Tabs.Screen name="Invites" component={Invites} options={{tabBarBadge: 2}}/>
       <Tabs.Screen name="Friends" component={Friends} />
       <Tabs.Screen name="Settings" component={SettingsScreens} />
     </Tabs.Navigator>
   )
 }
-// need to change stack name!
-function SettingsScreens() {
-  return(
-    <ByMeStack.Navigator screenOptions={() => ({ 
-      headerShown: false,
-      })}>
-      <ByMeStack.Screen name="Overview" component={Settings} />
-      <ByMeStack.Screen name="Edit Profile" component={EditProfile} />
-      <ByMeStack.Screen name="Change Email" component={ChangeEmail} />
-    </ByMeStack.Navigator>
-  );
-}
-
-// function getHeaderTitles(route) {
-//   const routeName = getFocusedRouteNameFromRoute(route) ?? 'Home';
-
-//   switch(routeName) {
-//     case 'Home':
-//       return 'Home';
-//     case 'Details':
-//       return 'Details';
-//   }
-// }
-
-
-// component
-
-export default function App() {
-  const [isFontsLoaded, setFontsLoaded] = useState(false);
-  const [isSignedin, setIsSignedin] = useState(null);
-
-  const mounted = useRef(false);
 
   useEffect(() => {
     mounted.current = true;
@@ -230,35 +235,12 @@ export default function App() {
   }
 
   return (
-      <MenuProvider backHandler={true}>  
-        <StatusBar
-          animated={true}
-          backgroundColor="#613a5f" 
-          barStyle='light-content'
-        />
+    <Provider store={store} >
 
-        <NavigationContainer>
-          <MainStack.Navigator screenOptions={() => ({ headerShown: false,})}>
-            { (isSignedin == false || isSignedin == null) ? (
-              <>
-                <MainStack.Screen name="Login" component={Login} />
-                <MainStack.Screen name="Register" component={Register} />
-              </>
-            ) : (
-              <MainStack.Screen name="Tab" component={TabScreens} />
-            )
-            }
-          </MainStack.Navigator>
-        </NavigationContainer>
-
-      </MenuProvider>
+      <Navigation isSignedin={isSignedin}/>
+      
+    </Provider>
   );
 
 }
 
-const styles = StyleSheet.create({
-  menu: {
-    marginRight: 20,
-  },
-
-})

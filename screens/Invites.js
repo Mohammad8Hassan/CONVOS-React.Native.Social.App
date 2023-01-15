@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, Tex
   Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, Alert, ActivityIndicator,
   SafeAreaView, 
   Platform} from 'react-native';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 //import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
@@ -13,6 +13,8 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 import _ from 'lodash';
 import { useIsFocused } from '@react-navigation/native';
+import * as FileSystem from "expo-file-system";
+import { useDispatch, useSelector } from 'react-redux';
 
 export default function Friends({ navigation }) {
 
@@ -21,6 +23,9 @@ export default function Friends({ navigation }) {
  const user = getAuth().currentUser;
  const defaultImg = Image.resolveAssetSource(avatar).uri;
  const focused = useIsFocused();
+ const totatlNum = useRef(0);
+ const flagFriends = useRef('...');
+ const flagOthers = useRef('...');
 
  const [FriendsInvites, setFriendsInvites] = useState(null);
  const [FriendsInvitesNum, setFriendsInvitesNum] = useState(0);
@@ -31,6 +36,14 @@ export default function Friends({ navigation }) {
  const [title, setTitle] = useState('');
  const [num, setNum] = useState(0);
  const [listIndicator, setListIndicator] = useState(true);
+
+ //redux store
+ const { mainColor, backgroundColor, tabColor, iconColor,
+    iconActiveColor, conAuthorBarColor, convAuthorTextColor, homeConvTitleColor,
+    homeConvBodyColor, topButtonsColors, userNameColor, userIDColor, actionColor, actionInsideColor,
+    headerTextColor, convAuthorPic, topButtonsBar, titleBackground, inviteBackground, inviteAuthor, inviteDate,
+    titleColor, selectorColor, inviteAuthBar, inviteTitleBar
+  } = useSelector(state => state.theme);
 
  useEffect(() => {
   if(focused)
@@ -47,21 +60,24 @@ export default function Friends({ navigation }) {
 
      for (const dok of snapShot.docs) {
       const empty = dok.data().timeStamp === null ? Timestamp.now() : dok.data().timeStamp;
-      var user = null;
+      let info = null;
+      let photo = null;
       try{
-        user = await getDoc(doc(db, 'Users', dok.data().authorID));
+        info = await getDoc(doc(db, 'Users', dok.data().authorID));
+        photo = await prepareImg(info.data().Photo, info.data().photoExtension);
       }
       catch(err){
         console.log(err);
       }
       
-      result.unshift({...dok.data(), ID: dok.id, timeStamp: empty.toDate(), Name: user.data().Name, Photo: user.data().Photo});
+      result.unshift({...dok.data(), ID: dok.id, timeStamp: empty.toDate(), Name: info.data().Name, Photo: photo});
       num++;
      }
      console.log(result);
      setSelector('friends');
      setFriendsInvites(result);
      setFriendsInvitesNum(num);
+     flagFriends.current = 'done';
      setTitle('Friends Conversations Invites - ')
      setData(result);
      setListIndicator(false);
@@ -73,17 +89,19 @@ export default function Friends({ navigation }) {
    const unsubscribe2 = onSnapshot(q2, async snapShot => {
      let result = [];
      let num = 0;
-
+    
      for (const dok of snapShot.docs) {
        const empty = dok.data().timeStamp === null ? Timestamp.now() : dok.data().timeStamp;
-       const user = await getDoc(doc(db, 'Users', dok.data().authorID));
+       const info = await getDoc(doc(db, 'Users', dok.data().authorID));
+       const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
 
-       result.unshift({...dok.data(), ID: dok.id,  timeStamp: empty.toDate(), Name: user.data().Name, Photo: user.data().Photo});
+       result.unshift({...dok.data(), ID: dok.id,  timeStamp: empty.toDate(), Name: info.data().Name, Photo: photo});
        num++;
      }
 
      setOthersInvites(result);
      setOthersInvitesNum(num);
+     flagOthers.current = 'done';
    }, error => {console.log(error)})
 
    return () => {
@@ -97,6 +115,22 @@ export default function Friends({ navigation }) {
    setNum(FriendsInvitesNum)
  }, [FriendsInvitesNum])
 
+ const dispatch = useDispatch();
+
+ useEffect(() => {
+  if(flagFriends.current == 'done' && flagOthers.current == 'done') {
+    totatlNum.current = FriendsInvitesNum + OthersInvitesNum;
+    //dispatch(incrementByValue(totatlNum.current));
+    navigation.setOptions({
+      tabBarBadge: totatlNum.current
+    })
+  }
+  
+ }, [FriendsInvitesNum, OthersInvitesNum])
+
+//  useEffect(() => {
+//   dispatch(incrementByValue(totatlNum.current));
+//  }, [totatlNum.current])
 
  const selectFriends = () => {
   setData(FriendsInvites); 
@@ -113,7 +147,6 @@ export default function Friends({ navigation }) {
   setNum(OthersInvitesNum)
  }
 
-
  const joinFriendConversation = async (id, title, body, authorID) => {
   const checkExists = await getDoc(doc(db, 'Conversations', id));
   if(checkExists.exists()) {
@@ -123,8 +156,6 @@ export default function Friends({ navigation }) {
       Admin: false,
       removed: false,
     });
-  
-    deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
   
     setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
       authorID: authorID,
@@ -144,6 +175,8 @@ export default function Friends({ navigation }) {
       uri2: user.photoURL,
       removed2: false,
     });
+
+    deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
     
     if(Platform.OS === 'android')
       ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
@@ -175,6 +208,61 @@ export default function Friends({ navigation }) {
   deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
  }
 
+ async function findImageInCache(uri) {
+  try {
+    let info = await FileSystem.getInfoAsync(uri);
+    return { ...info, err: false };
+  } catch (error) {
+    return {
+      exists: false,
+      err: true,
+      msg: error,
+    };
+  }
+}
+
+async function cacheImage(uri, cacheUri, callback) {
+  // console.log('will download');
+  try {
+    const downloadImage = FileSystem.createDownloadResumable(
+      uri,
+      cacheUri,
+      {},
+      callback
+    );
+    const downloaded = await downloadImage.downloadAsync();
+    return {
+      cached: true,
+      err: false,
+      path: downloaded.uri,
+    };
+  } catch (error) {
+    return {
+      cached: false,
+      err: true,
+      msg: error,
+    };
+  }
+}
+
+async function prepareImg(photo, photoExtension) {
+  const newUri = /[^=]*$/.exec(photo)[0];
+  const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
+  const isNew = await findImageInCache(cacheFileUri);
+  if (isNew.exists) {
+    // console.log("cached!");
+    return cacheFileUri;
+  } else {
+    let cached = await cacheImage(photo, cacheFileUri, () => {});
+    if (cached.cached) {
+      // console.log("cached new!");
+      return cached.path;
+    } else {
+      // console.log("Couldn't load Image!");
+      // console.log(cached.msg)
+    }
+  }
+}
 
  const joinOtherConversation = async (id, title, body, authorID) => {
   const checkExists = await getDoc(doc(db, 'Conversations', id));
@@ -188,8 +276,6 @@ export default function Friends({ navigation }) {
         removed: false,
       }),
 
-      deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', id)),
-
       setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
         authorID: authorID,
         title: title,
@@ -198,6 +284,7 @@ export default function Friends({ navigation }) {
         lastAccessed: Timestamp.now(),
       }),
 
+      deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', id)),
     ])
     
     await addDoc(collection(db, 'Conversations', id, 'Comments'), {
@@ -243,26 +330,26 @@ export default function Friends({ navigation }) {
  const renderList = (data, listTitle, listNum) => {
   return(
     <View style={{flex:1, marginBottom:20}}>
-      <View style={{flexDirection: 'row', backgroundColor:'#745f8a', alignItems:'center', paddingLeft:8}}>
-        <Text style={{color:"white", fontSize:19, fontFamily:'Solway-Regular'}}>{ listTitle }</Text>
-        <Text style={{color:'#f55fd2', fontSize:19, marginLeft:5, fontFamily:'Solway-Regular'}}>{ listNum }</Text>
+      <View style={{flexDirection: 'row', backgroundColor:titleBackground, alignItems:'center', paddingLeft:8}}>
+        <Text style={{color:titleColor, fontSize:19, fontFamily:'Solway-Regular'}}>{ listTitle }</Text>
+        <Text style={{color:iconActiveColor, fontSize:19, marginLeft:5, fontFamily:'Solway-Regular'}}>{ listNum }</Text>
       </View>
 
       <View style={{flex:1, marginTop:5, padding:4}}>
         <FlatList data={data} removeClippedSubviews={false} renderItem={({ item }) => (
-          <View style={styles.item}>
+          <View style={[styles.item, {backgroundColor:inviteBackground}]}>
 
             <View style={{margin:15}}>
-              <Text style={{color:'white', fontSize:20, padding:5, backgroundColor:'#613a5f'}} numberOfLines={2} selectable>{ item.title }</Text>
+              <Text style={{color:'white', fontSize:20, padding:5, backgroundColor:inviteTitleBar}} numberOfLines={2} selectable>{ item.title }</Text>
             </View>
 
             <View style={{flexDirection:'row', alignItems:'center', marginHorizontal:8}}>
               <Image source={{uri: item.Photo}} style={{height:30, width:30, borderRadius:50}} />
-              <Text style={{flex:1, color:'white', fontSize:15, marginLeft:10, marginRight:5}} selectable>{ item.Name }</Text>
-              <Text style={{color:'white', fontSize:11, marginLeft:'auto'}} selectable>{ item.timeStamp.toDateString() }</Text>
+              <Text style={{flex:1, color:inviteAuthor, fontSize:15, marginLeft:10, marginRight:5}} selectable>{ item.Name }</Text>
+              <Text style={{color:inviteDate, fontSize:11, marginLeft:'auto'}} selectable>{ item.timeStamp.toDateString() }</Text>
             </View>
 
-            <View style={{flexDirection:'row', marginTop:5, padding:10, backgroundColor:'#613a5f', justifyContent:'flex-end', alignItems:'center'}}>
+            <View style={{flexDirection:'row', marginTop:5, padding:10, backgroundColor:inviteAuthBar, justifyContent:'flex-end', alignItems:'center'}}>
               <Pressable
                 onPress={() => joinResponse(item.ID, item.title, item.body, item.authorID, selector)}
                 style={({ pressed }) => [
@@ -311,7 +398,7 @@ export default function Friends({ navigation }) {
 
  return (
    <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}> 
-    <View style={{flex:1, backgroundColor:'#806b96'}} >
+    <View style={{flex:1, backgroundColor: backgroundColor}} >
      <View style={styles.homeHeader}>
        <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Invites</Text>
      </View>
@@ -320,14 +407,14 @@ export default function Friends({ navigation }) {
      {/* Page Contents */}
      {listIndicator? ( <ActivityIndicator size={80} color='#613a5f' animating={listIndicator} style={{flex:1}} /> ) : (
       <View style={{flex:1, padding:10, paddingBottom:20}}>
+      
       {/* selectors */}
-
       <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, justifyContent:'space-between', paddingTop:10}}>
         <View style={{flex:1, alignItems:'flex-end', paddingTop:12, paddingRight:3, marginRight:3}}>
           <Pressable
             onPress={selectFriends}
             style={({ pressed }) => [
-              {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? '#3d243c': 'grey'}
+              {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? selectorColor : 'grey'}
             ]}
           >
             <View style={{flexDirection:'row', alignItems:'center',}}>
@@ -341,7 +428,7 @@ export default function Friends({ navigation }) {
           <Pressable
             onPress={selectOthers}
             style={({ pressed }) => [
-              {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='others')? '#3d243c': 'grey'}
+              {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='others')? selectorColor : 'grey'}
             ]}
           >
             <View style={{flexDirection:'row', alignItems:'center',}}>
@@ -411,6 +498,7 @@ const styles = StyleSheet.create({
    position:'absolute',
    paddingVertical: 2,
    paddingHorizontal: 5,
-   borderRadius:100
+   borderRadius:8,
+   overflow:'hidden'
  }
 })

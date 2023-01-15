@@ -476,6 +476,50 @@ export default function Details({ route, navigation }) {
     }
   }
 
+  const copyUserToClipboard = async (id) => {
+    await Clipboard.setStringAsync(id);
+
+    if(Platform.OS === 'android')
+      ToastAndroid.show('user id copied', ToastAndroid.SHORT);
+    else {
+      Alert.alert(
+        'user id copied',
+        '',
+        [
+          {
+            text: 'Ok',
+            style: 'ok'
+          },
+        ],
+        {
+          cancelable: true
+        }
+      )
+    }
+  }
+
+  const copyMineClipboard = async () => {
+    await Clipboard.setStringAsync(user.uid);
+
+    if(Platform.OS === 'android')
+      ToastAndroid.show('id copied', ToastAndroid.SHORT);
+    else {
+      Alert.alert(
+        'id copied',
+        '',
+        [
+          {
+            text: 'Ok',
+            style: 'ok'
+          },
+        ],
+        {
+          cancelable: true
+        }
+      )
+    }
+  }
+
 
   return (
     <SafeAreaView style={{flex:1, backgroundColor:'#613a5f'}}>
@@ -505,8 +549,25 @@ export default function Details({ route, navigation }) {
                     <View style={styles.itemUser}>
                       <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20,}}>
                         <Image source={{uri: user.photoURL}} style={{height:40, width:40, borderRadius:50, borderColor:'#4ebbed'}} />
-                        <Text style={{flex:1, fontSize:18, marginLeft:10, color:'white'}}>{ user.displayName }</Text>
-                        <Text style={{fontSize:15, marginLeft:'auto', color:'white', fontStyle:'italic', marginRight:5}}>(you)</Text>
+                        
+                        <View style={{marginLeft:10, flex:1,}}>
+                          <Text style={{ fontSize:18,  color:'white'}}>{ user.displayName } 
+                            <Text style={{fontSize:15, color:'white', fontStyle:'italic',}}>  (you)</Text>
+                          </Text>
+
+                          <Text style={{fontSize:13, color:'white', opacity:0.6, fontStyle:'italic'}}>{ user.uid }</Text>
+                        </View>
+                        
+                        <Menu style={styles.menu}>
+                          <MenuTrigger>
+                            <MaterialIcons name='more-horiz' size={20} color='white' style={{padding:8}} />
+                          </MenuTrigger>
+                          <MenuOptions>
+                            <MenuOption onSelect={() => copyMineClipboard()}>
+                              <Text style={{fontSize: 18, margin: 5}}>copy ID</Text>
+                            </MenuOption>
+                          </MenuOptions>
+                        </Menu>
                       </View>
                     </View>
 
@@ -516,20 +577,36 @@ export default function Details({ route, navigation }) {
 
                           <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20, opacity: (item.removed == true)? 0.5 : 1}}>
                             <Image source={{uri: item.photo}} style={{height:40, width:40, borderRadius:50, borderColor:'#4ebbed'}} />
-                            <Text style={{flex:1, fontSize:18, marginLeft:10, color:'white', marginRight:3}}>{ item.name }</Text>
-                            {(item.removed == false && user.uid == convAuthorID.current) && 
+                            
+                            <View style={{alignItems:'center', flex:1, marginHorizontal:8}}>
+                              {item.id == convAuthorID.current? (
+                                <Text style={{fontSize:18, color:'white'}}>{ item.name }
+                                  <Text style={{fontSize:16, color:'#613a5f', fontStyle:'italic'}}>  (Author)</Text> 
+                                </Text>
+                                
+                              ) : (
+                                <Text style={{fontSize:18, color:'white'}}>{ item.name }</Text>
+                              )}
+                              
+
+                              <Text style={{fontSize:13, color:'white', opacity:0.6, fontStyle:'italic'}}>{ item.id }</Text>
+                            </View>
+
+                            {(item.removed == false) && 
                               <Menu style={styles.menu}>
                               <MenuTrigger>
-                                <MaterialIcons name='more-horiz' size={20} color='white'  />
+                                <MaterialIcons name='more-horiz' size={20} color='white' style={{padding:8}}  />
                               </MenuTrigger>
                               <MenuOptions>
-                                <MenuOption onSelect={() => showAlertUser(item.id, item.name)}>
-                                  <Text style={{color: "red", fontSize: 18, margin: 5}}>Remove</Text>
-                                </MenuOption>
+                                {user.uid == convAuthorID.current ? (
+                                  <MenuOption onSelect={() => showAlertUser(item.id, item.name)}>
+                                    <Text style={{color: "#b00535", fontSize: 18, margin: 5}}>remove</Text>
+                                  </MenuOption>
+                                ) : null}
                                 
-                                {/* <MenuOption onSelect={() => showAlert(item.id, item.name)}>
-                                  <Text style={{fontSize: 18, margin: 5}}>Add to friends</Text>
-                                </MenuOption> */}
+                                <MenuOption onSelect={() => copyUserToClipboard(item.id)}>
+                                  <Text style={{fontSize: 18, margin: 5}}>copy ID</Text>
+                                </MenuOption>
                               </MenuOptions>
                             </Menu>
                             }

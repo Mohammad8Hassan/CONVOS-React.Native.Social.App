@@ -178,13 +178,13 @@ export default function Login({ navigation }) {
               <MaterialIcons name='email' color='grey' size={30} style={styles.icons}/>
               <TextInput placeholder='email' value={email} onChangeText={text => setEmail(text)} style={styles.input}/>
             </View>
-            <Text>{email}</Text>
+            {/* <Text>{email}</Text> */}
 
             <View style={styles.inputContainer}>
               <MaterialIcons name='lock' color='grey' size={30} style={styles.icons}/>
               <TextInput placeholder='password' value={password} onChangeText={text => setPassword(text)} secureTextEntry style={styles.input}/>
             </View>
-            <Text>{password}</Text>
+            {/* <Text>{password}</Text> */}
 
             <Pressable  
               onPress={handleLogin}
@@ -249,8 +249,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 20,
     overflow: 'hidden',
-    elevation: 8
-  
+    elevation: 8,
+    marginBottom: 12,
   },
   icons: {
     backgroundColor: 'white',

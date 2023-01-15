@@ -10,6 +10,7 @@ import { addDoc, serverTimestamp, setDoc, getFirestore, getDocs,
   collection, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import * as yup from 'yup';
 import { Formik } from 'formik';
+import * as FileSystem from "expo-file-system";
 
 const reviewSchema = yup.object({
   title: yup.string()
@@ -55,18 +56,16 @@ export default function NewConv({ navigation }) {
   const searchName = useRef('');
 
   useEffect(() => {
-    // const tab = navigation.getParent();
-    // tab.setOptions({
-    //   tabBarStyle: {display: 'none'}
-    // });
-
     let friends = [];
     const friendsCollection = collection(db, 'Users', user.uid, 'Friends');
 
     getDocs(friendsCollection)
       .then(res => {
-        res.forEach(doc => {
-          friends.push({...doc.data()})
+        res.forEach(async dok => {
+          const info = await getDoc(doc(db, 'Users', dok.id));
+          const Photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+
+          friends.push({...dok.data(), name: info.data().Name, photo: Photo})
         })
       })
       .catch(err => console.log(err))
@@ -74,11 +73,9 @@ export default function NewConv({ navigation }) {
     setFriends(friends);
     console.log("RAN AGAIN!!")
 
-    // return () => {
-    //   tab.setOptions({
-    //     tabBarStyle: {display: 'flex', backgroundColor: '#745f8a'}
-    //   });
-    // }
+    return () => {
+      
+    }
   }, [])
 
   useEffect(() => {
@@ -293,13 +290,13 @@ export default function NewConv({ navigation }) {
         .then(res => {
           if(res.docs[0].exists()){
             setSelectedOthers(prev => {
-              prev.push({...res.docs[0].data()});
+              prev.push({...res.docs[0].data(), name:res.docs[0].data().Name, photo:res.docs[0].data().Photo});
               return [...prev];
             })
             setSelectedOthersNum(prev => {return prev += 1;})
 
             setDisplaySelected(prev => {
-              prev.push({...res.docs[0].data()});
+              prev.push({...res.docs[0].data(), name:res.docs[0].data().Name, photo:res.docs[0].data().Photo});
               return [...prev];
             });
             setAddIndicator(false);
@@ -338,7 +335,61 @@ export default function NewConv({ navigation }) {
     console.log('other removed ', selectedOthersNum);
   }
 
-  
+  async function findImageInCache(uri) {
+    try {
+      let info = await FileSystem.getInfoAsync(uri);
+      return { ...info, err: false };
+    } catch (error) {
+      return {
+        exists: false,
+        err: true,
+        msg: error,
+      };
+    }
+  }
+
+  async function cacheImage(uri, cacheUri, callback) {
+    // console.log('will download');
+    try {
+      const downloadImage = FileSystem.createDownloadResumable(
+        uri,
+        cacheUri,
+        {},
+        callback
+      );
+      const downloaded = await downloadImage.downloadAsync();
+      return {
+        cached: true,
+        err: false,
+        path: downloaded.uri,
+      };
+    } catch (error) {
+      return {
+        cached: false,
+        err: true,
+        msg: error,
+      };
+    }
+  }
+
+  async function prepareImg(photo, photoExtension) {
+    const newUri = /[^=]*$/.exec(photo)[0];
+    const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
+    const isNew = await findImageInCache(cacheFileUri);
+    if (isNew.exists) {
+      // console.log("cached!");
+      return cacheFileUri;
+    } else {
+      let cached = await cacheImage(photo, cacheFileUri, () => {});
+      if (cached.cached) {
+        // console.log("cached new!");
+        return cached.path;
+      } else {
+        // console.log("Couldn't load Image!");
+        // console.log(cached.msg)
+      }
+    }
+  }
 
   return (
     <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}>
@@ -356,7 +407,6 @@ export default function NewConv({ navigation }) {
       </View>
 
       {/* Modal */}
-
       <Modal visible={modalOpen} animationType='slide' onRequestClose={() => setModalOpen(false)}>
         <SafeAreaView style={{flex:1, backgroundColor:'#613a5f'}}>
           <View style={{flex:1, backgroundColor:'#806b96'}}>
@@ -436,8 +486,8 @@ export default function NewConv({ navigation }) {
           <View style={{flex:1}}>
             <FlatList data={Data} extraData={[selectedFriends, selectedOthers]} renderItem={({item}) => (
               <View style={[styles.item, {backgroundColor: (selectedFriends.find(e => e.ID === item.ID))? '#853271': '#8d8299'}]}>
-                <Image source={{uri: item.Photo}} style={{height:40, width:40, borderRadius:50}} />
-                <Text style={{flex:1, color:'white', fontSize:18, marginLeft:10, marginRight:5}}>{ item.Name }</Text>
+                <Image source={{uri: item.photo}} style={{height:40, width:40, borderRadius:50}} />
+                <Text style={{flex:1, color:'white', fontSize:18, marginLeft:10, marginRight:5}}>{ item.name }</Text>
               
                 {(selectedFriends.find(e => e.ID === item.ID) || selectedOthers.find(e => e.ID === item.ID)) ? (
                     <Pressable
@@ -526,7 +576,7 @@ export default function NewConv({ navigation }) {
                           {displaySelected.map(item => {
                             return(
                               <View key={item.ID}>
-                                <Image source={{uri: item.Photo}} style={{height:40, width:40, borderRadius:50}} />
+                                <Image source={{uri: item.photo}} style={{height:40, width:40, borderRadius:50}} />
                               </View>
                             )
                           })}
@@ -538,7 +588,7 @@ export default function NewConv({ navigation }) {
                     {displaySelected.map(item => {
                       return(
                         <View key={item.ID}>
-                          <Text style={{fontSize:15, marginRight:8, color:'black'}}>{ item.Name }</Text>
+                          <Text style={{fontSize:15, marginRight:8, color:'black'}}>{ item.name }</Text>
                         </View>
                       )
                     })}

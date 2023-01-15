@@ -19,6 +19,7 @@ import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import _ from 'lodash';
 import * as FileSystem from "expo-file-system";
+import { useDispatch, useSelector } from 'react-redux';
 
 // component
 export default function Home({ navigation }) {
@@ -30,15 +31,24 @@ export default function Home({ navigation }) {
   const [password, setPassword] = useState('');
   const [showIndicator, setShowIndicator] = useState(false);
   const [conversationsIndicator, setConversationsIndicator] = useState(true);
+  const [photoUrl, setPhotoUrl] = useState(null);
 
   const db = getFirestore();
   const storage = getStorage();
   const defaultImg = Image.resolveAssetSource(avatar).uri;
   const user = getAuth().currentUser;
+  
+  //redux store
+  const { mainColor, backgroundColor, tabColor, iconColor,
+    iconActiveColor, conAuthorBarColor, convAuthorTextColor, homeConvTitleColor,
+    homeConvBodyColor, topButtonsColors, userNameColor, userIDColor, actionColor, actionInsideColor,
+    headerTextColor, convAuthorPic, topButtonsBar
+  } = useSelector(state => state.theme);
 
   const focused = useIsFocused();
   const authors = useRef({});
   const flag = useRef('first render');
+  
 
   useEffect(() => {
     const focusTasks = async () => {
@@ -49,39 +59,23 @@ export default function Home({ navigation }) {
       setPassword('');
       setResponse(null);
       
-
-      // if(flag.current != 'first render' && focused) {
-      //   const colRef = collection(db, 'Users', user.uid, 'My Conversations');
-      //   const q = query(colRef, orderBy('lastAccessed', 'desc'));
-      //   const convs = await getDocs(q);
-      //   setConversations(prev => {
-      //     prev = [];
-          
-      //     for(let conv of convs.docs) {
-      //       const empty = conv.data().dateCreated === null ? Timestamp.now() : conv.data().dateCreated;
-      //       prev.push({id: conv.id, ...conv.data(), 
-      //         dateCreated: empty.toDate(),
-      //         uri: authors.current[conv.data().authorID+'Photo'], 
-      //         author: authors.current[conv.data().authorID+'Name']});
-      //     }
-      //     return [...prev];
-      //   });
-      // }
     }
 
     focusTasks();
     
   }, [focused])
 
-  // useEffect(() => {
-  //   console.log('display conversations: ', conversations)
-  // }, [conversations])
 
   useEffect(() => {
     const colRef = collection(db, 'Users', user.uid, 'My Conversations');
     const q = query(colRef, orderBy('lastAccessed'));
     let result = [];
     // let authors = {};
+
+    const unsubscribeUser = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
+      const photo = await prepareImg(snapShot.data().Photo, snapShot.data().photoExtension);
+      setPhotoUrl(photo);
+    }, error => {console.log(error)})
 
     const unsubscribe1 = onSnapshot(q, async snapShot => {
       for(let change of snapShot.docChanges()) {
@@ -145,6 +139,7 @@ export default function Home({ navigation }) {
     
     return () => {
       unsubscribe1();
+      unsubscribeUser();
     }
   }, [])
 
@@ -417,8 +412,8 @@ export default function Home({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={{flex:1, backgroundColor:'#613a5f'}}>
-      <View style={{flex:1, backgroundColor:'#806b96'}}>
+    <SafeAreaView style={{flex:1, backgroundColor:mainColor}}>
+      <View style={{flex:1, backgroundColor:backgroundColor}}>
         
         <Modal visible={modalVisible} animationType='fade' transparent={true}
           onRequestClose={clickOut}
@@ -458,49 +453,48 @@ export default function Home({ navigation }) {
           </TouchableWithoutFeedback>
         </Modal>
 
-        <View style={{elevation:15, backgroundColor:'#613a5f'}}>
-          <View style={styles.homeHeader}>
-            <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Conversations</Text>
+        <View style={{elevation:15, backgroundColor:mainColor}}>
+          <View style={[styles.homeHeader, {backgroundColor:mainColor}]}>
+            <Text style={{fontSize:19, color:headerTextColor, fontFamily:'Solway-Regular', marginLeft:10}}>Conversations</Text>
           </View>
           
           {/* Page Contents */}
           
-          <View style={{backgroundColor:'#613a5f', padding:5, flexDirection:'row', alignItems:'center',}}>
-            <Image source={{uri: user.photoURL}} style={{height:40, width:40, borderRadius:50, borderColor:'#bab806', borderWidth:1}} />
+          <View style={{backgroundColor:mainColor, padding:5, flexDirection:'row', alignItems:'center',}}>
+            <Image source={{uri: photoUrl}} style={{height:40, width:40, borderRadius:50, borderColor:userNameColor, borderWidth:1}} />
             <View style={{marginHorizontal:4, flex:5}}>
-              <Text style={{color:'#bab806', fontSize:18}}>{ user.displayName }</Text>
-              <Text style={{color: '#bfbfb0'}}>{ user.uid }</Text>
+              <Text style={{color:userNameColor, fontSize:18,}}>{ user.displayName }</Text>
+              <Text style={{color: userIDColor, fontSize:Platform.OS=='android'?13:12}}>{ user.uid }</Text>
             </View>
             <Pressable
               onPress={copyToClipboard}
               style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.copyID
+                {opacity: pressed ? 0.5: 1}, styles.copyID, {backgroundColor:actionColor}
               ]}
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
-                {/* <Text style={{color:"#806b96", fontSize: 15, marginRight:3}}>Copy ID</Text> */}
-                <MaterialIcons name='file-copy' size={17} color='#806b96' />
+                <MaterialIcons name='file-copy' size={17} color={actionInsideColor} />
               </View>
             </Pressable>
           </View>
         </View>
 
-        <View style={{flexDirection:'row', padding:10,}}>
-          <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={styles.joinConv}>
-              <Text style={{color:'white', fontSize:16, marginRight:5, fontFamily:'Solway-Regular'}}>Join</Text>
-              <Ionicons name='arrow-redo-outline' size={20} color='white' />
+        <View style={{flexDirection:'row', padding:10, backgroundColor:backgroundColor}}>
+          <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={[styles.joinConv, {borderColor:topButtonsColors}]}>
+              <Text style={{color:topButtonsColors, fontSize:16, marginRight:5, fontFamily:'Solway-Regular'}}>Join</Text>
+              <Ionicons name='arrow-redo-outline' size={20} color={topButtonsColors} />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.navigate('New Conversation')} style={styles.newConv}>
-              <Text style={{color:'white', fontSize:16, marginRight:5, fontFamily:'Solway-Regular'}}>New</Text>
-              <Entypo name='new-message' size={20} color='white' />
+          <TouchableOpacity onPress={() => navigation.navigate('New Conversation')} style={[styles.newConv, {borderColor:topButtonsColors}]}>
+              <Text style={{color:topButtonsColors, fontSize:16, marginRight:5, fontFamily:'Solway-Regular'}}>New</Text>
+              <Entypo name='new-message' size={20} color={topButtonsColors} />
           </TouchableOpacity>
         </View>
 
         {(conversations.length == 0 && !conversationsIndicator)? (
-          <TouchableOpacity onPress={() => navigation.navigate('New Conversation')} style={styles.newMid}>
-           <Entypo name='new-message' size={80} color='white' style={{opacity:0.5, marginBottom:10}}/>
-           <Text style={{color:'white', fontSize:18, fontFamily:'Solway-Regular', opacity:0.5}}>
+          <TouchableOpacity onPress={() => navigation.navigate('New Conversation')} style={[styles.newMid, {borderColor:topButtonsColors}]}>
+           <Entypo name='new-message' size={80} color={topButtonsColors} style={{opacity:0.5, marginBottom:10}}/>
+           <Text style={{color:topButtonsColors, fontSize:18, fontFamily:'Solway-Regular', opacity:0.5}}>
               Click to create a new conversation
             </Text>
           </TouchableOpacity>
@@ -508,17 +502,17 @@ export default function Home({ navigation }) {
 
         <View style={{flex: 1}}>
           {conversationsIndicator? (
-            <ActivityIndicator size={80} color='#613a5f' animating={conversationsIndicator} style={{flex:1}} />
+            <ActivityIndicator size={80} color={mainColor} animating={conversationsIndicator} style={{flex:1}} />
           ) : (
             <FlatList data={conversations} renderItem={({ item }) => (
               <TouchableOpacity onPress={() => enter2(item.id)} style={styles.item}>
                 <Card>
                   <View style={styles.content}>
                     <View style={styles.header}>
-                      <Text style={styles.titleText} numberOfLines={1}>{ item.title }</Text>
+                      <Text style={[styles.titleText, {color:homeConvTitleColor}]} numberOfLines={1}>{ item.title }</Text>
                         <Menu>
                           <MenuTrigger>
-                            <MaterialIcons name='more-horiz' size={24} color="grey"/>
+                            <MaterialIcons name='more-horiz' size={24} color="grey" style={{padding:3}}/>
                           </MenuTrigger>
                           <MenuOptions>
                             {user.uid == item.authorID ? (
@@ -536,23 +530,23 @@ export default function Home({ navigation }) {
                           </MenuOptions>
                         </Menu>
                     </View>
-                    <Text style={styles.body} numberOfLines={2}>{ item.body }</Text>
+                    <Text style={[styles.body, {color:homeConvBodyColor}]} numberOfLines={2}>{ item.body }</Text>
                   </View>
                  
                   <View style={styles.createdViewContainer}>
-                    <View style={styles.createdView}>
+                    <View style={[styles.createdView, {backgroundColor:conAuthorBarColor}]}>
                       {item.author == user.displayName? (
-                          <Text style={styles.createdAuthor} numberOfLines={1}>{ user.displayName }</Text>
+                          <Text style={[styles.createdAuthor, {color:convAuthorTextColor}]} numberOfLines={1}>{ user.displayName }</Text>
                         ) : (
-                          <Text style={styles.createdAuthor} numberOfLines={1}>{ item.author }</Text>
+                          <Text style={[styles.createdAuthor, {color:convAuthorTextColor}]} numberOfLines={1}>{ item.author }</Text>
                         )
                       }
                       {/* <Text style={styles.createdTime}>{ item.dateCreated.toDateString()}</Text> */}
                     </View>
                     {item.author == user.displayName? (
-                        <Image source={{uri: user.photoURL}} style={styles.pic} />
+                        <Image source={{uri: photoUrl}} style={[styles.pic, {borderColor:null}]} />
                       ) : (
-                        <Image source={{uri: item.uri}} style={styles.pic} />
+                        <Image source={{uri: item.uri}} style={[styles.pic, {borderColor:null}]} />
                       )
                     }
                   </View>
@@ -666,7 +660,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginBottom: 20,
     backgroundColor:'white',
-    elevation: 15,
+    elevation: 8,
     shadowOffset: {width:0, height:5},
     shadowOpacity: 0.3,
     shadowRadius: 5,

@@ -14,9 +14,11 @@ import avatar from '../assets/Imgs/avatar.png';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 import _ from 'lodash';
+import * as FileSystem from "expo-file-system";
+import { useDispatch, useSelector } from 'react-redux';
 
 
-export default function Friends() {
+export default function Friends({ navigation }) {
 
   const db = getFirestore();
   const storage = getStorage();
@@ -46,6 +48,17 @@ export default function Friends() {
   const [searchIndicator, setSearchIndicator] = useState(false);
 
   const firstRender = useRef(true);
+  const recFlag = useRef('...');
+  const senFlag = useRef('...');
+  const total = useRef(0);
+
+  //redux store
+  const { mainColor, backgroundColor, tabColor, iconColor,
+    iconActiveColor, conAuthorBarColor, convAuthorTextColor, homeConvTitleColor,
+    homeConvBodyColor, topButtonsColors, userNameColor, userIDColor, actionColor, actionInsideColor,
+    headerTextColor, convAuthorPic, topButtonsBar, titleBackground, inviteBackground, inviteAuthor, inviteDate,
+    titleColor, selectorColor, addButton, addButtonInside, friendBackground
+  } = useSelector(state => state.theme);
 
   useEffect(() => {
     // Sent Requests
@@ -55,15 +68,27 @@ export default function Friends() {
       let result = [];
       let num = 0;
 
-      for (const doc of snapShot.docs) {
-        const empty = doc.data().timestamp === null ? Timestamp.now() : doc.data().timestamp;
+      await Promise.all(snapShot.docs.map(async change => {
+        const empty = change.data().timestamp === null ? Timestamp.now() : change.data().timestamp;
 
-        result.push({id: doc.id, ...doc.data(), dateSent: empty.toDate()});
+        const info = await getDoc(doc(db, 'Users', change.id));
+
+        const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+
+        result.push({id: change.id, Namee: info.data().Name, Photoo: photo, ...change.data(), dateSent: empty.toDate()});
         num++;
-      }
+      }))
+
+      // for (const doc of snapShot.docs) {
+      //   const empty = doc.data().timestamp === null ? Timestamp.now() : doc.data().timestamp;
+
+      //   result.push({id: doc.id, ...doc.data(), dateSent: empty.toDate()});
+      //   num++;
+      // }
 
       setSentRequestsNum(num);
       setSentRequests(result);
+      senFlag.current = 'done';
     }, error => {console.log(error)})
     
     // Received Requests
@@ -73,17 +98,31 @@ export default function Friends() {
       let result = [];
       let num = 0;
 
-      for (const doc of snapShot.docs) {
-        if(doc.data().ignored == false) {
-          const empty = doc.data().timestamp === null ? Timestamp.now() : doc.data().timestamp;
-          
-          result.push({id: doc.id, ...doc.data(), dateReceived: empty.toDate()});
+      await Promise.all(snapShot.docs.map(async change => {
+        if(change.data().ignored === false) {
+          const empty = change.data().timestamp === null ? Timestamp.now() : change.data().timestamp;
+
+          const info = await getDoc(doc(db, 'Users', change.id));
+
+          const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+
+          result.push({id: change.id, Namee: info.data().Name, Photoo: photo, ...change.data(), dateReceived: empty.toDate()});
           num++;
         }
-      }
+      }))
+
+      // for (const doc of snapShot.docs) {
+      //   if(doc.data().ignored == false) {
+      //     const empty = doc.data().timestamp === null ? Timestamp.now() : doc.data().timestamp;
+          
+      //     result.push({id: doc.id, ...doc.data(), dateReceived: empty.toDate()});
+      //     num++;
+      //   }
+      // }
       // console.log("ran here");
       setReceivedRequests(result);
       setReceivedRequestsNum(num);
+      recFlag.current = 'done';
     }, error => {console.log(error)})
 
     // Friends List
@@ -93,12 +132,27 @@ export default function Friends() {
       let result = [];
       let num = 0;
 
-      for (const doc of snapShot.docs) {
-        const empty = doc.data().since === null ? Timestamp.now() : doc.data().since;
+      await Promise.all(snapShot.docs.map(async change => {
+        const empty = change.data().since === null ? Timestamp.now() : change.data().since;
 
-        result.push({id: doc.id, ...doc.data(), since: empty.toDate()});
+        const info = await getDoc(doc(db, 'Users', change.id));
+
+        const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+
+        result.push({id: change.id, Namee: info.data().Name, Photoo: photo, ...change.data(), since: empty.toDate()});
         num++;
-      }
+      }))
+      
+      // for (const doc of snapShot.docs) {
+      //   const empty = doc.data().since === null ? Timestamp.now() : doc.data().since;
+
+      //   const info = await getDoc(doc(db, 'User', doc.id));
+
+      //   const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+
+      //   result.push({id: doc.id, photo: photo, ...doc.data(), since: empty.toDate()});
+      //   num++;
+      // }
       
       
       setFriends(result);
@@ -122,6 +176,17 @@ export default function Friends() {
     setNum(FriendsNum)
   }, [FriendsNum])
 
+  useEffect(() => {
+    // if(recFlag.current == 'done' && senFlag.current == 'done') {
+      
+    // }
+    total.current = receivedRequestsNum + sentRequestsNum;
+      //dispatch(incrementByValue(totatlNum.current));
+      navigation.setOptions({
+        tabBarBadge: total.current == 0? null : total.current
+      })
+    
+   }, [receivedRequestsNum, sentRequestsNum])
 
   const searchEmail = async (searchedID) => {
     Keyboard.dismiss();
@@ -156,16 +221,17 @@ export default function Friends() {
     }
 
     
-
     const docRef = doc(db, 'Users', searchedID);
     getDoc(docRef)
       .then(async res => {
         if(res.exists()) {
         
+        const photo = await prepareImg(res.data().Photo, res.data().photoExtension);
+
         const myBlockCheck = await getDoc(doc(db, 'Users', user.uid, 'Blocked', searchedID));
         if(myBlockCheck.exists()) {
           setEmailResult(res.data().Name);
-          setUrl(res.data().Photo);
+          setUrl(photo);
           setCaption('You blocked ' + res.data().Name);
           setConnection('blocked');
           setFound(true);
@@ -178,7 +244,7 @@ export default function Friends() {
       
             if(doc.exists()) {
               setEmailResult(res.data().Name);
-              setUrl(res.data().Photo);
+              setUrl(photo);
               setCaption('You are already friends with ' + res.data().Name);
               setConnection('friend');
               setFound(true);
@@ -192,7 +258,7 @@ export default function Friends() {
               .then(doc => {
                 if(doc.exists()) {
                   setEmailResult(res.data().Name);
-                  setUrl(res.data().Photo);
+                  setUrl(photo);
                   setCaption('You have already sent a friend request to ' + res.data().Name);
                   setConnection('sent');
                   setFound(true);
@@ -206,7 +272,7 @@ export default function Friends() {
                   .then(doc => {
                     if(doc.exists()) {
                       setEmailResult(res.data().Name);
-                      setUrl(res.data().Photo);
+                      setUrl(photo);
                       setCaption(res.data().Name + ' sent you a friend request!');
                       setConnection('received');
                       setFound(true);
@@ -217,7 +283,7 @@ export default function Friends() {
                   .catch(err => {
                     console.log('received catch', err);
                     setEmailResult(res.data().Name);
-                    setUrl(res.data().Photo);
+                    setUrl(photo);
                     setConnection('new');
                     setFound(true);
                     setSearchIndicator(false);
@@ -234,6 +300,62 @@ export default function Friends() {
         setSearchIndicator(false);
       })
 
+  }
+
+  async function findImageInCache(uri) {
+    try {
+      let info = await FileSystem.getInfoAsync(uri);
+      return { ...info, err: false };
+    } catch (error) {
+      return {
+        exists: false,
+        err: true,
+        msg: error,
+      };
+    }
+  }
+
+  async function cacheImage(uri, cacheUri, callback) {
+    console.log('will download');
+    try {
+      const downloadImage = FileSystem.createDownloadResumable(
+        uri,
+        cacheUri,
+        {},
+        callback
+      );
+      const downloaded = await downloadImage.downloadAsync();
+      return {
+        cached: true,
+        err: false,
+        path: downloaded.uri,
+      };
+    } catch (error) {
+      return {
+        cached: false,
+        err: true,
+        msg: error,
+      };
+    }
+  }
+
+  async function prepareImg(photo, photoExtension) {
+    const newUri = /[^=]*$/.exec(photo)[0];
+    const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
+    const isNew = await findImageInCache(cacheFileUri);
+    if (isNew.exists) {
+      console.log("cached!");
+      return cacheFileUri;
+    } else {
+      let cached = await cacheImage(photo, cacheFileUri, () => {});
+      if (cached.cached) {
+        console.log("cached new!");
+        return cached.path;
+      } else {
+        console.log("Couldn't load Image!");
+        console.log(cached.msg)
+      }
+    }
   }
 
   function renderButton() {
@@ -763,20 +885,20 @@ export default function Friends() {
   const renderList = (data, listTitle, listNum) => {
     return(
       <View style={{flex:1, marginBottom:20}}>
-        <View style={{flexDirection: 'row', backgroundColor:'#745f8a', alignItems:'center', paddingLeft:8}}>
-          <Text style={{color:"white", fontSize:19, fontFamily:'Solway-Regular'}}>{ listTitle }</Text>
-          <Text style={{color:'#f55fd2', fontSize:19, marginLeft:5}}>{ listNum }</Text>
+        <View style={{flexDirection: 'row', backgroundColor:titleBackground, alignItems:'center', paddingLeft:8}}>
+          <Text style={{color:titleColor, fontSize:19, fontFamily:'Solway-Regular'}}>{ listTitle }</Text>
+          <Text style={{color:iconActiveColor, fontSize:19, marginLeft:5}}>{ listNum }</Text>
         </View>
 
         
           <View style={{flex:1, marginTop:5, padding:4}}>
             <FlatList data={data} removeClippedSubviews={false} renderItem={({ item }) => (
-              <View style={[styles.item, {backgroundColor: (selector=='friends'? 'none': '#8d8299')}]}>
+              <View style={[styles.item, {backgroundColor: (selector=='friends'? 'none': friendBackground)}]}>
 
-                <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20}}>
-                  <Image source={{uri: item.Photo}} style={{height:40, width:40, borderRadius:50}} />
+                <View style={{flexDirection:'row', alignItems:'center', backgroundColor:friendBackground, padding:4, borderRadius:20}}>
+                  <Image source={{uri: item.Photoo}} style={{height:40, width:40, borderRadius:40,}} />
                   <View style={{flex:1, marginLeft:10, marginRight:3, alignItems:'center', }}>
-                    <Text style={{color:'white', fontSize:18,}} selectable>{ item.Name }</Text>
+                    <Text style={{color:'white', fontSize:18,}} selectable>{ item.Namee }</Text>
                     <Text style={{color:'#d1d1d1', fontSize:13, fontStyle:'italic'}} numberOfLines={1} > {item.id} </Text>
                   </View>
 
@@ -854,7 +976,7 @@ export default function Friends() {
 
   return (
     <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}> 
-      <View style={{flex:1, backgroundColor:'#806b96'}} >
+      <View style={{flex:1, backgroundColor:backgroundColor}} >
       <View style={styles.homeHeader}>
         <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Friends</Text>
       </View>
@@ -915,14 +1037,14 @@ export default function Friends() {
       {listIndicator? ( <ActivityIndicator size={80} color='#613a5f' animating={listIndicator} style={{flex:1}} /> ) : (
         <View style={{flex:1, padding:10, paddingBottom:20}}>
 
-        {/* selectors */}
+        {/* Selectors */}
 
         <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, justifyContent:'space-between', paddingTop:10,}}>
           <View style={{paddingTop:12, flex: (selector=='friends')? 2 : 1, marginRight:10}}>
             <Pressable
               onPress={() => {setSelector('friends'); setTitle('Friends - '); setNum(FriendsNum)}}
               style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? '#3d243c': 'grey'}
+                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? selectorColor: 'grey'}
               ]}
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
@@ -936,7 +1058,7 @@ export default function Friends() {
             <Pressable
               onPress={() => {setSelector('received'); setTitle('Received Requests - '); setNum(receivedRequestsNum)}}
               style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='received')? '#3d243c': 'grey'}
+                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='received')? selectorColor: 'grey'}
               ]}
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
@@ -951,7 +1073,7 @@ export default function Friends() {
             <Pressable
               onPress={() => {setSelector('sent'); setTitle('Sent Requests - '); setNum(sentRequestsNum)}}
               style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='sent')? '#3d243c': 'grey'}
+                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='sent')? selectorColor: 'grey'}
               ]}
             >
               <View style={{flexDirection:'row', alignItems:'center',}}>
@@ -963,7 +1085,7 @@ export default function Friends() {
           </View>
         </View>
         
-        {/* Titles */}
+        {/* Lists */}
         
         {(selector == 'friends' && !listIndicator)? ( renderList(Friends, 'Friends - ', FriendsNum) ): null}
 
@@ -972,8 +1094,8 @@ export default function Friends() {
         {(selector == 'sent' && !listIndicator)? ( renderList(sentRequests, 'Sent Friend Requests - ', sentRequestsNum) ) : null}
 
         <View style={{alignItems:'flex-end', }}>
-          <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={styles.addbtn}>
-            <MaterialIcons name='person-add' size={33} color="#574866"/>
+          <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={[styles.addbtn, {backgroundColor:addButton}]}>
+            <MaterialIcons name='person-add' size={33} color={addButtonInside}/>
           </TouchableOpacity>
         </View>
         
@@ -1184,8 +1306,9 @@ const styles = StyleSheet.create({
     position:'absolute',
     paddingVertical: 2,
     paddingHorizontal: 5,
-    borderRadius:100,
+    borderRadius:8,
     elevation:20,
+    overflow:'hidden',
     alignSelf:'flex-end'
   },
   indicator: {

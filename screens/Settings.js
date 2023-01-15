@@ -1,32 +1,46 @@
 import { useEffect, useState } from 'react'
 import { StyleSheet, Text, View, Image, Pressable, ToastAndroid, SafeAreaView,
-Alert } from 'react-native'
+Alert, Switch, Platform } from 'react-native'
 // import { SafeAreaView } from 'react-native-safe-area-context'
 import { getAuth, signOut } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from "expo-file-system";
+import { onSnapshot, doc, getFirestore } from 'firebase/firestore';
+import { useDispatch, useSelector } from 'react-redux';
+import { setLightTheme, setDarkTheme } from '../features/themeSlice';
+import * as NavigationBar from 'expo-navigation-bar';
 
 export default function Settings({ navigation }) {
-  const [profilePic, setProfilePic] = useState(null);
-  const [userName, setUserName] = useState(null);
-  const [email, setEmail] = useState(null);
-  const [ID, setID] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState(null);
+  const [isDefault, setIsDefault] = useState(false);
 
-  const focused = useIsFocused();
   const user = getAuth().currentUser;
+  const db = getFirestore();
+
+  const dispatch = useDispatch();
+  
+  //redux store
+  const { mainColor, backgroundColor, tabColor, iconColor,
+    iconActiveColor, conAuthorBarColor, convAuthorTextColor, homeConvTitleColor,
+    homeConvBodyColor, topButtonsColors, userNameColor, userIDColor, actionColor, actionInsideColor,
+    headerTextColor, convAuthorPic, topButtonsBar, titleBackground, inviteBackground, inviteAuthor, inviteDate,
+    titleColor, selectorColor, addButton, addButtonInside, friendBackground, optionsBackground, optionsColor,
+    optionsBar, theme
+  } = useSelector(state => state.theme);
 
   useEffect(() => {
-    const tab = navigation.getParent();
-    const user = getAuth().currentUser;
+    const unsubscribeUser = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
+      const photo = await prepareImg(snapShot.data().Photo, snapShot.data().photoExtension);
+      setPhotoUrl(photo);
+    }, error => {console.log(error)})
 
-    setProfilePic(user.photoURL);
-    setUserName(user.displayName);
-    setEmail(user.email);
-    setID(user.uid);
+    return () => {
+      unsubscribeUser();
+    }
+  }, [])
 
-
-  }, [focused])
 
   const copyToClipboard = async () => {
     await Clipboard.setStringAsync(user.uid);
@@ -49,20 +63,93 @@ export default function Settings({ navigation }) {
     }
   }
 
+  async function findImageInCache(uri) {
+    try {
+      let info = await FileSystem.getInfoAsync(uri);
+      return { ...info, err: false };
+    } catch (error) {
+      return {
+        exists: false,
+        err: true,
+        msg: error,
+      };
+    }
+  }
+
+  async function cacheImage(uri, cacheUri, callback) {
+    // console.log('will download');
+    try {
+      const downloadImage = FileSystem.createDownloadResumable(
+        uri,
+        cacheUri,
+        {},
+        callback
+      );
+      const downloaded = await downloadImage.downloadAsync();
+      return {
+        cached: true,
+        err: false,
+        path: downloaded.uri,
+      };
+    } catch (error) {
+      return {
+        cached: false,
+        err: true,
+        msg: error,
+      };
+    }
+  }
+
+  async function prepareImg(photo, photoExtension) {
+    const newUri = /[^=]*$/.exec(photo)[0];
+    const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
+    const isNew = await findImageInCache(cacheFileUri);
+    if (isNew.exists) {
+      // console.log("cached!");
+      return cacheFileUri;
+    } else {
+      let cached = await cacheImage(photo, cacheFileUri, () => {});
+      if (cached.cached) {
+        // console.log("cached new!");
+        return cached.path;
+      } else {
+        // console.log("Couldn't load Image!");
+        // console.log(cached.msg)
+      }
+    }
+  }
+
+  const toggleSwitch = () => {
+    if(theme) {
+      if(Platform.OS === 'android') {
+        NavigationBar.setBackgroundColorAsync("#613a5f");
+        NavigationBar.setButtonStyleAsync('light');
+      }
+      dispatch(setDarkTheme());
+    }
+    else {
+      if(Platform.OS === 'android') {
+        NavigationBar.setBackgroundColorAsync("white");
+        NavigationBar.setButtonStyleAsync('dark');
+      }
+      dispatch(setLightTheme());
+    }
+  }
+
   return (
-    <SafeAreaView style={{flex:1, backgroundColor:'#613a5f'}}>
-      <View style={styles.homeHeader}>
+    <SafeAreaView style={{flex:1, backgroundColor:mainColor}}>
+      <View style={[styles.homeHeader, {backgroundColor:mainColor}]}>
         <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Settings</Text>
       </View>
       
-      <View style={styles.container}>
+      <View style={[styles.container, {backgroundColor:backgroundColor}]}>
 
-        <View style={{backgroundColor:'#613a5f',}}>
-          <View style={styles.header}> 
-            <Image source={{uri: profilePic}} style={{width:100, height:100, borderRadius:100, borderWidth:2, borderColor:'#bab806'}}/>
+        <View style={{backgroundColor:mainColor}}>
+          <View style={[styles.header, {backgroundColor:mainColor}]}> 
+            <Image source={{uri: photoUrl}} style={{width:100, height:100, borderRadius:100, borderWidth:2, borderColor:'#bab806'}}/>
             
             <View style={styles.userInfo}>
-              <Text style={{color:'#bab806', fontSize:20, marginBottom:10}} numberOfLines={1}>{userName}</Text>
+              <Text style={{color:'#bab806', fontSize:20, marginBottom:10}} numberOfLines={1}>{user.displayName}</Text>
               
               
               <Pressable  
@@ -79,7 +166,7 @@ export default function Settings({ navigation }) {
             </View>
           </View>
           <View style={{flexDirection:'row', alignItems:'center', marginBottom:10, paddingHorizontal:5}}>
-            <Text style={{color:'#bfbfb0', fontSize:16, marginLeft:5, flex:5}} numberOfLines={1}>{ID}</Text>
+            <Text style={{color:'#bfbfb0', fontSize:Platform.OS==='android'?15:13, marginLeft:5, flex:5}} numberOfLines={1}>{user.uid}</Text>
             <Pressable
               onPress={copyToClipboard}
               style={({ pressed }) => [
@@ -94,21 +181,21 @@ export default function Settings({ navigation }) {
           </View>
         </View>
 
-        <View>
-          <Text style={{color:"white", fontSize: 20, marginTop:20, marginLeft: 10}}>Settings (work in progress)</Text>
-        </View>
+        {/* <View>
+          <Text style={{color:titleColor, fontSize: 20, marginTop:20, marginLeft: 10}}>Settings (work in progress)</Text>
+        </View> */}
 
-        <View style={{marginHorizontal:3, backgroundColor:'#dad1e3', paddingVertical:5, marginVertical:20, flex:1, elevation:8}}>
-          <Text style={{color:'#201d21', fontSize:18, backgroundColor:'white', padding:5, opacity:0.7}}>Appearance</Text>
+        <View style={{marginHorizontal:3, backgroundColor:optionsBackground, paddingVertical:5, marginVertical:20, flex:1, elevation:8}}>
+          <Text style={{color:optionsColor, fontSize:18, backgroundColor:optionsBar, padding:5,}}>Theme</Text>
+          
+          <View style={{flexDirection:'row', alignItems:'center', backgroundColor:optionsBar, paddingHorizontal:5, padding:Platform.OS=='ios'?5:null}}>
+            <Text style={{color:optionsColor, fontSize:16,}}>Default</Text>
+            <Switch value={theme} onValueChange={toggleSwitch} trackColor={{true:'#613a5f'}} style={{ marginHorizontal:Platform.OS=='ios'?8:null}}/>
+            <Text style={{color:optionsColor, fontSize:16,}}>Light</Text>
+          </View>
         </View>
         
-        {/* <View>
-          <Text style={{color:"white", fontSize: 20, marginTop:20, marginLeft: 10}}>Version</Text>
-        </View>
-
-        <View style={{marginHorizontal:3, backgroundColor:'#dad1e3', padding:5, marginTop:20, marginBottom:20, elevation:8}}>
-          <Text>0.2</Text>
-        </View> */}
+        
 
         <Pressable  
           onPress={() => {
