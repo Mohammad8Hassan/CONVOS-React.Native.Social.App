@@ -63,7 +63,7 @@ export default function NewConv({ navigation }) {
       .then(res => {
         res.forEach(async dok => {
           const info = await getDoc(doc(db, 'Users', dok.id));
-          const Photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+          const Photo = await loadImage(info.data().Photo, info.data().photoExtension);
 
           friends.push({...dok.data(), name: info.data().Name, photo: Photo})
         })
@@ -335,7 +335,7 @@ export default function NewConv({ navigation }) {
     console.log('other removed ', selectedOthersNum);
   }
 
-  async function findImageInCache(uri) {
+  const checkCache = async (uri) => {
     try {
       let info = await FileSystem.getInfoAsync(uri);
       return { ...info, err: false };
@@ -348,22 +348,21 @@ export default function NewConv({ navigation }) {
     }
   }
 
-  async function cacheImage(uri, cacheUri, callback) {
+  const cacheImage = async (uri, cacheUri) => {
     // console.log('will download');
     try {
-      const downloadImage = FileSystem.createDownloadResumable(
+      const createDownload = FileSystem.createDownloadResumable(
         uri,
         cacheUri,
-        {},
-        callback
       );
-      const downloaded = await downloadImage.downloadAsync();
+      const downloadImage = await createDownload.downloadAsync();
       return {
         cached: true,
         err: false,
-        path: downloaded.uri,
+        path: downloadImage.uri,
       };
-    } catch (error) {
+    } 
+    catch (error) {
       return {
         cached: false,
         err: true,
@@ -372,21 +371,21 @@ export default function NewConv({ navigation }) {
     }
   }
 
-  async function prepareImg(photo, photoExtension) {
+  const loadImage = async (photo, photoExtension) => {
     const newUri = /[^=]*$/.exec(photo)[0];
     const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
-    const isNew = await findImageInCache(cacheFileUri);
+    const isNew = await checkCache(cacheFileUri);
     if (isNew.exists) {
       // console.log("cached!");
       return cacheFileUri;
     } else {
-      let cached = await cacheImage(photo, cacheFileUri, () => {});
+      let cached = await cacheImage(photo, cacheFileUri);
       if (cached.cached) {
         // console.log("cached new!");
         return cached.path;
       } else {
-        // console.log("Couldn't load Image!");
-        // console.log(cached.msg)
+        console.log("Couldn't load Image!");
+        console.log(cached.msg)
       }
     }
   }

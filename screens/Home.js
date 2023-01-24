@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef} from 'react';
 import { StyleSheet, Text, View, Button, FlatList, TouchableOpacity, ImageBackground, Modal,
   KeyboardAvoidingView, ScrollView, Alert, Image, TouchableWithoutFeedback, TextInput, Pressable, ToastAndroid,
-  ActivityIndicator, SafeAreaView, Platform,} from 'react-native';
-import { globalStyles } from '../shared/globalStyles';
+  ActivityIndicator, SafeAreaView, Platform, RefreshControl} from 'react-native';
 import Card from '../shared/Card';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,13 +12,12 @@ import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, o
 import { getAuth } from 'firebase/auth';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 // import { SafeAreaView } from 'react-native-safe-area-context';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import avatar from '../assets/Imgs/avatar.png';
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import _ from 'lodash';
 import * as FileSystem from "expo-file-system";
 import { useDispatch, useSelector } from 'react-redux';
+import { setNewKey } from '../features/themeSlice';
 
 // component
 export default function Home({ navigation }) {
@@ -32,13 +30,13 @@ export default function Home({ navigation }) {
   const [showIndicator, setShowIndicator] = useState(false);
   const [conversationsIndicator, setConversationsIndicator] = useState(true);
   const [photoUrl, setPhotoUrl] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const db = getFirestore();
-  const storage = getStorage();
-  const defaultImg = Image.resolveAssetSource(avatar).uri;
   const user = getAuth().currentUser;
   
   //redux store
+  const dispatch = useDispatch();
   const { mainColor, backgroundColor, tabColor, iconColor,
     iconActiveColor, conAuthorBarColor, convAuthorTextColor, homeConvTitleColor,
     homeConvBodyColor, topButtonsColors, userNameColor, userIDColor, actionColor, actionInsideColor,
@@ -48,6 +46,11 @@ export default function Home({ navigation }) {
   const focused = useIsFocused();
   const authors = useRef({});
   const flag = useRef('first render');
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    dispatch(setNewKey());
+  }, [])
   
 
   useEffect(() => {
@@ -73,7 +76,7 @@ export default function Home({ navigation }) {
     // let authors = {};
 
     const unsubscribeUser = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
-      const photo = await prepareImg(snapShot.data().Photo, snapShot.data().photoExtension);
+      const photo = await loadImage(snapShot.data().Photo, snapShot.data().photoExtension);
       setPhotoUrl(photo);
     }, error => {console.log(error)})
 
@@ -84,7 +87,7 @@ export default function Home({ navigation }) {
           if(authors.current[change.doc.data().authorID+'ID'] == undefined) {
             const info = await getDoc(doc(db, 'Users', change.doc.data().authorID));
 
-            const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+            const photo = await loadImage(info.data().Photo, info.data().photoExtension);
 
             authors.current[info.id + 'Name'] = info.data().Name;
             authors.current[info.id + 'Photo'] = photo;
@@ -144,7 +147,7 @@ export default function Home({ navigation }) {
   }, [])
 
 
-  async function findImageInCache(uri) {
+  const checkCache = async (uri) => {
     try {
       let info = await FileSystem.getInfoAsync(uri);
       return { ...info, err: false };
@@ -157,22 +160,21 @@ export default function Home({ navigation }) {
     }
   }
 
-  async function cacheImage(uri, cacheUri, callback) {
+  const cacheImage = async (uri, cacheUri) => {
     // console.log('will download');
     try {
-      const downloadImage = FileSystem.createDownloadResumable(
+      const createDownload = FileSystem.createDownloadResumable(
         uri,
         cacheUri,
-        {},
-        callback
       );
-      const downloaded = await downloadImage.downloadAsync();
+      const downloadImage = await createDownload.downloadAsync();
       return {
         cached: true,
         err: false,
-        path: downloaded.uri,
+        path: downloadImage.uri,
       };
-    } catch (error) {
+    } 
+    catch (error) {
       return {
         cached: false,
         err: true,
@@ -181,21 +183,21 @@ export default function Home({ navigation }) {
     }
   }
 
-  async function prepareImg(photo, photoExtension) {
+  const loadImage = async (photo, photoExtension) => {
     const newUri = /[^=]*$/.exec(photo)[0];
     const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
-    const isNew = await findImageInCache(cacheFileUri);
+    const isNew = await checkCache(cacheFileUri);
     if (isNew.exists) {
       // console.log("cached!");
       return cacheFileUri;
     } else {
-      let cached = await cacheImage(photo, cacheFileUri, () => {});
+      let cached = await cacheImage(photo, cacheFileUri);
       if (cached.cached) {
         // console.log("cached new!");
         return cached.path;
       } else {
-        // console.log("Couldn't load Image!");
-        // console.log(cached.msg)
+        console.log("Couldn't load Image!");
+        console.log(cached.msg)
       }
     }
   }
@@ -279,9 +281,8 @@ export default function Home({ navigation }) {
   const joinConversation = async (convID) => {
     setShowIndicator(true);
     setResponse(null);
-    console.log('before: ', "'" + convID + "'");
+    
     convID = convID.replace(/\s/g,'');
-    console.log('after: ', "'" + convID + "'");
 
     const convRef = await getDoc(doc(db, 'Conversations', convID));
     if(showPassword == false) {
@@ -504,7 +505,9 @@ export default function Home({ navigation }) {
           {conversationsIndicator? (
             <ActivityIndicator size={80} color={mainColor} animating={conversationsIndicator} style={{flex:1}} />
           ) : (
-            <FlatList data={conversations} renderItem={({ item }) => (
+            <FlatList data={conversations} refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#613a5f']} />
+            } renderItem={({ item }) => (
               <TouchableOpacity onPress={() => enter2(item.id)} style={styles.item}>
                 <Card>
                   <View style={styles.content}>

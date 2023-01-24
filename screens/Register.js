@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react'
 import { 
   StyleSheet, Text, View, Button, KeyboardAvoidingView, TouchableOpacity,
-  Pressable, ScrollView, TextInput, ToastAndroid, Platform
+  Pressable, ScrollView, TextInput, ToastAndroid, Platform, Alert
 } from 'react-native'
 import avatar from '../assets/Imgs/avatar.png'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth'
 import { MaterialIcons } from '@expo/vector-icons'
 import { Ionicons } from '@expo/vector-icons'
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, deleteDoc, setDoc } from 'firebase/firestore'
@@ -22,20 +22,25 @@ export default function Register({ navigation }) {
     const storage = getStorage();
     const downloadUrl = 'https://firebasestorage.googleapis.com/v0/b/pilot-react-native.appspot.com/o/Profile%20Photos%2Favatar.png?alt=media&token=9a128f8f-77ae-438c-9bfd-282643320d23';
     
-    const handleRegister = useCallback(_.debounce(async () => {
+    const handleRegister = useCallback(_.debounce(async (email, password) => {
+      email = email.replace(/\s/g,'');
+
+
       try{
         const credentials = await createUserWithEmailAndPassword(getAuth(), email, password)
         if(Platform.OS === 'android')
           ToastAndroid.show("Registered Successfully", ToastAndroid.LONG);
-        
+
         await updateProfile(credentials.user, {
           displayName: firstName + ' ' + lasttName,
           photoURL: downloadUrl,
         });
 
+        sendEmailVerification(credentials.user).then(()=> console.log('email sent!'))
+
         console.log(credentials.user);
 
-        await setDoc(doc(db, 'Users', getAuth().currentUser.uid), {
+        setDoc(doc(db, 'Users', getAuth().currentUser.uid), {
           Name: firstName + ' ' + lasttName,
           ID: getAuth().currentUser.uid,
           email: credentials.user.email,
@@ -48,8 +53,24 @@ export default function Register({ navigation }) {
         const errorCode = error.code;
         const errorMessage = error.message;
         console.log(errorCode, errorMessage);
+
         if(Platform.OS === 'android')
           ToastAndroid.show(error.message, ToastAndroid.LONG);
+        else {
+          Alert.alert(
+            'Error',
+            error.message,
+            [
+              {
+                text: 'Ok',
+                style: 'ok'
+              },
+            ],
+            {
+              cancelable: true
+            }
+          )
+        }
       }
     }, 3000, {'leading':true, 'trailing':false}), [email, password, firstName, lasttName])
 
@@ -135,29 +156,25 @@ export default function Register({ navigation }) {
               <MaterialIcons name='email' color='grey' size={30} style={styles.icons}/>
               <TextInput placeholder='email' value={email} onChangeText={text => setEmail(text)} style={styles.input}/>
             </View>
-            <Text>{email}</Text>
       
             <View style={styles.inputContainer}>
               <MaterialIcons name='lock' color='grey' size={30} style={styles.icons}/>
               <TextInput placeholder='password' value={password} onChangeText={text => setPassword(text)} secureTextEntry style={styles.input}/>
             </View>
-            <Text>{password}</Text>
 
             <View style={styles.inputContainer}>
               <MaterialIcons name='person' color='grey' size={30} style={styles.icons}/>
               <TextInput placeholder='first name' value={firstName} onChangeText={text => setFirestName(text)} style={styles.input}/>
             </View>
-            <Text>{firstName}</Text>
 
             <View style={styles.inputContainer}>
               <MaterialIcons name='person' color='grey' size={30} style={styles.icons}/>
               <TextInput placeholder='last name' value={lasttName} onChangeText={text => setlastName(text)} style={styles.input}/>
             </View>
-            <Text>{lasttName}</Text>
-      
+    
       
             <Pressable  
-              onPress={handleRegister}
+              onPress={() => handleRegister(email, password)}
               style={({ pressed }) => [
                 {opacity: pressed ? 0.5: 1}, styles.login
               ]}
@@ -207,8 +224,8 @@ export default function Register({ navigation }) {
       backgroundColor: 'white',
       borderRadius: 20,
       overflow: 'hidden',
-      elevation: 8
-    
+      elevation: 8,
+      marginBottom: 15
     },
     icons: {
       backgroundColor: 'white',

@@ -17,11 +17,13 @@ export default function ErrorScreen({ navigation }) {
           >
           <Ionicons name='chevron-back-circle' size={35} color="#853259" />
         </Pressable>
+
         <View style={styles.na}>
           <View style={styles.naHeader}>
             <MaterialIcons name='warning' color='#853259' size={40} style={{flex:1}}/>
             <Text style={{flex:6, color:'#853259', fontSize:20, fontFamily:'Solway-Bold'}}>Conversation not available</Text>
           </View>
+
           <View style={styles.naBody}>
             <Text style={{fontSize:18, color:'#853259', fontFamily:'Solway-Regular'}}>It may have been deleted, or you are no longer a participant</Text>
           </View>
@@ -36,7 +38,8 @@ const styles = StyleSheet.create({
   na: {
     marginHorizontal:20,
     marginTop: 50,
-    alignItems: 'stretch'
+    alignItems: 'stretch',
+    paddingHorizontal:20
   },
   naHeader: {
     flexDirection: 'row',

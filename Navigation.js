@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, StatusBar } from 'react-native'
-import React from 'react'
+import React, { useEffect } from 'react'
 import { DrawerActions, NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import Home from './screens/Home'
 import Details from './screens/Details'
@@ -15,6 +15,7 @@ import ChangeEmail from './screens/ChangeEmail';
 import Friends from './screens/Friends';
 import Invites from './screens/Invites';
 import ErrorScreen from './screens/ErrorScreen';
+import Verify from './screens/Verify';
 import { useSelector } from 'react-redux';
 import { MenuProvider } from 'react-native-popup-menu';
 
@@ -25,11 +26,21 @@ export default function Navigation(props) {
   const statusBarContent = useSelector(state => state.theme.statusBarContent);
   const iconDefaultColor = useSelector(state => state.theme.iconColor);
   const iconActiveColor = useSelector(state => state.theme.iconActiveColor);
+  const keyValue = useSelector(state => state.theme.key);
+  const refresh = useSelector(state => state.theme.refresh);
 
   const Tabs = createBottomTabNavigator()
   const HomeStack = createNativeStackNavigator();
   const ByMeStack = createNativeStackNavigator();
   const MainStack = createNativeStackNavigator();
+
+  useEffect(() => {
+    if(refresh != null){
+      console.log('refresh: ', refresh);
+      props.setIsVerified(refresh);
+    }
+      
+  }, [refresh])
 
   function TabScreens() {
     return(
@@ -116,14 +127,30 @@ export default function Navigation(props) {
 
       <NavigationContainer>
         <MainStack.Navigator screenOptions={() => ({ headerShown: false,})}>
-          { (props.isSignedin == false || props.isSignedin == null) ? (
+          { (props.isSignedin == false || props.isSignedin == null) ? 
+          
+          (
             <>
               <MainStack.Screen name="Login" component={Login} />
               <MainStack.Screen name="Register" component={Register} />
             </>
-          ) : (
-            <MainStack.Screen name="Tab" component={TabScreens} />
+          ) 
+          : 
+          (
+            <>
+              {(props.isVerified) ? 
+              (
+                <MainStack.Screen name="Tab" component={TabScreens} />
+              )
+              :
+              (
+                <MainStack.Screen name="Verify" component={Verify} />
+              )
+              }
+            </>
+            
           )
+
           }
         </MainStack.Navigator>
       </NavigationContainer>

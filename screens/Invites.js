@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, TextInput,
   Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, Alert, ActivityIndicator,
-  SafeAreaView, 
-  Platform} from 'react-native';
+  SafeAreaView, RefreshControl, Platform} from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
 //import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Entypo } from '@expo/vector-icons';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
  deleteDoc, Timestamp, setDoc, getDocs, where, getDoc, updateDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
@@ -15,6 +15,8 @@ import _ from 'lodash';
 import { useIsFocused } from '@react-navigation/native';
 import * as FileSystem from "expo-file-system";
 import { useDispatch, useSelector } from 'react-redux';
+import { setNewKey } from '../features/themeSlice';
+
 
 export default function Friends({ navigation }) {
 
@@ -36,8 +38,10 @@ export default function Friends({ navigation }) {
  const [title, setTitle] = useState('');
  const [num, setNum] = useState(0);
  const [listIndicator, setListIndicator] = useState(true);
+ const [refreshing, setRefreshing] = useState(false);
 
  //redux store
+ const dispatch = useDispatch();
  const { mainColor, backgroundColor, tabColor, iconColor,
     iconActiveColor, conAuthorBarColor, convAuthorTextColor, homeConvTitleColor,
     homeConvBodyColor, topButtonsColors, userNameColor, userIDColor, actionColor, actionInsideColor,
@@ -64,7 +68,7 @@ export default function Friends({ navigation }) {
       let photo = null;
       try{
         info = await getDoc(doc(db, 'Users', dok.data().authorID));
-        photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+        photo = await loadImage(info.data().Photo, info.data().photoExtension);
       }
       catch(err){
         console.log(err);
@@ -93,7 +97,7 @@ export default function Friends({ navigation }) {
      for (const dok of snapShot.docs) {
        const empty = dok.data().timeStamp === null ? Timestamp.now() : dok.data().timeStamp;
        const info = await getDoc(doc(db, 'Users', dok.data().authorID));
-       const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+       const photo = await loadImage(info.data().Photo, info.data().photoExtension);
 
        result.unshift({...dok.data(), ID: dok.id,  timeStamp: empty.toDate(), Name: info.data().Name, Photo: photo});
        num++;
@@ -115,22 +119,22 @@ export default function Friends({ navigation }) {
    setNum(FriendsInvitesNum)
  }, [FriendsInvitesNum])
 
- const dispatch = useDispatch();
 
  useEffect(() => {
   if(flagFriends.current == 'done' && flagOthers.current == 'done') {
     totatlNum.current = FriendsInvitesNum + OthersInvitesNum;
     //dispatch(incrementByValue(totatlNum.current));
     navigation.setOptions({
-      tabBarBadge: totatlNum.current
+      tabBarBadge: totatlNum.current == 0? null : totatlNum.current
     })
   }
   
  }, [FriendsInvitesNum, OthersInvitesNum])
 
-//  useEffect(() => {
-//   dispatch(incrementByValue(totatlNum.current));
-//  }, [totatlNum.current])
+ const onRefresh = useCallback(() => {
+  setRefreshing(true);
+  dispatch(setNewKey());
+}, [])
 
  const selectFriends = () => {
   setData(FriendsInvites); 
@@ -208,7 +212,7 @@ export default function Friends({ navigation }) {
   deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
  }
 
- async function findImageInCache(uri) {
+ const checkCache = async (uri) => {
   try {
     let info = await FileSystem.getInfoAsync(uri);
     return { ...info, err: false };
@@ -221,22 +225,21 @@ export default function Friends({ navigation }) {
   }
 }
 
-async function cacheImage(uri, cacheUri, callback) {
+const cacheImage = async (uri, cacheUri) => {
   // console.log('will download');
   try {
-    const downloadImage = FileSystem.createDownloadResumable(
+    const createDownload = FileSystem.createDownloadResumable(
       uri,
       cacheUri,
-      {},
-      callback
     );
-    const downloaded = await downloadImage.downloadAsync();
+    const downloadImage = await createDownload.downloadAsync();
     return {
       cached: true,
       err: false,
-      path: downloaded.uri,
+      path: downloadImage.uri,
     };
-  } catch (error) {
+  } 
+  catch (error) {
     return {
       cached: false,
       err: true,
@@ -245,21 +248,21 @@ async function cacheImage(uri, cacheUri, callback) {
   }
 }
 
-async function prepareImg(photo, photoExtension) {
+const loadImage = async (photo, photoExtension) => {
   const newUri = /[^=]*$/.exec(photo)[0];
   const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
-  const isNew = await findImageInCache(cacheFileUri);
+  const isNew = await checkCache(cacheFileUri);
   if (isNew.exists) {
     // console.log("cached!");
     return cacheFileUri;
   } else {
-    let cached = await cacheImage(photo, cacheFileUri, () => {});
+    let cached = await cacheImage(photo, cacheFileUri);
     if (cached.cached) {
       // console.log("cached new!");
       return cached.path;
     } else {
-      // console.log("Couldn't load Image!");
-      // console.log(cached.msg)
+      console.log("Couldn't load Image!");
+      console.log(cached.msg)
     }
   }
 }
@@ -336,43 +339,56 @@ async function prepareImg(photo, photoExtension) {
       </View>
 
       <View style={{flex:1, marginTop:5, padding:4}}>
-        <FlatList data={data} removeClippedSubviews={false} renderItem={({ item }) => (
-          <View style={[styles.item, {backgroundColor:inviteBackground}]}>
-
-            <View style={{margin:15}}>
-              <Text style={{color:'white', fontSize:20, padding:5, backgroundColor:inviteTitleBar}} numberOfLines={2} selectable>{ item.title }</Text>
-            </View>
-
-            <View style={{flexDirection:'row', alignItems:'center', marginHorizontal:8}}>
-              <Image source={{uri: item.Photo}} style={{height:30, width:30, borderRadius:50}} />
-              <Text style={{flex:1, color:inviteAuthor, fontSize:15, marginLeft:10, marginRight:5}} selectable>{ item.Name }</Text>
-              <Text style={{color:inviteDate, fontSize:11, marginLeft:'auto'}} selectable>{ item.timeStamp.toDateString() }</Text>
-            </View>
-
-            <View style={{flexDirection:'row', marginTop:5, padding:10, backgroundColor:inviteAuthBar, justifyContent:'flex-end', alignItems:'center'}}>
-              <Pressable
-                onPress={() => joinResponse(item.ID, item.title, item.body, item.authorID, selector)}
-                style={({ pressed }) => [
-                  {opacity: pressed ? 0.5: 1}, styles.join
-                ]}
-              >
-                <View style={{flexDirection:'row', alignItems:'center',}}>
-                  <Text style={{color:"white", fontSize: 16,}}>Join</Text>
-                </View>
-              </Pressable>
-              <Pressable
-                onPress={() => deleteResponse(item.ID, selector)}
-                style={({ pressed }) => [
-                  {opacity: pressed ? 0.5: 1}, styles.delete
-                ]}
-              >
-                <View style={{flexDirection:'row', alignItems:'center',}}>
-                  <Text style={{color:"white", fontSize: 16,}}>Delete</Text>
-                </View>
-              </Pressable>
-            </View>
+        {(data.length == 0)? (
+          <View style={[styles.newMid, {borderColor:topButtonsColors}]}>
+          <Entypo name='inbox' size={80} color={topButtonsColors} style={{opacity:0.5, marginBottom:10}}/>
+          <Text style={{color:topButtonsColors, fontSize:18, fontFamily:'Solway-Regular', opacity:0.5}}>
+              Invites to conversations will appear here
+            </Text>
           </View>
-        )} />
+        )
+        : 
+        (
+          <FlatList data={data} removeClippedSubviews={false} refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#613a5f']} />
+          } renderItem={({ item }) => (
+            <View style={[styles.item, {backgroundColor:inviteBackground}]}>
+
+              <View style={{margin:15}}>
+                <Text style={{color:'white', fontSize:20, padding:5, backgroundColor:inviteTitleBar}} numberOfLines={2} selectable>{ item.title }</Text>
+              </View>
+
+              <View style={{flexDirection:'row', alignItems:'center', marginHorizontal:8}}>
+                <Image source={{uri: item.Photo}} style={{height:30, width:30, borderRadius:50}} />
+                <Text style={{flex:1, color:inviteAuthor, fontSize:15, marginLeft:10, marginRight:5}} selectable>{ item.Name }</Text>
+                <Text style={{color:inviteDate, fontSize:11, marginLeft:'auto'}} selectable>{ item.timeStamp.toDateString() }</Text>
+              </View>
+
+              <View style={{flexDirection:'row', marginTop:5, padding:10, backgroundColor:inviteAuthBar, justifyContent:'flex-end', alignItems:'center'}}>
+                <Pressable
+                  onPress={() => joinResponse(item.ID, item.title, item.body, item.authorID, selector)}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.join
+                  ]}
+                >
+                  <View style={{flexDirection:'row', alignItems:'center',}}>
+                    <Text style={{color:"white", fontSize: 16,}}>Join</Text>
+                  </View>
+                </Pressable>
+                <Pressable
+                  onPress={() => deleteResponse(item.ID, selector)}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.delete
+                  ]}
+                >
+                  <View style={{flexDirection:'row', alignItems:'center',}}>
+                    <Text style={{color:"white", fontSize: 16,}}>Delete</Text>
+                  </View>
+                </Pressable>
+              </View>
+            </View>
+          )} />
+        )}
       </View>
     </View>
   )
@@ -418,7 +434,7 @@ async function prepareImg(photo, photoExtension) {
             ]}
           >
             <View style={{flexDirection:'row', alignItems:'center',}}>
-              <Text style={{color:"white", fontSize: 16,}}>Friends Invites</Text>
+              <Text style={{color:"white", fontSize: 16,}}>From Friends</Text>
             </View>
           </Pressable>
           { (FriendsInvitesNum > 0) && <Text style={styles.badge}>{ FriendsInvitesNum }</Text> }
@@ -432,7 +448,7 @@ async function prepareImg(photo, photoExtension) {
             ]}
           >
             <View style={{flexDirection:'row', alignItems:'center',}}>
-              <Text style={{color:"white", fontSize: 16,}}>Others Invites</Text>
+              <Text style={{color:"white", fontSize: 16,}}>From Others</Text>
             </View>
           </Pressable>
           { (OthersInvitesNum > 0) && <Text style={styles.badge}>{ OthersInvitesNum }</Text> }
@@ -500,5 +516,17 @@ const styles = StyleSheet.create({
    paddingHorizontal: 5,
    borderRadius:8,
    overflow:'hidden'
- }
+ },
+ newMid: {
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: '#f2f2f2',
+  padding: 10,
+  paddingVertical:30,
+  borderRadius: 10,
+  borderStyle: 'dashed',
+  alignSelf:'center',
+  marginTop:100,
+  opacity:0.5
+},
 })

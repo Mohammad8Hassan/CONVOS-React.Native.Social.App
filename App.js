@@ -121,6 +121,7 @@ function SettingsScreens() {
 export default function App() {
   const [isFontsLoaded, setFontsLoaded] = useState(false);
   const [isSignedin, setIsSignedin] = useState(null);
+  const [isVerified, setIsVerified] = useState(false);
 
   const mounted = useRef(false);
 
@@ -209,9 +210,16 @@ function TabScreens() {
     if(Platform.OS === 'android')
       NavigationBar.setBackgroundColorAsync("#613a5f");
 
-    getAuth().onAuthStateChanged(user => {
+    getAuth().onAuthStateChanged(async user => {
       if(user) {
-        setIsSignedin(true);
+        if(user.emailVerified) {
+          setIsSignedin(true);
+          setIsVerified(true);
+        }
+        else {
+          setIsSignedin(true);
+          setIsVerified(false);
+        }
       } else {
         setIsSignedin(false);
       }
@@ -237,7 +245,7 @@ function TabScreens() {
   return (
     <Provider store={store} >
 
-      <Navigation isSignedin={isSignedin}/>
+      <Navigation isSignedin={isSignedin} isVerified={isVerified} setIsVerified={setIsVerified}/>
       
     </Provider>
   );

@@ -14,7 +14,6 @@ import * as NavigationBar from 'expo-navigation-bar';
 
 export default function Settings({ navigation }) {
   const [photoUrl, setPhotoUrl] = useState(null);
-  const [isDefault, setIsDefault] = useState(false);
 
   const user = getAuth().currentUser;
   const db = getFirestore();
@@ -32,7 +31,7 @@ export default function Settings({ navigation }) {
 
   useEffect(() => {
     const unsubscribeUser = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
-      const photo = await prepareImg(snapShot.data().Photo, snapShot.data().photoExtension);
+      const photo = await loadImage(snapShot.data().Photo, snapShot.data().photoExtension);
       setPhotoUrl(photo);
     }, error => {console.log(error)})
 
@@ -63,7 +62,7 @@ export default function Settings({ navigation }) {
     }
   }
 
-  async function findImageInCache(uri) {
+  const checkCache = async (uri) => {
     try {
       let info = await FileSystem.getInfoAsync(uri);
       return { ...info, err: false };
@@ -76,22 +75,21 @@ export default function Settings({ navigation }) {
     }
   }
 
-  async function cacheImage(uri, cacheUri, callback) {
+  const cacheImage = async (uri, cacheUri) => {
     // console.log('will download');
     try {
-      const downloadImage = FileSystem.createDownloadResumable(
+      const createDownload = FileSystem.createDownloadResumable(
         uri,
         cacheUri,
-        {},
-        callback
       );
-      const downloaded = await downloadImage.downloadAsync();
+      const downloadImage = await createDownload.downloadAsync();
       return {
         cached: true,
         err: false,
-        path: downloaded.uri,
+        path: downloadImage.uri,
       };
-    } catch (error) {
+    } 
+    catch (error) {
       return {
         cached: false,
         err: true,
@@ -100,21 +98,21 @@ export default function Settings({ navigation }) {
     }
   }
 
-  async function prepareImg(photo, photoExtension) {
+  const loadImage = async (photo, photoExtension) => {
     const newUri = /[^=]*$/.exec(photo)[0];
     const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
-    const isNew = await findImageInCache(cacheFileUri);
+    const isNew = await checkCache(cacheFileUri);
     if (isNew.exists) {
       // console.log("cached!");
       return cacheFileUri;
     } else {
-      let cached = await cacheImage(photo, cacheFileUri, () => {});
+      let cached = await cacheImage(photo, cacheFileUri);
       if (cached.cached) {
         // console.log("cached new!");
         return cached.path;
       } else {
-        // console.log("Couldn't load Image!");
-        // console.log(cached.msg)
+        console.log("Couldn't load Image!");
+        console.log(cached.msg)
       }
     }
   }

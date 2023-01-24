@@ -22,7 +22,6 @@ import * as Clipboard from 'expo-clipboard';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider, } from 'react-native-popup-menu';
 import SystemMessage from '../shared/SystemMessage';
 import ErrorScreen from './ErrorScreen';
-const forge = require('node-forge');
 
 
 export default function Details({ route, navigation }) {
@@ -117,7 +116,7 @@ export default function Details({ route, navigation }) {
           console.log('participant added: ', change.doc.data());
           const info = await getDoc(doc(db, 'Users', change.doc.id));
 
-          const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+          const photo = await loadImage(info.data().Photo, info.data().photoExtension);
 
           if(change.doc.data().Admin) {
             convAuthorID.current = change.doc.id;
@@ -283,7 +282,7 @@ export default function Details({ route, navigation }) {
     }
   }
 
-  async function findImageInCache(uri) {
+  const checkCache = async (uri) => {
     try {
       let info = await FileSystem.getInfoAsync(uri);
       return { ...info, err: false };
@@ -296,22 +295,21 @@ export default function Details({ route, navigation }) {
     }
   }
 
-  async function cacheImage(uri, cacheUri, callback) {
-    console.log('will download');
+  const cacheImage = async (uri, cacheUri) => {
+    // console.log('will download');
     try {
-      const downloadImage = FileSystem.createDownloadResumable(
+      const createDownload = FileSystem.createDownloadResumable(
         uri,
         cacheUri,
-        {},
-        callback
       );
-      const downloaded = await downloadImage.downloadAsync();
+      const downloadImage = await createDownload.downloadAsync();
       return {
         cached: true,
         err: false,
-        path: downloaded.uri,
+        path: downloadImage.uri,
       };
-    } catch (error) {
+    } 
+    catch (error) {
       return {
         cached: false,
         err: true,
@@ -320,17 +318,17 @@ export default function Details({ route, navigation }) {
     }
   }
 
-  async function prepareImg(photo, photoExtension) {
+  const loadImage = async (photo, photoExtension) => {
     const newUri = /[^=]*$/.exec(photo)[0];
     const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
-    const isNew = await findImageInCache(cacheFileUri);
+    const isNew = await checkCache(cacheFileUri);
     if (isNew.exists) {
-      console.log("cached!");
+      // console.log("cached!");
       return cacheFileUri;
     } else {
-      let cached = await cacheImage(photo, cacheFileUri, () => {});
+      let cached = await cacheImage(photo, cacheFileUri);
       if (cached.cached) {
-        console.log("cached new!");
+        // console.log("cached new!");
         return cached.path;
       } else {
         console.log("Couldn't load Image!");

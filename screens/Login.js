@@ -20,7 +20,9 @@ export default function Login({ navigation }) {
 
   const emailToReset = useRef('');
 
-  const handleLogin = useCallback(_.debounce(() => {
+  const handleLogin = useCallback(_.debounce((email, password) => {
+
+    email = email.replace(/\s/g,'');
 
     signInWithEmailAndPassword(getAuth(), email, password)
       .then(credentials => {
@@ -29,7 +31,7 @@ export default function Login({ navigation }) {
         console.log(user.email);
         
         if(Platform.OS === 'android')
-          ToastAndroid.show("Logged in Successfully", ToastAndroid.LONG);
+          ToastAndroid.show("Logged in Successfully", ToastAndroid.SHORT);
         else {
           Alert.alert(
             'Logged in Successfully',
@@ -187,7 +189,7 @@ export default function Login({ navigation }) {
             {/* <Text>{password}</Text> */}
 
             <Pressable  
-              onPress={handleLogin}
+              onPress={() => handleLogin(email, password)}
               style={({ pressed }) => [
                 {opacity: pressed ? 0.5: 1}, styles.login
               ]}

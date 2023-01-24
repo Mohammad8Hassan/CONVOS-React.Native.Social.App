@@ -47,6 +47,10 @@ const initialState = {
 
   //theme switch
   theme : false,
+
+  //controller
+  key : true,
+  refresh : null,
 };
 
 export const themeSlice = createSlice({
@@ -149,9 +153,17 @@ export const themeSlice = createSlice({
       //theme
       state.theme = false
     },
+
+    setNewKey: (state) => {
+      state.key = !state.key
+    },
+
+    setRefresh: (state, action) => {
+      state.refresh = action.payload
+    }
   }
 })
 //#3a5361
-export const { setLightTheme, setDarkTheme } = themeSlice.actions;
+export const { setLightTheme, setDarkTheme, setNewKey, setRefresh } = themeSlice.actions;
 
 export default themeSlice.reducer;

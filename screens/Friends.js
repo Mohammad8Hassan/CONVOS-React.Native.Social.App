@@ -1,29 +1,24 @@
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, TextInput,
     Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, Alert, 
-    ActivityIndicator, SafeAreaView, Cli, Platform } from 'react-native';
+    ActivityIndicator, SafeAreaView, Cli, Platform, RefreshControl} from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
 // import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { FontAwesome5 } from '@expo/vector-icons';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
   deleteDoc, Timestamp, setDoc, getDocs, where, getDoc, updateDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
-import avatar from '../assets/Imgs/avatar.png';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 import _ from 'lodash';
 import * as FileSystem from "expo-file-system";
 import { useDispatch, useSelector } from 'react-redux';
+import { setNewKey } from '../features/themeSlice';
 
 
 export default function Friends({ navigation }) {
 
   const db = getFirestore();
-  const storage = getStorage();
   const user = getAuth().currentUser;
-  const defaultImg = Image.resolveAssetSource(avatar).uri;
 
   const [email, setEmail] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -46,6 +41,7 @@ export default function Friends({ navigation }) {
   const [showIndicator, setShowIndicator] = useState(false);
   const [listIndicator, setListIndicator] = useState(true);
   const [searchIndicator, setSearchIndicator] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const firstRender = useRef(true);
   const recFlag = useRef('...');
@@ -53,6 +49,7 @@ export default function Friends({ navigation }) {
   const total = useRef(0);
 
   //redux store
+  const dispatch = useDispatch();
   const { mainColor, backgroundColor, tabColor, iconColor,
     iconActiveColor, conAuthorBarColor, convAuthorTextColor, homeConvTitleColor,
     homeConvBodyColor, topButtonsColors, userNameColor, userIDColor, actionColor, actionInsideColor,
@@ -73,7 +70,7 @@ export default function Friends({ navigation }) {
 
         const info = await getDoc(doc(db, 'Users', change.id));
 
-        const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+        const photo = await loadImage(info.data().Photo, info.data().photoExtension);
 
         result.push({id: change.id, Namee: info.data().Name, Photoo: photo, ...change.data(), dateSent: empty.toDate()});
         num++;
@@ -104,7 +101,7 @@ export default function Friends({ navigation }) {
 
           const info = await getDoc(doc(db, 'Users', change.id));
 
-          const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+          const photo = await loadImage(info.data().Photo, info.data().photoExtension);
 
           result.push({id: change.id, Namee: info.data().Name, Photoo: photo, ...change.data(), dateReceived: empty.toDate()});
           num++;
@@ -137,7 +134,7 @@ export default function Friends({ navigation }) {
 
         const info = await getDoc(doc(db, 'Users', change.id));
 
-        const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
+        const photo = await loadImage(info.data().Photo, info.data().photoExtension);
 
         result.push({id: change.id, Namee: info.data().Name, Photoo: photo, ...change.data(), since: empty.toDate()});
         num++;
@@ -188,6 +185,12 @@ export default function Friends({ navigation }) {
     
    }, [receivedRequestsNum, sentRequestsNum])
 
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    dispatch(setNewKey());
+  }, [])
+
   const searchEmail = async (searchedID) => {
     Keyboard.dismiss();
     setSearchIndicator(true);
@@ -226,7 +229,7 @@ export default function Friends({ navigation }) {
       .then(async res => {
         if(res.exists()) {
         
-        const photo = await prepareImg(res.data().Photo, res.data().photoExtension);
+        const photo = await loadImage(res.data().Photo, res.data().photoExtension);
 
         const myBlockCheck = await getDoc(doc(db, 'Users', user.uid, 'Blocked', searchedID));
         if(myBlockCheck.exists()) {
@@ -302,7 +305,7 @@ export default function Friends({ navigation }) {
 
   }
 
-  async function findImageInCache(uri) {
+  const checkCache = async (uri) => {
     try {
       let info = await FileSystem.getInfoAsync(uri);
       return { ...info, err: false };
@@ -315,22 +318,21 @@ export default function Friends({ navigation }) {
     }
   }
 
-  async function cacheImage(uri, cacheUri, callback) {
-    console.log('will download');
+  const cacheImage = async (uri, cacheUri) => {
+    // console.log('will download');
     try {
-      const downloadImage = FileSystem.createDownloadResumable(
+      const createDownload = FileSystem.createDownloadResumable(
         uri,
         cacheUri,
-        {},
-        callback
       );
-      const downloaded = await downloadImage.downloadAsync();
+      const downloadImage = await createDownload.downloadAsync();
       return {
         cached: true,
         err: false,
-        path: downloaded.uri,
+        path: downloadImage.uri,
       };
-    } catch (error) {
+    } 
+    catch (error) {
       return {
         cached: false,
         err: true,
@@ -339,17 +341,17 @@ export default function Friends({ navigation }) {
     }
   }
 
-  async function prepareImg(photo, photoExtension) {
+  const loadImage = async (photo, photoExtension) => {
     const newUri = /[^=]*$/.exec(photo)[0];
     const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
-    const isNew = await findImageInCache(cacheFileUri);
+    const isNew = await checkCache(cacheFileUri);
     if (isNew.exists) {
-      console.log("cached!");
+      // console.log("cached!");
       return cacheFileUri;
     } else {
-      let cached = await cacheImage(photo, cacheFileUri, () => {});
+      let cached = await cacheImage(photo, cacheFileUri);
       if (cached.cached) {
-        console.log("cached new!");
+        // console.log("cached new!");
         return cached.path;
       } else {
         console.log("Couldn't load Image!");
@@ -892,81 +894,97 @@ export default function Friends({ navigation }) {
 
         
           <View style={{flex:1, marginTop:5, padding:4}}>
-            <FlatList data={data} removeClippedSubviews={false} renderItem={({ item }) => (
-              <View style={[styles.item, {backgroundColor: (selector=='friends'? 'none': friendBackground)}]}>
+            {(data.length == 0 && selector=='friends')? (
+              <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={[styles.newMid, {borderColor:topButtonsColors}]}>
+              <Text style={{color:topButtonsColors, fontSize:20, fontFamily:'Solway-Regular', opacity:0.5}}>
+                You can add friends using thier ID
+              </Text>
+              <MaterialIcons name='person-add' size={80} color={topButtonsColors} style={{opacity:0.5, marginBottom:10}}/>
+              <Text style={{color:topButtonsColors, fontSize:18, fontFamily:'Solway-Regular', opacity:0.5}}>
+                  Click to add your first
+                </Text>
+              </TouchableOpacity>
+            )
+            : 
+            (
+              <FlatList data={data} removeClippedSubviews={false} refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#613a5f']} />
+              } renderItem={({ item }) => (
+                <View style={[styles.item, {backgroundColor: (selector=='friends'? 'none': friendBackground)}]}>
 
-                <View style={{flexDirection:'row', alignItems:'center', backgroundColor:friendBackground, padding:4, borderRadius:20}}>
-                  <Image source={{uri: item.Photoo}} style={{height:40, width:40, borderRadius:40,}} />
-                  <View style={{flex:1, marginLeft:10, marginRight:3, alignItems:'center', }}>
-                    <Text style={{color:'white', fontSize:18,}} selectable>{ item.Namee }</Text>
-                    <Text style={{color:'#d1d1d1', fontSize:13, fontStyle:'italic'}} numberOfLines={1} > {item.id} </Text>
+                  <View style={{flexDirection:'row', alignItems:'center', backgroundColor:friendBackground, padding:4, borderRadius:20}}>
+                    <Image source={{uri: item.Photoo}} style={{height:40, width:40, borderRadius:40,}} />
+                    <View style={{flex:1, marginLeft:10, marginRight:3, alignItems:'center', }}>
+                      <Text style={{color:'white', fontSize:18,}} selectable>{ item.Namee }</Text>
+                      <Text style={{color:'#d1d1d1', fontSize:13, fontStyle:'italic'}} numberOfLines={1} > {item.id} </Text>
+                    </View>
+
+                    {(selector == 'friends') && 
+                      <Pressable
+                        style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1}, styles.menu
+                        ]}
+                      >
+                        <Menu>
+                          <MenuTrigger>
+                            <MaterialIcons name='more-horiz' size={20} color='white'  />
+                          </MenuTrigger>
+                          <MenuOptions>
+                            <MenuOption onSelect={() => copyToClipboard(item.ID)}>
+                              <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>Copy ID</Text>
+                            </MenuOption>
+                            <MenuOption onSelect={() => showAlert(item.ID, item.Name)}>
+                              <Text style={{color: "red", fontSize: 18, margin: 5}}>Remove friend</Text>
+                            </MenuOption>
+                            <MenuOption onSelect={() => showAlertBlock(item.ID, item.Name)}>
+                              <Text style={{color: "red", fontSize: 18, margin: 5}}>Block</Text>
+                            </MenuOption>
+                          </MenuOptions>
+                        </Menu>
+                      </Pressable>
+                    }
                   </View>
 
-                  {(selector == 'friends') && 
+                  {(selector == 'received') && 
+                    <View style={{flexDirection:'row', marginBottom:5, marginTop:5, marginRight:5, justifyContent:'flex-end', alignItems:'center'}}>
+                      <Pressable
+                        onPress={() => approveRequest(item.ID)}
+                        style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1}, styles.approve
+                        ]}
+                      >
+                        <View style={{flexDirection:'row', alignItems:'center',}}>
+                          <Text style={{color:"white", fontSize: 16,}}>approve</Text>
+                        </View>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => ignoreRequest(item.ID)}
+                        style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1}, styles.delete
+                        ]}
+                      >
+                        <View style={{flexDirection:'row', alignItems:'center',}}>
+                          <Text style={{color:"white", fontSize: 16,}}>ignore</Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                  }
+                  {(selector=='sent') && 
                     <Pressable
+                      onPress={() => cancelRequest(item.ID)}
                       style={({ pressed }) => [
-                        {opacity: pressed ? 0.5: 1}, styles.menu
+                        {opacity: pressed ? 0.5: 1}, styles.cancel
                       ]}
                     >
-                      <Menu>
-                        <MenuTrigger>
-                          <MaterialIcons name='more-horiz' size={20} color='white'  />
-                        </MenuTrigger>
-                        <MenuOptions>
-                          <MenuOption onSelect={() => copyToClipboard(item.ID)}>
-                            <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>Copy ID</Text>
-                          </MenuOption>
-                          <MenuOption onSelect={() => showAlert(item.ID, item.Name)}>
-                            <Text style={{color: "red", fontSize: 18, margin: 5}}>Remove friend</Text>
-                          </MenuOption>
-                          <MenuOption onSelect={() => showAlertBlock(item.ID, item.Name)}>
-                            <Text style={{color: "red", fontSize: 18, margin: 5}}>Block</Text>
-                          </MenuOption>
-                        </MenuOptions>
-                      </Menu>
+                      <View style={{flexDirection:'row', alignItems:'center',}}>
+                        <Text style={{color:"white", fontSize: 16,}}>cancel</Text>
+                      </View>
                     </Pressable>
                   }
                 </View>
-
-                {(selector == 'received') && 
-                  <View style={{flexDirection:'row', marginBottom:5, marginTop:5, marginRight:5, justifyContent:'flex-end', alignItems:'center'}}>
-                    <Pressable
-                      onPress={() => approveRequest(item.ID)}
-                      style={({ pressed }) => [
-                        {opacity: pressed ? 0.5: 1}, styles.approve
-                      ]}
-                    >
-                      <View style={{flexDirection:'row', alignItems:'center',}}>
-                        <Text style={{color:"white", fontSize: 16,}}>approve</Text>
-                      </View>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={() => ignoreRequest(item.ID)}
-                      style={({ pressed }) => [
-                        {opacity: pressed ? 0.5: 1}, styles.delete
-                      ]}
-                    >
-                      <View style={{flexDirection:'row', alignItems:'center',}}>
-                        <Text style={{color:"white", fontSize: 16,}}>ignore</Text>
-                      </View>
-                    </Pressable>
-                  </View>
-                }
-                {(selector=='sent') && 
-                  <Pressable
-                    onPress={() => cancelRequest(item.ID)}
-                    style={({ pressed }) => [
-                      {opacity: pressed ? 0.5: 1}, styles.cancel
-                    ]}
-                  >
-                    <View style={{flexDirection:'row', alignItems:'center',}}>
-                      <Text style={{color:"white", fontSize: 16,}}>cancel</Text>
-                    </View>
-                  </Pressable>
-                }
-              </View>
-            )} />
+              )} />
+            )}
           </View>
         
       </View>
@@ -1084,6 +1102,7 @@ export default function Friends({ navigation }) {
             { (sentRequestsNum > 0) && <Text style={styles.badge}>{ sentRequestsNum }</Text> }
           </View>
         </View>
+        
         
         {/* Lists */}
         
@@ -1313,5 +1332,17 @@ const styles = StyleSheet.create({
   },
   indicator: {
     alignItems:'center'
-  }
+  },
+  newMid: {
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f2f2f2',
+    padding: 10,
+    paddingVertical:30,
+    borderRadius: 10,
+    borderStyle: 'dashed',
+    alignSelf:'center',
+    marginTop:100,
+    opacity:0.5
+  },
 })
