@@ -20,11 +20,11 @@ export default function Register({ navigation }) {
   
     const db = getFirestore();
     const storage = getStorage();
-    const downloadUrl = 'https://firebasestorage.googleapis.com/v0/b/pilot-react-native.appspot.com/o/Profile%20Photos%2Favatar.png?alt=media&token=9a128f8f-77ae-438c-9bfd-282643320d23';
+    const downloadUrl = 'https://firebasestorage.googleapis.com/v0/b/convos-app-1.appspot.com/o/avatar.png?alt=media&token=b4652957-e5dc-43b1-8c92-ff6f317611de';
     
     const handleRegister = useCallback(_.debounce(async (email, password) => {
       email = email.replace(/\s/g,'');
-
+      const name = firstName.trimEnd().trimStart() + ' ' + lasttName.trimEnd().trimStart();
 
       try{
         const credentials = await createUserWithEmailAndPassword(getAuth(), email, password)
@@ -32,7 +32,7 @@ export default function Register({ navigation }) {
           ToastAndroid.show("Registered Successfully", ToastAndroid.LONG);
 
         await updateProfile(credentials.user, {
-          displayName: firstName + ' ' + lasttName,
+          displayName: name,
           photoURL: downloadUrl,
         });
 
@@ -41,12 +41,13 @@ export default function Register({ navigation }) {
         console.log(credentials.user);
 
         setDoc(doc(db, 'Users', getAuth().currentUser.uid), {
-          Name: firstName + ' ' + lasttName,
+          Name: name,
           ID: getAuth().currentUser.uid,
           email: credentials.user.email,
           Photo: downloadUrl,
           photoExtension: '.png',
           dateRegistered: serverTimestamp(),
+          changingEmail: false,
         })
       }
       catch(error){

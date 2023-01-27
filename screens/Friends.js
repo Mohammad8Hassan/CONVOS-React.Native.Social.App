@@ -901,7 +901,7 @@ export default function Friends({ navigation }) {
               </Text>
               <MaterialIcons name='person-add' size={80} color={topButtonsColors} style={{opacity:0.5, marginBottom:10}}/>
               <Text style={{color:topButtonsColors, fontSize:18, fontFamily:'Solway-Regular', opacity:0.5}}>
-                  Click to add your first
+                  Click to add your first friend
                 </Text>
               </TouchableOpacity>
             )

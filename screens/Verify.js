@@ -1,15 +1,43 @@
-import { StyleSheet, Text, View, Pressable, SafeAreaView, Alert, ToastAndroid, Platform } from 'react-native';
+import { StyleSheet, Text, View, Pressable, SafeAreaView, Alert, ToastAndroid, Platform,
+  Modal, TouchableWithoutFeedback, KeyboardAvoidingView, TextInput, ActivityIndicator } from 'react-native';
 //import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { getAuth, signOut, sendEmailVerification } from 'firebase/auth';
-import { useEffect } from 'react';
+import { getAuth, signOut, sendEmailVerification, EmailAuthProvider, reauthenticateWithCredential,
+  updateEmail } from 'firebase/auth';
+import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setRefresh } from '../features/themeSlice';
+import { getDoc, getFirestore, doc, updateDoc} from 'firebase/firestore';
+import { useRef } from 'react';
 
 export default function Verify({ navigation }) {
 
   const dispatch = useDispatch();
-  
+  const db = getFirestore();
+  const user = getAuth().currentUser;
+  const mounted = useRef(false);
+
+  const [userInfo, setUserInfo] = useState({});
+  const [newEmail, setNewEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [emailIndicator, setEmailIndicator] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  useEffect(() => {
+    mounted.current = true;
+
+    getDoc(doc(db, 'Users', getAuth().currentUser.uid))
+      .then(res => {
+        if(mounted.current == true)
+          setUserInfo(res.data())
+      })
+    
+    return () => {
+      mounted.current = false;
+    }
+  }, [])
+
+
   const resendEMail = () => {
     sendEmailVerification(getAuth().currentUser)
     .then(()=> {
@@ -52,11 +80,129 @@ export default function Verify({ navigation }) {
     })
   }
 
+  const changeEmail = () => {
+    setEmailIndicator(true);
+
+    const newEmailString = newEmail.trimEnd().trimStart();
+
+    const cred = EmailAuthProvider.credential(user.email, password);
+
+    reauthenticateWithCredential(user, cred)
+      .then(() => {
+        updateEmail(user, newEmailString)
+          .then(() => {
+            updateDoc(doc(db, 'Users', user.uid), {
+              email: newEmailString,
+              changingEmail: true,
+            });
+
+            sendEmailVerification(user)
+              .then(() => {
+                console.log('email updated');
+                setModalVisible(false);
+                setEmailIndicator(false);
+                
+                if(Platform.OS === 'android')
+                  ToastAndroid.show('verification email sent', ToastAndroid.SHORT);
+                else {
+                  Alert.alert(
+                    'verification email sent',
+                    '',
+                    [
+                      {
+                        text: 'Ok',
+                        style: 'ok'
+                      },
+                    ],
+                    {
+                      cancelable: true
+                    }
+                  )
+                }
+              })
+            
+          })
+          .catch(error => {
+            console.log(error);
+            setEmailIndicator(false);
+            if(Platform.OS === 'android')
+              ToastAndroid.show(error.message, ToastAndroid.SHORT);
+            else {
+              Alert.alert(
+                'Error',
+                error.message,
+                [
+                  {
+                    text: 'Ok',
+                    style: 'ok'
+                  },
+                ],
+                {
+                  cancelable: true
+                }
+              )
+            }
+          })
+      })
+      .catch(error => {
+        console.log(error);
+        setEmailIndicator(false);
+        if(Platform.OS === 'android')
+          ToastAndroid.show(error.message, ToastAndroid.SHORT);
+        else {
+          Alert.alert(
+            'Error',
+            error.message,
+            [
+              {
+                text: 'Ok',
+                style: 'ok'
+              },
+            ],
+            {
+              cancelable: true
+            }
+          )
+        }
+      })
+    
+  }
 
   return (
     <SafeAreaView style={{flex:1, backgroundColor:'#613a5f'}}>
       <View style={{flex:1, backgroundColor:'#ebebeb'}}>
-        
+      
+      {/* Modal */}
+
+      <Modal visible={modalVisible} animationType='fade' transparent={true}
+        onRequestClose={() => {setModalVisible(false)}}
+      >
+        <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+          <KeyboardAvoidingView style={styles.outerView} behavior={Platform.OS==='ios'? 'height' : null}>
+            <TouchableWithoutFeedback >
+              <View style={styles.innerView}>
+                <TextInput placeholder='enter your new email..' value={newEmail} onChangeText={text => setNewEmail(text)} style={styles.inputP}/> 
+                <TextInput placeholder='re-enter your password' value={password} onChangeText={text => setPassword(text)} style={styles.inputP} secureTextEntry/> 
+                {emailIndicator? (
+                  <ActivityIndicator size={50} color='#1da877' animating={emailIndicator} style={{alignSelf:'center'}}/>
+                ) : (
+                  <Pressable  
+                    onPress={changeEmail}
+                    style={({ pressed }) => [
+                      {opacity: pressed ? 0.5: 1}, styles.changeEmailInside
+                    ]}
+                  >
+                    <View style={{flexDirection:'row', alignItems:'center'}}>
+                      <Text style={{color:"white", fontSize: 16,}}>Apply</Text>
+                    </View>
+                  </Pressable>
+                )}
+              </View>
+            </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
+
+        </TouchableWithoutFeedback>
+      </Modal>
         <View style={styles.na}>
           <View style={styles.naHeader}>
             <MaterialIcons name='mark-email-unread' color='#853259' size={40} style={{flex:1, paddingLeft:8}}/>
@@ -100,6 +246,21 @@ export default function Verify({ navigation }) {
             </View>
           </Pressable>
 
+          {userInfo.changingEmail ? (
+            <Pressable  
+              onPress={() => setModalVisible(true)}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.refresh
+              ]}
+            >
+              <View style={{flexDirection:'row', alignItems:'center'}}>
+                <MaterialIcons name='email' color='white' size={25} />
+                <Text style={{color:"white", fontSize: 20, marginLeft:8,}}>Change Email</Text>
+              </View>
+            </Pressable>
+          ) : null}
+          
+
           <Pressable  
             onPress={() => {
               signOut(getAuth())
@@ -142,9 +303,9 @@ const styles = StyleSheet.create({
   out: {
     padding: 10,
     backgroundColor: '#853259',
-    width: 150,
     alignItems: 'center',
-    alignSelf:'center',
+    alignSelf:'stretch',
+    marginHorizontal:80,
     marginTop:10,
     marginBottom:20,
     borderRadius: 25,
@@ -156,14 +317,47 @@ const styles = StyleSheet.create({
   refresh: {
     padding: 10,
     backgroundColor: '#a8a628',
-    width: 150,
     alignItems: 'center',
-    alignSelf:'center',
+    alignSelf:'stretch',
     marginBottom:20,
+    marginHorizontal:80,
     borderRadius: 25,
     shadowOffset: {width:0, height:3},
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation:8
   },
+  changeEmailInside: {
+    padding: 10,
+    backgroundColor: '#1da877',
+    alignItems: 'center',
+    marginHorizontal:50,
+    borderRadius:15,
+    elevation:8,
+    shadowOffset: {width:0, height:5},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  outerView: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)'
+  },
+  innerView: {
+    backgroundColor: '#806b96',
+    alignItems:'stretch',
+    paddingVertical: 10,
+    elevation: 15,
+    opacity:1,
+    marginTop:'auto'
+  },
+  inputP:{
+    backgroundColor: 'white',
+    fontSize: 20,
+    padding: 6,
+    paddingLeft: 10,
+    borderRadius:5,
+    elevation:8,
+    marginHorizontal: 25,
+    marginBottom: 10
+  }, 
 })

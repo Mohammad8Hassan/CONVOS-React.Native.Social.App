@@ -1,10 +1,10 @@
-import { useEffect, useState,} from 'react'
+import { useEffect, useRef, useState,} from 'react'
 import { StyleSheet, Text, View, Image, Pressable, TextInput, KeyboardAvoidingView,
    ScrollView, Modal, ToastAndroid, ActivityIndicator, SafeAreaView, Alert, 
    TouchableWithoutFeedback, Platform } from 'react-native'
 //import { SafeAreaView } from 'react-native-safe-area-context'
 import { getAuth, signOut, reauthenticateWithCredential, updateProfile, EmailAuthProvider,
-  updateEmail } from 'firebase/auth';
+  updateEmail, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import { getStorage, ref, uploadBytes, getDownloadURL, getMetadata, } from 'firebase/storage';
@@ -12,6 +12,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useIsFocused } from '@react-navigation/native';
 import { updateDoc, getFirestore, doc,  onSnapshot} from 'firebase/firestore';
 import * as FileSystem from "expo-file-system";
+import { useDispatch } from 'react-redux';
+import { setRefresh } from '../features/themeSlice';
 
 
 export default function EditProfile({ navigation }) {
@@ -19,17 +21,20 @@ export default function EditProfile({ navigation }) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
+  const [modalPassword, setModalPassword] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [password, setPassword] = useState('');
   const [indicator, setIndicator] = useState(false);
   const [emailIndicator, setEmailIndicator] = useState(false);
+  const [passwordIndicator, setPasswordIndicator] = useState(false);
   const [nameIndicator, setNameIndicator] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(null);
 
   const db = getFirestore();
   const storage = getStorage();
   const user = getAuth().currentUser;
-
+  const dispatch = useDispatch();
+  const currentPassword = useRef('');
 
   useEffect(() => {
     const unsubscribeUser = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
@@ -91,17 +96,19 @@ export default function EditProfile({ navigation }) {
   const changeName = async () => {
     setNameIndicator(true);
 
+    const newName = firstName.trimStart().trimEnd() + ' ' + lastName.trimStart().trimEnd();
+
     await Promise.all([
       updateProfile(user, {
-        displayName: firstName + ' ' + lastName,
+        displayName: newName,
       }),
 
       updateDoc(doc(db, 'Users', user.uid), {
-        Name: firstName + ' ' + lastName,
+        Name: newName,
       })
     ])
     
-    setUserName(firstName + ' ' + lastName);
+    setUserName(newName);
 
     setNameIndicator(false);
     
@@ -126,35 +133,48 @@ export default function EditProfile({ navigation }) {
 
   const changeEmail = () => {
     setEmailIndicator(true);
+
+    const newEmailString = newEmail.trimEnd().trimStart();
+
     const cred = EmailAuthProvider.credential(user.email, password);
 
     reauthenticateWithCredential(user, cred)
       .then(() => {
-        updateEmail(user, newEmail)
+        updateEmail(user, newEmailString)
           .then(() => {
             updateDoc(doc(db, 'Users', user.uid), {
-              email: newEmail,
+              email: newEmailString,
+              changingEmail: true,
             });
-            console.log('email updated');
-            setModalVisible(false);
-            setEmailIndicator(false);
-            if(Platform.OS === 'android')
-              ToastAndroid.show('email updated successfully', ToastAndroid.SHORT);
-            else {
-              Alert.alert(
-                'email updated successfully',
-                '',
-                [
-                  {
-                    text: 'Ok',
-                    style: 'ok'
-                  },
-                ],
-                {
-                  cancelable: true
+
+            sendEmailVerification(user)
+              .then(async () => {
+                console.log('email updated');
+                await getAuth().currentUser.reload()
+                dispatch(setRefresh(getAuth().currentUser.emailVerified));
+
+                setModalVisible(false);
+                setEmailIndicator(false);
+
+                if(Platform.OS === 'android')
+                  ToastAndroid.show('verification email sent', ToastAndroid.SHORT);
+                else {
+                  Alert.alert(
+                    'verification email sent',
+                    '',
+                    [
+                      {
+                        text: 'Ok',
+                        style: 'ok'
+                      },
+                    ],
+                    {
+                      cancelable: true
+                    }
+                  )
                 }
-              )
-            }
+              })
+            
           })
           .catch(error => {
             console.log(error);
@@ -202,6 +222,26 @@ export default function EditProfile({ navigation }) {
     
   }
   
+  const showAlertEmail = () => {
+    Alert.alert(
+      'Change Email?',
+      'You will not be able to access your account until you verify the new email address',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: "proceed",
+          onPress: () => setModalVisible(true)
+        }
+      ],
+      {
+        cancelable: true
+      }
+    )
+  }
+
   const checkCache = async (uri) => {
     try {
       let info = await FileSystem.getInfoAsync(uri);
@@ -257,6 +297,82 @@ export default function EditProfile({ navigation }) {
     }
   }
 
+  const changePassword = () => {
+    setPasswordIndicator(true);
+
+    const cred = EmailAuthProvider.credential(user.email, currentPassword.current);
+
+    reauthenticateWithCredential(user, cred)
+      .then(() => {
+        sendPasswordResetEmail(getAuth(), user.email)
+          .then(res => {
+            setModalPassword(false);
+            setPasswordIndicator(false);
+
+            if(Platform.OS === 'android')
+              ToastAndroid.show('password reset email sent', ToastAndroid.SHORT);
+            else {
+              Alert.alert(
+                'password reset email sent',
+                '',
+                [
+                  {
+                    text: 'Ok',
+                    style: 'ok'
+                  },
+                ],
+                {
+                  cancelable: true
+                }
+              )
+            }
+          })
+          .catch(error => {
+            console.log(error);
+            setPasswordIndicator(false);
+            if(Platform.OS === 'android')
+              ToastAndroid.show(error.message, ToastAndroid.SHORT);
+            else {
+              Alert.alert(
+                'Error',
+                error.message,
+                [
+                  {
+                    text: 'Ok',
+                    style: 'ok'
+                  },
+                ],
+                {
+                  cancelable: true
+                }
+              )
+            }
+          })
+      })
+      .catch(error => {
+        console.log(error);
+        setPasswordIndicator(false);
+        if(Platform.OS === 'android')
+          ToastAndroid.show(error.message, ToastAndroid.SHORT);
+        else {
+          Alert.alert(
+            'Error',
+            error.message,
+            [
+              {
+                text: 'Ok',
+                style: 'ok'
+              },
+            ],
+            {
+              cancelable: true
+            }
+          )
+        }
+      })
+    
+  }
+
 {/* Template */}  
 
   return (
@@ -308,6 +424,41 @@ export default function EditProfile({ navigation }) {
             </TouchableWithoutFeedback>
           </Modal>
       
+          {/* MODAL Password*/}
+
+          <Modal visible={modalPassword} animationType='fade' transparent={true}
+            onRequestClose={() => {setModalPassword(false)}}
+          >
+            <TouchableWithoutFeedback onPress={() => setModalPassword(false)}>
+              <KeyboardAvoidingView style={styles.outerView} behavior={Platform.OS==='ios'? 'height' : null}>
+                <TouchableWithoutFeedback >
+                  <View style={styles.innerView}>
+                    <Text style={{color:'white', fontSize:17, marginHorizontal:10, alignSelf:'center', marginBottom:10}}>
+                      A password reset email will be sent to{"\n"}
+                      <Text style={{color:'#d4c86e'}}>{user.email} {"\n"}</Text>
+                      click the link in the email to change your password
+                    </Text>
+                    <TextInput placeholder='enter your current password' onChangeText={text => currentPassword.current=text} style={styles.inputP} secureTextEntry/> 
+                    {passwordIndicator? (
+                      <ActivityIndicator size={50} color='#1da877' animating={passwordIndicator} style={{alignSelf:'center'}}/>
+                    ) : (
+                      <Pressable  
+                        onPress={changePassword}
+                        style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1}, styles.changeEmailInside
+                        ]}
+                      >
+                        <View style={{flexDirection:'row', alignItems:'center'}}>
+                          <Text style={{color:"white", fontSize: 16,}}>Apply</Text>
+                        </View>
+                      </Pressable>
+                    )}
+                  </View>
+                </TouchableWithoutFeedback>
+              </KeyboardAvoidingView>
+
+            </TouchableWithoutFeedback>
+          </Modal>
           {/* CONTAINER */}
 
           <View style={styles.container}>
@@ -384,24 +535,42 @@ export default function EditProfile({ navigation }) {
                 <Text style={{fontFamily:'Solway-Regular', color:"white", fontSize: 20, marginLeft: 10}}>Email</Text>
               </View>
 
-              <View style={{flexDirection:'row', justifyContent:'space-between', marginRight:8, alignItems:'center'}}> 
+              <View style={{marginRight:8,}}> 
                 <Text style={styles.inputE}>
                   { user.email }
                 </Text>
                 <Pressable  
-                  onPress={() => setModalVisible(true)}
+                  onPress={() => showAlertEmail()}
                   style={({ pressed }) => [
                     {opacity: pressed ? 0.5: 1}, styles.changeEmail
                   ]}
                 >
                   <View style={{flexDirection:'row', alignItems:'center'}}>
-                    <Text style={{color:"#806b96", fontSize: 16,}}>Change</Text>
+                    <Text style={{color:"#806b96", fontSize: 18,}}>Change Email</Text>
                   </View>
                 </Pressable>
               </View>
             </View>
 
-            
+            {/* Password  */}
+            <View style={{backgroundColor:'#8c7699', elevation:15, marginBottom:15, paddingVertical:10, marginTop:15, shadowOffset: {width:0, height:5}, shadowOpacity: 0.3, shadowRadius: 3, }}>
+              <View>
+                <Text style={{fontFamily:'Solway-Regular', color:"white", fontSize: 20, marginLeft: 10}}>Password</Text>
+              </View>
+
+              <View style={{alignItems:'center'}}> 
+                <Pressable  
+                  onPress={() => setModalPassword(true)}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.changePassword
+                  ]}
+                >
+                  <View style={{flexDirection:'row', alignItems:'center'}}>
+                    <Text style={{color:"#806b96", fontSize: 18,}}>Change Password</Text>
+                  </View>
+                </Pressable>
+              </View>
+            </View>
           </View>
 
         </ScrollView>
@@ -471,16 +640,32 @@ const styles = StyleSheet.create({
     fontWeight:'bold'
   },
   changeEmail: {
-    padding: 8,
+    padding: 10,
     flex:1,
     backgroundColor: '#d4c86e',
     alignItems: 'center',
     borderRadius:10,
     elevation:10,
-    marginRight:8,
+    alignSelf:'stretch',
+    marginHorizontal: 50,
     shadowOffset: {width:0, height:5},
     shadowOpacity: 0.3,
     shadowRadius: 5,
+    marginTop:10,
+  },
+  changePassword: {
+    padding: 10,
+    flex:1,
+    backgroundColor: '#d4c86e',
+    alignItems: 'center',
+    borderRadius:10,
+    elevation:10,
+    alignSelf:'stretch',
+    marginHorizontal: 50,
+    shadowOffset: {width:0, height:5},
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    marginTop:10,
   },
   changeEmailInside: {
     padding: 10,

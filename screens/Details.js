@@ -1,8 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, Button, ImageBackground, Image, KeyboardAvoidingView,
   TextInput, ScrollView, FlatList, Modal, Alert, Pressable, Keyboard, ToastAndroid, ActivityIndicator,
-  SafeAreaView,
-  Platform
+  SafeAreaView, Platform
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +13,6 @@ import { getAuth } from 'firebase/auth'
 import { Entypo } from '@expo/vector-icons'
 // import { SafeAreaView } from 'react-native-safe-area-context';
 import avatar from '../assets/Imgs/avatar.png';
-import CachableImage from '../shared/CachableImage';
 import RenderComment from '../shared/RenderComment';
 import RenderOthersComment from '../shared/RenderOthersComment';
 import * as FileSystem from "expo-file-system";
@@ -26,7 +24,7 @@ import ErrorScreen from './ErrorScreen';
 
 export default function Details({ route, navigation }) {
 
-  const { id } = route.params;
+  const { id, photoUrl } = route.params;
   const scrollView = useRef(null);
   const [comment, setComment] = useState('');
   const [allComments, setAllComments] = useState([]);
@@ -422,19 +420,12 @@ export default function Details({ route, navigation }) {
   }
 
   const postComment = async () => {
-    const theComment = comment;
+    let theComment = comment;
     if(theComment.trim().length === 0) return;
 
-    // var rsa = forge.pki.rsa;
-
-    // const {privateKey, publicKey} =  rsa.generateKeyPair({bits: 2048, workers: 2}, (err, keypair) => {
-    //   console.log('doneit');
-    // });
-
-
-    // var md = forge.md.sha1.create();
-    // md.update('The quick brown fox jumps over the lazy dog');
-    // console.log(md.digest().toHex());
+    console.log('b4 trim: ', theComment);
+    theComment = theComment.trimEnd().trimStart();
+    console.log('after trim: ', theComment);
 
     scrollView.current.scrollToEnd();
     setComment('');
@@ -546,7 +537,7 @@ export default function Details({ route, navigation }) {
 
                     <View style={styles.itemUser}>
                       <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'#8d8299', padding:4, borderRadius:20,}}>
-                        <Image source={{uri: user.photoURL}} style={{height:40, width:40, borderRadius:50, borderColor:'#4ebbed'}} />
+                        <Image source={{uri: photoUrl}} style={{height:40, width:40, borderRadius:50, borderColor:'#4ebbed'}} />
                         
                         <View style={{marginLeft:10, flex:1,}}>
                           <Text style={{ fontSize:18,  color:'white'}}>{ user.displayName } 

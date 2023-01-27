@@ -3,7 +3,6 @@ import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, Tex
    Alert, RefreshControl, Switch, ActivityIndicator, SafeAreaView, Platform } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react'
 // import { SafeAreaView } from 'react-native-safe-area-context';
-import Form from '../shared/Form';
 import { getAuth } from 'firebase/auth';
 import { Ionicons } from '@expo/vector-icons'
 import { addDoc, serverTimestamp, setDoc, getFirestore, getDocs, 

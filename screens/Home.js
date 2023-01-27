@@ -6,7 +6,6 @@ import Card from '../shared/Card';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import { Entypo } from '@expo/vector-icons';
-import Form from '../shared/Form';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy,
    doc, deleteDoc, setDoc, Timestamp, updateDoc, getDoc, getDocs } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
@@ -409,12 +408,12 @@ export default function Home({ navigation }) {
   }, 2000, {'leading':true, 'trailing':false}), [])
 
   const enter2 = (id) => {
-    navigation.navigate('Details', { id });
+    navigation.navigate('Details', { id, photoUrl });
   }
 
   return (
     <SafeAreaView style={{flex:1, backgroundColor:mainColor}}>
-      <View style={{flex:1, backgroundColor:backgroundColor}}>
+      <View style={{flex:1, backgroundColor:backgroundColor,}}>
         
         <Modal visible={modalVisible} animationType='fade' transparent={true}
           onRequestClose={clickOut}
@@ -493,12 +492,20 @@ export default function Home({ navigation }) {
         </View>
 
         {(conversations.length == 0 && !conversationsIndicator)? (
-          <TouchableOpacity onPress={() => navigation.navigate('New Conversation')} style={[styles.newMid, {borderColor:topButtonsColors}]}>
+          <View style={[styles.newMid, {borderColor:topButtonsColors}]}>
+            <Text style={{color:topButtonsColors, fontSize:18, fontFamily:'Solway-Regular', opacity:0.5}}>
+              Welcome, {user.displayName} 😃{'\n'}{'\n'}
+
+              You can join, or create a new conversation.{'\n'}{'\n'}
+              Or go to 'Friends' tab below to add your friends
+            </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('New Conversation')} style={{alignItems:'center', marginTop:10}}>
            <Entypo name='new-message' size={80} color={topButtonsColors} style={{opacity:0.5, marginBottom:10}}/>
            <Text style={{color:topButtonsColors, fontSize:18, fontFamily:'Solway-Regular', opacity:0.5}}>
               Click to create a new conversation
             </Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
         ) : null}
 
         <View style={{flex: 1}}>
@@ -620,13 +627,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#f2f2f2',
-    padding: 10,
+    padding: 15,
     paddingVertical:30,
     borderRadius: 10,
     borderStyle: 'dashed',
     alignSelf:'center',
-    marginTop:100,
-    opacity:0.5
+    opacity:0.8,
+    marginHorizontal:15,
+    marginVertical:50,
   },
   homeHeader: {
     flexDirection: 'row',

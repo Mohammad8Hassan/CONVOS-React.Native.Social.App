@@ -14,9 +14,11 @@ import * as NavigationBar from 'expo-navigation-bar';
 
 export default function Settings({ navigation }) {
   const [photoUrl, setPhotoUrl] = useState(null);
+  const [updater, setUpdater] = useState(false);
 
   const user = getAuth().currentUser;
   const db = getFirestore();
+  const focused = useIsFocused();
 
   const dispatch = useDispatch();
   
@@ -40,7 +42,11 @@ export default function Settings({ navigation }) {
     }
   }, [])
 
+  useEffect(() => {
+    setUpdater(prev => {return !prev});
+  }, [focused])
 
+  
   const copyToClipboard = async () => {
     await Clipboard.setStringAsync(user.uid);
     if(Platform.OS === 'android')

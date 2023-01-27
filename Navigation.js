@@ -11,7 +11,6 @@ import EditProfile from './screens/EditProfile';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SimpleLineIcons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import ChangeEmail from './screens/ChangeEmail';
 import Friends from './screens/Friends';
 import Invites from './screens/Invites';
 import ErrorScreen from './screens/ErrorScreen';
@@ -99,7 +98,6 @@ export default function Navigation(props) {
         })}>
         <ByMeStack.Screen name="Overview" component={Settings} />
         <ByMeStack.Screen name="Edit Profile" component={EditProfile} />
-        <ByMeStack.Screen name="Change Email" component={ChangeEmail} />
       </ByMeStack.Navigator>
     );
   }

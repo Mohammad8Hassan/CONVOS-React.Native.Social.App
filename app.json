@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "PilotAppR",
-    "slug": "PilotAppR",
+    "name": "CONVOS",
+    "slug": "CONVOS",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/Imgs/icon2.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/Imgs/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#39204d"
     },
     "updates": {
       "fallbackToCacheTimeout": 0
@@ -22,12 +22,16 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "foregroundImage": "./assets/Imgs/icon2.png",
+        "backgroundColor": "#39204d"
       }
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "androidStatusBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#39204d"
     }
   }
 }
