@@ -309,7 +309,7 @@ export default function Home({ navigation }) {
         //   return;
         // }
         
-        if(convRef.data().password) {
+        if(convRef.data().hasPassword) {
           console.log('enter password');
           setShowPassword(true);
           setShowIndicator(false);
@@ -545,7 +545,7 @@ export default function Home({ navigation }) {
                  
                   <View style={styles.createdViewContainer}>
                     <View style={[styles.createdView, {backgroundColor:conAuthorBarColor}]}>
-                      {item.author == user.displayName? (
+                      {item.authorID == user.uid? (
                           <Text style={[styles.createdAuthor, {color:convAuthorTextColor}]} numberOfLines={1}>{ user.displayName }</Text>
                         ) : (
                           <Text style={[styles.createdAuthor, {color:convAuthorTextColor}]} numberOfLines={1}>{ item.author }</Text>
@@ -553,7 +553,7 @@ export default function Home({ navigation }) {
                       }
                       {/* <Text style={styles.createdTime}>{ item.dateCreated.toDateString()}</Text> */}
                     </View>
-                    {item.author == user.displayName? (
+                    {item.authorID == user.uid? (
                         <Image source={{uri: photoUrl}} style={[styles.pic, {borderColor:null}]} />
                       ) : (
                         <Image source={{uri: item.uri}} style={[styles.pic, {borderColor:null}]} />

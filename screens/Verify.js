@@ -205,13 +205,13 @@ export default function Verify({ navigation }) {
       </Modal>
         <View style={styles.na}>
           <View style={styles.naHeader}>
-            <MaterialIcons name='mark-email-unread' color='#853259' size={40} style={{flex:1, paddingLeft:8}}/>
-            <Text style={{flex:6, color:'#853259', fontSize:20, fontFamily:'Solway-Bold'}}>Verify Your Email</Text>
+            <MaterialIcons name='mark-email-unread' color='#853259' size={40} />
+            <Text style={{color:'#853259', fontSize:20, fontFamily:'Solway-Bold'}}>Verify Your Email</Text>
           </View>
           <View style={styles.naBody}>
-            <Text style={{fontSize:18, color:'#853259', fontFamily:'Solway-Regular'}}>An email has been sent to 
-              <Text style={{color:'#858319'}}> { getAuth().currentUser.email }</Text>
-              , click 
+            <Text style={{fontSize:18, color:'#853259', fontFamily:'Solway-Regular'}}>An email has been sent to{"\n"} 
+              <Text style={{color:'#858319'}}>{ getAuth().currentUser.email }{"\n"}</Text>
+              click 
               the link in the email to complete your registration.</Text>
 
             
@@ -294,11 +294,16 @@ const styles = StyleSheet.create({
   naHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent:'space-around',
+    // backgroundColor:'yellow',
+    paddingRight:30
   },
   naBody: {
     justifyContent:'center',
     marginTop:10,
-    alignItems: 'center'
+    alignItems: 'center',
+    // backgroundColor:'yellow',
+    paddingHorizontal:10
   },
   out: {
     padding: 10,

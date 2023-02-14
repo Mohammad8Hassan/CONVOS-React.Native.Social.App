@@ -20,6 +20,10 @@ const reviewSchema = yup.object({
     .required()
     .max(300)
     .min(1),
+  password: yup.string()
+    .required()
+    .max(16)
+    .min(6)
 });
 
 const wait = (timeout) => {
@@ -53,6 +57,7 @@ export default function NewConv({ navigation }) {
   const [addIndicator, setAddIndicator] = useState(false);
 
   const searchName = useRef('');
+  const passwordValue = useRef('');
 
   useEffect(() => {
     let friends = [];
@@ -95,6 +100,8 @@ export default function NewConv({ navigation }) {
 
   const toggleSwitch = () => {
     setHasPassword(prev => !prev);
+    // if(!hasPassword && !password)
+    //   passwordValue.current = '123456';
   }
 
   const onRefresh = useCallback(() => {
@@ -538,7 +545,7 @@ export default function NewConv({ navigation }) {
         progressBackgroundColor={'white'} />}
         >
           <Formik
-            initialValues={{title: '', body: '', password: ''}}
+            initialValues={{title: '', body: '', password: '123456'}}
             onSubmit={(values) => {setActiveIndicator(true); addConversation(values)}}
             validationSchema={reviewSchema}
           >
@@ -551,7 +558,7 @@ export default function NewConv({ navigation }) {
                   onChangeText={props.handleChange('title')}
                   value={props.values.title}
                 />
-                { props.touched.title && <Text style={styles.errorText}>{props.errors.title}</Text> }
+                { (props.touched.title && props.errors.title) && <Text style={styles.errorText}>{props.errors.title}</Text> }
 
                 <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginBottom:5, marginTop:10, fontFamily:'Solway-Regular'}}>Body</Text>
                 <TextInput
@@ -562,7 +569,7 @@ export default function NewConv({ navigation }) {
                   textAlignVertical= 'top'
                   multiline 
                 />
-                { props.touched.body && <Text style={styles.errorText}>{props.errors.body}</Text> }
+                { (props.touched.body && props.errors.body) && <Text style={styles.errorText}>{props.errors.body}</Text> }
 
                 {/* participants */}
                 <TouchableOpacity style={styles.participants} onPress={() => setModalOpen(true)}>
@@ -596,18 +603,25 @@ export default function NewConv({ navigation }) {
                 <View style={{flexDirection:'row', marginTop:20, alignItems:'center'}}>
                   <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginRight:5, fontFamily:'Solway-Regular'}}>Password</Text>
                   <Switch 
-                    onValueChange={toggleSwitch}
+                    onValueChange={() => {
+                      if(!props.values.password)
+                        props.values.password = '123456';
+                      toggleSwitch()}
+                    }
                     value={hasPassword}
 
                   />
                 </View>
                 {hasPassword ? (
-                    <TextInput
-                      style={[styles.input, {marginTop:10}]}
-                      placeholder='Password'
-                      onChangeText={props.handleChange('password')}
-                      value={props.values.password}
-                    />
+                    <>
+                      <TextInput
+                        style={[styles.input, {marginTop:10}]}
+                        placeholder='Password'
+                        onChangeText={props.handleChange('password')}
+                        value={props.values.password}
+                      />
+                      { (props.touched.password && props.errors.password) && <Text style={styles.errorText}>{props.errors.password}</Text> }
+                    </>
                   ) : null 
                 }
 

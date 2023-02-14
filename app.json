@@ -4,12 +4,12 @@
     "slug": "CONVOS",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Imgs/icon2.png",
+    "icon": "./assets/Imgs/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/Imgs/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#39204d"
+      "backgroundColor": "#261235"
     },
     "updates": {
       "fallbackToCacheTimeout": 0
@@ -18,20 +18,35 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mohammadHassan.CONVOS"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/Imgs/icon2.png",
-        "backgroundColor": "#39204d"
-      }
+        "foregroundImage": "./assets/Imgs/adaptive-icon.png",
+        "backgroundColor": "#261235"
+      },
+      "package": "com.mohammadHassan.CONVOS"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/Imgs/icon.png"
     },
     "androidStatusBar": {
       "barStyle": "light-content",
-      "backgroundColor": "#39204d"
-    }
+      "backgroundColor": "#261235"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a40b7fe3-e425-45cf-bda6-acecfacc0465"
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you customize your profile picture."
+        }
+      ]
+    ]
   }
 }

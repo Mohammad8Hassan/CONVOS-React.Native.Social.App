@@ -45,6 +45,7 @@ export default function Details({ route, navigation }) {
   // const [commentsFlag, setCommentsFlag] = useState('first render');
   // const [friendsFlag, setFriendsFlag] = useState('first render');
   const [commentsIndicator, setCommentsIndicator] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
 
   // const refreshComments = useRef(false);
 
@@ -447,10 +448,10 @@ export default function Details({ route, navigation }) {
     await Clipboard.setStringAsync(id);
 
     if(Platform.OS === 'android')
-      ToastAndroid.show('conversation id copied', ToastAndroid.SHORT);
+      ToastAndroid.show('conversation ID copied', ToastAndroid.SHORT);
     else {
       Alert.alert(
-        'conversation id copied',
+        'conversation ID copied',
         '',
         [
           {
@@ -469,10 +470,10 @@ export default function Details({ route, navigation }) {
     await Clipboard.setStringAsync(id);
 
     if(Platform.OS === 'android')
-      ToastAndroid.show('user id copied', ToastAndroid.SHORT);
+      ToastAndroid.show('user ID copied', ToastAndroid.SHORT);
     else {
       Alert.alert(
-        'user id copied',
+        'user ID copied',
         '',
         [
           {
@@ -491,10 +492,10 @@ export default function Details({ route, navigation }) {
     await Clipboard.setStringAsync(user.uid);
 
     if(Platform.OS === 'android')
-      ToastAndroid.show('id copied', ToastAndroid.SHORT);
+      ToastAndroid.show('ID copied', ToastAndroid.SHORT);
     else {
       Alert.alert(
-        'id copied',
+        'ID copied',
         '',
         [
           {
@@ -605,6 +606,43 @@ export default function Details({ route, navigation }) {
                         </View>
                       )} />
                     </View>
+
+                    {post.hasPassword? (
+                        <View style={{backgroundColor:'#8c7699', elevation:15, marginBottom:20, paddingVertical:8, marginTop:15, shadowOffset: {width:0, height:5}, shadowOpacity: 0.3, shadowRadius: 3,}}>
+                        <View>
+                          <Text style={{fontFamily:'Solway-Regular', color:"white", fontSize: 20, marginLeft: 10, marginBottom:10}}>Password</Text>
+                        </View>
+
+                        {showPassword? (
+                          <View style={styles.header}>
+                            <Text style={{fontFamily:'Solway-Regular', color:"white", fontSize: 20, marginLeft: 10, marginRight:20}}>{ post.password }</Text>
+                            <Pressable  
+                              onPress={() => setShowPassword(false)}
+                              style={({ pressed }) => [
+                                {opacity: pressed ? 0.5: 1}
+                              ]}
+                            >
+                              <Entypo name='eye-with-line' size={30} color={'#613a5f'} />
+                            </Pressable>
+                          </View>
+                        ) : (
+                          <View style={styles.header}>
+                            <Text style={{fontFamily:'Solway-Regular', color:"white", fontSize: 20, marginLeft: 10, marginRight:20}}>{'\u2022'.repeat(post.password.length)}</Text>
+                            <Pressable  
+                              onPress={() => setShowPassword(true)}
+                              style={({ pressed }) => [
+                                {opacity: pressed ? 0.5: 1}
+                              ]}
+                            >
+                              <Entypo name='eye' size={30} color={'#613a5f'} />
+                            </Pressable>
+                            
+                          </View>
+                        )}
+                        
+                      </View>
+                    ) : null}
+                    
                     </View>
                   </SafeAreaView>
                 </MenuProvider>
@@ -662,7 +700,7 @@ export default function Details({ route, navigation }) {
                         </MenuTrigger>
                         <MenuOptions>
                           <MenuOption onSelect={() => setModalOpen(true)}>
-                            <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>View Participants</Text>
+                            <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>View Info</Text>
                           </MenuOption>
                           {/* <MenuOption onSelect={() => showAlert(item.id)}>
                             <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>Invite Participant</Text>
@@ -1029,5 +1067,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight:10,
     marginLeft:'auto'
+  },
+  header: {
+    flexDirection: 'row',
+    marginHorizontal: 15,
+    alignItems: 'center'
   },
 })

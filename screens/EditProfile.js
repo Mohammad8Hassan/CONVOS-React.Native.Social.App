@@ -35,6 +35,7 @@ export default function EditProfile({ navigation }) {
   const user = getAuth().currentUser;
   const dispatch = useDispatch();
   const currentPassword = useRef('');
+  const downloadUrl = 'https://firebasestorage.googleapis.com/v0/b/convos-app-1.appspot.com/o/avatar.png?alt=media&token=b4652957-e5dc-43b1-8c92-ff6f317611de';
 
   useEffect(() => {
     const unsubscribeUser = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
@@ -91,6 +92,22 @@ export default function EditProfile({ navigation }) {
       
       setIndicator(false);
     };
+  }
+
+  const removePhoto = async () => {
+    setIndicator(true);
+
+    await Promise.all([
+      updateProfile(user, {
+        photoURL: downloadUrl
+      }),
+      updateDoc(doc(db, 'Users', user.uid), {
+        Photo: downloadUrl,
+        photoExtension: '.png',
+      })
+    ])
+    
+    setIndicator(false);
   }
 
   const changeName = async () => {
@@ -234,6 +251,26 @@ export default function EditProfile({ navigation }) {
         {
           text: "proceed",
           onPress: () => setModalVisible(true)
+        }
+      ],
+      {
+        cancelable: true
+      }
+    )
+  }
+
+  const showAlertRemove = () => {
+    Alert.alert(
+      'Remove your profile picture?',
+      '',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: "confirm",
+          onPress: () => removePhoto()
         }
       ],
       {
@@ -483,13 +520,26 @@ export default function EditProfile({ navigation }) {
                     <Pressable  
                         onPress={changePhoto}
                         style={({ pressed }) => [
-                        {opacity: pressed ? 0.5: 1}, styles.edit
+                        {opacity: pressed ? 0.5: 1, marginBottom:10}, styles.edit
                       ]}
                     >
                       <View style={{flexDirection:'row', alignItems:'center'}}>
                         <Text style={{color:"#806b96", fontSize: 20,}}>Change</Text>
                       </View>
                     </Pressable>
+                    {user.photoURL == downloadUrl? null : (
+                      <Pressable  
+                          onPress={showAlertRemove}
+                          style={({ pressed }) => [
+                          {opacity: pressed ? 0.5: 1}, styles.edit
+                        ]}
+                      >
+                        <View style={{flexDirection:'row', alignItems:'center'}}>
+                          <Text style={{color:"#ad103c", fontSize: 20,}}>Remove</Text>
+                        </View>
+                      </Pressable>
+                    )}
+                    
                   </View>
                 )}
               </View>
