@@ -31,10 +31,14 @@ export default function Register({ navigation }) {
         if(Platform.OS === 'android')
           ToastAndroid.show("Registered Successfully", ToastAndroid.LONG);
 
-        await updateProfile(credentials.user, {
-          displayName: name,
-          photoURL: downloadUrl,
-        });
+        await Promise.all([
+          updateProfile(credentials.user, {
+            displayName: name,
+            photoURL: downloadUrl,
+          }),
+
+
+        ]) 
 
         sendEmailVerification(credentials.user).then(()=> console.log('email sent!'))
 
@@ -75,66 +79,7 @@ export default function Register({ navigation }) {
       }
     }, 3000, {'leading':true, 'trailing':false}), [email, password, firstName, lasttName])
 
-    const HandleRegister = async () => {
-      try{
-        const credentials = await createUserWithEmailAndPassword(getAuth(), email, password)
-        
-        await updateProfile(credentials.user, {
-          displayName: firstName + ' ' + lasttName,
-          photoURL: downloadUrl,
-        });
-
-        console.log(credentials.user);
-
-        await setDoc(doc(db, 'Users', getAuth().currentUser.uid), {
-          Name: firstName + ' ' + lasttName,
-          ID: getAuth().currentUser.uid,
-          email: credentials.user.email,
-          Photo: downloadUrl,
-          photoExtension: '.png',
-          dateRegistered: serverTimestamp(),
-        })
-      }
-      catch(error){
-        const errorCode = error.code;
-        const errorMessage = error.message;
-        console.log(errorCode, errorMessage);
-      }
-      
-    }
-
-
-    // const HandleRegisterOLD = () => {
-    //   createUserWithEmailAndPassword(getAuth(), email, password)
-    //     .then(credentials => {
-    //       const refc = ref(storage, 'Profile Photos/' + credentials.user.uid);
-    //       const img = avatar;
-    //       const bytes = await img.blob();
-    //       await uploadBytes(refc, bytes)
-    //         .then(snapShot => {
-    //           console.log(snapShot.metadata.fullPath);
-    //         })
-
-    //       updateProfile(credentials.user, {
-    //         displayName: firstName + ' ' + lasttName,
-    //         photoURL: "gs://pilot-react-native.appspot.com/Profile Photos/avatar.png"
-    //       });
-
-          // setDoc(doc(db, 'Users', getAuth().currentUser.uid), {
-          //   firstName: firstName,
-          //   lasttName: lasttName,
-          //   ID: getAuth().currentUser.uid,
-          //   email: credentials.user.email,
-          //   dateRegistered: serverTimestamp(),
-          // })
-    //     })
-    //     .catch(error => {
-    //       const errorCode = error.code;
-    //       const errorMessage = error.message;
-    //       console.log(errorCode, errorMessage);
-    //     });
-    // }
-  
+    
   
     return (
       <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}>

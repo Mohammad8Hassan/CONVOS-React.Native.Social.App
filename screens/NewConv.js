@@ -69,7 +69,7 @@ export default function NewConv({ navigation }) {
           const info = await getDoc(doc(db, 'Users', dok.id));
           const Photo = await loadImage(info.data().Photo, info.data().photoExtension);
 
-          friends.push({...dok.data(), name: info.data().Name, photo: Photo})
+          friends.push({...info.data(), name: info.data().Name, photo: Photo})
         })
       })
       .catch(err => console.log(err))
@@ -128,35 +128,76 @@ export default function NewConv({ navigation }) {
         body: values.body,
         dateCreated: Timestamp.now(),
         lastAccessed: Timestamp.now(),
+        unread: 0
       });
 
-      selectedFriends.forEach(person => {
-        const convRef = doc(db, 'Users', person.ID, 'Friends Invites', ref.id);
-        setDoc(convRef, {
-          title: values.title,
-          body: values.body,
-          author: user.displayName,
-          authorID: user.uid,
-          timeStamp: Timestamp.now(),
-        })
-      })
-  
-      selectedOthers.forEach(person => {
-        const convRef = doc(db, 'Users', person.ID, 'Other Invites', ref.id);
-        setDoc(convRef, {
-          title: values.title,
-          body: values.body,
-          author: user.displayName,
-          authorID: user.uid,
-          timeStamp: Timestamp.now(),
-        })
-      })
+      // selectedFriends.forEach(person => {
+      //   const convRef = doc(db, 'Users', person.ID, 'Friends Invites', ref.id);
+      //   setDoc(convRef, {
+      //     title: values.title,
+      //     body: values.body,
+      //     author: user.displayName,
+      //     authorID: user.uid,
+      //     timeStamp: Timestamp.now(),
+      //   })
+      // })
+
+      let tokens = [];
+
+      Promise.all([
+        Promise.all(selectedFriends.map(async person => {
+          const convRef = doc(db, 'Users', person.ID, 'Friends Invites', ref.id);
+          setDoc(convRef, {
+            title: values.title,
+            body: values.body,
+            author: user.displayName,
+            authorID: user.uid,
+            timeStamp: Timestamp.now(),
+          })
+          console.log(person);
+          if(person.ExpoPushToken !== undefined){
+            tokens.push(person.ExpoPushToken)
+          } else {
+            console.log("no token found");
+          } 
+        })),
+
+        Promise.all(selectedOthers.map(async person => {
+          const convRef = doc(db, 'Users', person.ID, 'Other Invites', ref.id);
+          setDoc(convRef, {
+            title: values.title,
+            body: values.body,
+            author: user.displayName,
+            authorID: user.uid,
+            timeStamp: Timestamp.now(),
+          })
+          if(person.ExpoPushToken !== undefined){
+            tokens.push(person.ExpoPushToken)
+          } else {
+            console.log("no token found");
+          } 
+        }))
+      ])
+
+      sendInviteNotification(tokens, values.title);
+
+      // selectedOthers.forEach(person => {
+      //   const convRef = doc(db, 'Users', person.ID, 'Other Invites', ref.id);
+      //   setDoc(convRef, {
+      //     title: values.title,
+      //     body: values.body,
+      //     author: user.displayName,
+      //     authorID: user.uid,
+      //     timeStamp: Timestamp.now(),
+      //   })
+      // })
 
       setDoc(doc(db, 'Conversations', ref.id, 'Participants', user.uid), {
         Name: user.displayName,
         ID: user.uid,
         Admin: true,
         removed: false
+        ///////////////////////
       });
 
       addDoc(collection(db, 'Conversations', ref.id, 'Comments'), {
@@ -173,6 +214,28 @@ export default function NewConv({ navigation }) {
     })
 
   };
+
+  // Can use this function below OR use Expo's Push Notification Tool from: https://expo.dev/notifications
+  async function sendInviteNotification(expoPushToken, title) {
+    const message = {
+      to: expoPushToken,
+      sound: 'default',
+      title: title,
+      body: 'You were invited to a conversation by ' + user.displayName,
+      data: { someData: 'goes here' },
+      channelId: 'Invites'
+    };
+
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+  }
 
   const selectFriends = () => {
     setData(Friends);

@@ -13,6 +13,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import store from './store';
 import { Provider } from 'react-redux';
 import Navigation from './Navigation';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
 
 const firebaseConfig = {
   apiKey: "AIzaSyABRLZgFavsNeL1TrQ0YsvyIEDxn3I3fWY",

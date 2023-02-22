@@ -13,7 +13,15 @@ import _ from 'lodash';
 import * as FileSystem from "expo-file-system";
 import { useDispatch, useSelector } from 'react-redux';
 import { setNewKey } from '../features/themeSlice';
+import * as Notifications from 'expo-notifications';
 
+// Notifications.setNotificationHandler({
+//   handleNotification: async () => ({
+//     shouldShowAlert: true,
+//     shouldPlaySound: true,
+//     shouldSetBadge: true,
+//   }),
+// });
 
 export default function Friends({ navigation }) {
 
@@ -42,6 +50,7 @@ export default function Friends({ navigation }) {
   const [listIndicator, setListIndicator] = useState(true);
   const [searchIndicator, setSearchIndicator] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [expoPushToken, setExpoPushToken] = useState('');
 
   const firstRender = useRef(true);
   const recFlag = useRef('...');
@@ -185,6 +194,27 @@ export default function Friends({ navigation }) {
     
    }, [receivedRequestsNum, sentRequestsNum])
 
+   // Can use this function below OR use Expo's Push Notification Tool from: https://expo.dev/notifications
+  async function sendFriendNotification(expoPushToken) {
+    const message = {
+      to: expoPushToken,
+      sound: 'default',
+      title: 'Friend Request',
+      body: user.displayName + ' sent you a friend request.',
+      data: { someData: 'goes here' },
+      channelId: 'Friends'
+    };
+
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+  }
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -527,8 +557,12 @@ export default function Friends({ navigation }) {
           Photo: user.photoURL,
           ignored: false,
           timestamp: serverTimestamp()
-        });
-
+        })
+        .then(done => {
+          if(res.data().ExpoPushToken !== undefined)
+            sendFriendNotification(res.data().ExpoPushToken)
+        })
+        
         setDoc(doc(db, 'Users', user.uid, 'Sent Requests', searchedID), {
           ID: res.data().ID,
           Name: res.data().Name,
@@ -1114,6 +1148,9 @@ export default function Friends({ navigation }) {
 
         <View style={{alignItems:'flex-end', }}>
           <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={[styles.addbtn, {backgroundColor:addButton}]}>
+            <MaterialIcons name='person-add' size={33} color={addButtonInside}/>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={async () => {sendFriendNotification('ExponentPushToken[0EQmPoFv9EPCmZ0aF4TkWi]')}} style={[styles.addbtn, {backgroundColor:addButton}]}>
             <MaterialIcons name='person-add' size={33} color={addButtonInside}/>
           </TouchableOpacity>
         </View>

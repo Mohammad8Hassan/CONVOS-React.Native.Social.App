@@ -28,6 +28,7 @@ export default function Friends({ navigation }) {
  const totatlNum = useRef(0);
  const flagFriends = useRef('...');
  const flagOthers = useRef('...');
+ const myData = useRef({});
 
  const [FriendsInvites, setFriendsInvites] = useState(null);
  const [FriendsInvitesNum, setFriendsInvitesNum] = useState(0);
@@ -55,6 +56,11 @@ export default function Friends({ navigation }) {
  }, [focused])
  
  useEffect(() => {
+  getDoc(doc(db, "Users", user.uid))
+    .then(res => {
+      myData.current = res.data();
+    })
+
    // Friends Invites
    const colRef3 = collection(db, 'Users', user.uid, 'Friends Invites');
    const q3 = query(colRef3, orderBy('timeStamp'));
@@ -77,7 +83,7 @@ export default function Friends({ navigation }) {
       result.unshift({...dok.data(), ID: dok.id, timeStamp: empty.toDate(), Name: info.data().Name, Photo: photo});
       num++;
      }
-     console.log(result);
+    //  console.log(result);
      setSelector('friends');
      setFriendsInvites(result);
      setFriendsInvitesNum(num);
@@ -159,6 +165,9 @@ export default function Friends({ navigation }) {
       ID: user.uid,
       Admin: false,
       removed: false,
+      lastEnter: Timestamp.now(),
+      lastExit: Timestamp.now(),
+      ExpoPushToken: myData.current.ExpoPushToken
     });
   
     setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
@@ -167,6 +176,7 @@ export default function Friends({ navigation }) {
       body: body,
       dateCreated: Timestamp.now(),
       lastAccessed: Timestamp.now(),
+      unread: 0
     });
 
     addDoc(collection(db, 'Conversations', id, 'Comments'), {
@@ -277,6 +287,9 @@ const loadImage = async (photo, photoExtension) => {
         ID: user.uid,
         Admin: false,
         removed: false,
+        lastEnter: Timestamp.now(),
+        lastExit: Timestamp.now(),
+        ExpoPushToken: myData.current.ExpoPushToken
       }),
 
       setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
@@ -285,6 +298,7 @@ const loadImage = async (photo, photoExtension) => {
         body: body,
         dateCreated: Timestamp.now(),
         lastAccessed: Timestamp.now(),
+        unread: 0
       }),
 
       deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', id)),

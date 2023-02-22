@@ -26,7 +26,8 @@
         "foregroundImage": "./assets/Imgs/adaptive-icon.png",
         "backgroundColor": "#261235"
       },
-      "package": "com.mohammadHassan.CONVOS"
+      "package": "com.mohammadHassan.CONVOS",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/Imgs/icon.png"

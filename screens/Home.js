@@ -17,9 +17,77 @@ import _ from 'lodash';
 import * as FileSystem from "expo-file-system";
 import { useDispatch, useSelector } from 'react-redux';
 import { setNewKey } from '../features/themeSlice';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+
+
+
+const createNotificationsChannels = async () => {
+  if (Platform.OS === 'android') {
+    Notifications.setNotificationChannelAsync('Conversations', {
+      name: 'Conversations',
+      importance: Notifications.AndroidImportance.MAX,
+      enableVibrate: false,
+      lightColor: '#FF231F7C',
+    });
+
+    Notifications.setNotificationChannelAsync('Friends', {
+      name: 'Friends',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+
+    Notifications.setNotificationChannelAsync('Invites', {
+      name: 'Invites',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+  }
+}
+
+async function deleteChannel(id) {
+  await Notifications.deleteNotificationChannelAsync(id);
+}
+
+async function registerForPushNotificationsAsync() {
+  let token;
+  if (Device.isDevice) {
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      alert('Failed to get push token for push notification!');
+      return;
+    }
+
+    token = (await Notifications.getExpoPushTokenAsync()).data;
+    // console.log('expo token (home): ', token);
+
+  } else {
+    // alert('Must use physical device for Push Notifications');
+    return "noDevice";
+  }
+
+  return token;
+}
 
 // component
-export default function Home({ navigation }) {
+export default function Home({ route, navigation }) {
+
+  Notifications.setNotificationHandler({
+    handleNotification: async (notification) => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+
   const [modalVisible, setModalVisible] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [convID, setConvID] = useState('');
@@ -30,6 +98,7 @@ export default function Home({ navigation }) {
   const [conversationsIndicator, setConversationsIndicator] = useState(true);
   const [photoUrl, setPhotoUrl] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [expoPushToken, setExpoPushToken] = useState('');
 
   const db = getFirestore();
   const user = getAuth().currentUser;
@@ -45,6 +114,7 @@ export default function Home({ navigation }) {
   const focused = useIsFocused();
   const authors = useRef({});
   const flag = useRef('first render');
+  const myData = useRef({});
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -74,15 +144,39 @@ export default function Home({ navigation }) {
     let result = [];
     // let authors = {};
 
+    deleteChannel('Conversations')
+    .then(() => {
+      createNotificationsChannels();
+    })
+    
     const unsubscribeUser = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
       const photo = await loadImage(snapShot.data().Photo, snapShot.data().photoExtension);
       setPhotoUrl(photo);
+
+      if(snapShot.data().ExpoPushToken === undefined) {
+        console.log('no token found, fetching...');
+        registerForPushNotificationsAsync()
+          .then(async token => {
+            if(token == 'noDevice') return
+            
+            setExpoPushToken(token);
+    
+            await updateDoc(doc(db, 'Users', user.uid), {
+              ExpoPushToken: token
+            })
+          });
+      }
+      else {
+        console.log(snapShot.data().ExpoPushToken)
+      }
+
+      myData.current = snapShot.data();
     }, error => {console.log(error)})
 
     const unsubscribe1 = onSnapshot(q, async snapShot => {
       for(let change of snapShot.docChanges()) {
         if(change.type === 'added') {
-          console.log("triggered added: ", change.doc.data());
+          // console.log("triggered added: ", change.doc.data());
           if(authors.current[change.doc.data().authorID+'ID'] == undefined) {
             const info = await getDoc(doc(db, 'Users', change.doc.data().authorID));
 
@@ -102,14 +196,14 @@ export default function Home({ navigation }) {
   
         //if deleted:
         else if(change.type === 'removed') {
-          console.log("triggered removed: ", change.doc.id);
+          // console.log("triggered removed: ", change.doc.id);
           const index = result.map(e => e.id).indexOf(change.doc.id);
           result.splice(index,1);
         }
   
         //if modified:
         else if(change.type === 'modified') {
-          console.log("triggered modified: ", change.doc.data());
+          // console.log("triggered modified: ", change.doc.data());
           const index = result.map(e => e.id).indexOf(change.doc.id);
           if(index == -1) return;
           result.splice(index,1);
@@ -145,6 +239,39 @@ export default function Home({ navigation }) {
     }
   }, [])
 
+  useEffect(() => {
+    let count = 0;
+
+    for(let x of conversations) {
+      if(x.unread !== undefined) count += x.unread;
+    }
+
+    navigation.getParent().setOptions({
+      tabBarBadge: count == 0? null : count
+    })
+  }, [conversations])
+
+
+  // Can use this function below OR use Expo's Push Notification Tool from: https://expo.dev/notifications
+  async function sendPushNotification(expoPushToken) {
+    const message = {
+      to: expoPushToken,
+      sound: 'default',
+      title: 'inception',
+      body: 'incepting...',
+      data: { someData: 'goes here' },
+    };
+
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+  }
 
   const checkCache = async (uri) => {
     try {
@@ -315,12 +442,27 @@ export default function Home({ navigation }) {
           setShowIndicator(false);
           return;
         }
+
+        const [friendInvited, otherInvited] = await Promise.all([
+          getDoc(doc(db, 'Users', user.uid, 'Friends Invites', convID)),
+          getDoc(doc(db, 'Users', user.uid, 'Other Invites', convID))
+        ])
+        
+        if(friendInvited.exists()){
+          deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', convID));
+        }
+        if(otherInvited.exists()){
+          deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', convID));
+        }
   
         await setDoc(doc(db, 'Conversations', convID, 'Participants', user.uid), {
           ID: user.uid,
           Name: user.displayName,
           Admin: false,
           removed: false,
+          lastEnter: Timestamp.now(),
+          lastExit: Timestamp.now(),
+          ExpoPushToken: myData.current.ExpoPushToken
         })
 
         addDoc(collection(db, 'Conversations', convID, 'Comments'), {
@@ -341,6 +483,7 @@ export default function Home({ navigation }) {
             body: convRef.data().body,
             dateCreated: Timestamp.now(),
             lastAccessed: Timestamp.now(),
+            unread: 0
           })
         }
         
@@ -361,6 +504,9 @@ export default function Home({ navigation }) {
           Name: user.displayName,
           Admin: false,
           removed: false,
+          lastEnter: Timestamp.now(),
+          lastExit: Timestamp.now(),
+          ExpoPushToken: myData.current.ExpoPushToken
         })
 
         await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {
@@ -369,6 +515,7 @@ export default function Home({ navigation }) {
           body: convRef.data().body,
           dateCreated: Timestamp.now(),
           lastAccessed: Timestamp.now(),
+          unread: 0
         })
         console.log('enter 2 ..');
         navigation.navigate('Details', { id: convID });
@@ -489,6 +636,11 @@ export default function Home({ navigation }) {
               <Text style={{color:topButtonsColors, fontSize:16, marginRight:5, fontFamily:'Solway-Regular'}}>New</Text>
               <Entypo name='new-message' size={20} color={topButtonsColors} />
           </TouchableOpacity>
+
+          <TouchableOpacity onPress={async () => {await sendPushNotification('ExponentPushToken[0EQmPoFv9EPCmZ0aF4TkWi]');}} style={[styles.newConv, {borderColor:topButtonsColors}]}>
+              <Text style={{color:topButtonsColors, fontSize:16, marginRight:5, fontFamily:'Solway-Regular'}}>Send</Text>
+              <Entypo name='new-message' size={20} color={topButtonsColors} />
+          </TouchableOpacity>
         </View>
 
         {(conversations.length == 0 && !conversationsIndicator)? (
@@ -520,6 +672,11 @@ export default function Home({ navigation }) {
                   <View style={styles.content}>
                     <View style={styles.header}>
                       <Text style={[styles.titleText, {color:homeConvTitleColor}]} numberOfLines={1}>{ item.title }</Text>
+                        {item.unread == 0 || item.unread == undefined? null : (
+                          <View style={{backgroundColor:'#e374b5', alignItems:'center', justifyContent:'center', borderRadius:8}}>
+                            <Text style={{color:'white', fontSize:17}}> {item.unread} </Text>
+                          </View>
+                        )}
                         <Menu>
                           <MenuTrigger>
                             <MaterialIcons name='more-horiz' size={24} color="grey" style={{padding:3}}/>

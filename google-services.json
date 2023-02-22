@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "645757565742",
+    "project_id": "convos-app-1",
+    "storage_bucket": "convos-app-1.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:645757565742:android:653277b87307695a9558bf",
+        "android_client_info": {
+          "package_name": "com.mohammadHassan.CONVOS"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "645757565742-799f2lu0sbpdddlodfo5lru2chv6l9ep.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJl_kbIwKEI4pF0PDdbxvotm2HPXHutvc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "645757565742-799f2lu0sbpdddlodfo5lru2chv6l9ep.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
