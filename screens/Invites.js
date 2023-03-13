@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Entypo } from '@expo/vector-icons';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
- deleteDoc, Timestamp, setDoc, getDocs, where, getDoc, updateDoc } from 'firebase/firestore'
+ deleteDoc, Timestamp, setDoc, getDocs, where, getDoc, updateDoc, initializeFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
 import avatar from '../assets/Imgs/avatar.png';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -16,11 +16,18 @@ import { useIsFocused } from '@react-navigation/native';
 import * as FileSystem from "expo-file-system";
 import { useDispatch, useSelector } from 'react-redux';
 import { setNewKey } from '../features/themeSlice';
-
+import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
+import { getApp } from 'firebase/app';
+import * as Device from 'expo-device';
 
 export default function Friends({ navigation }) {
 
+ const AdID = (!Device.isDevice || __DEV__)? TestIds.BANNER : "ca-app-pub-4623463929646643/6389070912";
+
  const db = getFirestore();
+
+//  const db = initializeFirestore(getApp(), {experimentalForceLongPolling: true, useFetchStreams:false});
+
  const storage = getStorage();
  const user = getAuth().currentUser;
  const defaultImg = Image.resolveAssetSource(avatar).uri;
@@ -167,7 +174,6 @@ export default function Friends({ navigation }) {
       removed: false,
       lastEnter: Timestamp.now(),
       lastExit: Timestamp.now(),
-      ExpoPushToken: myData.current.ExpoPushToken
     });
   
     setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
@@ -216,6 +222,50 @@ export default function Friends({ navigation }) {
   }
 
  }
+
+ const AlertDeleteFriend = (id) => {
+  console.log(id);
+  const ID = id;
+  Alert.alert(
+    'Delete Invite?',
+    '',
+    [
+      {
+        text: 'Cancel',
+        style: 'cancel'
+      },
+      {
+        text: "confirm",
+        onPress: () => deleteFriendInvite(ID)
+      }
+    ],
+    {
+      cancelable: true
+    }
+  )
+}
+
+const AlertDeleteOther = (id) => {
+  console.log(id);
+  const ID = id;
+  Alert.alert(
+    'Delete Invite?',
+    '',
+    [
+      {
+        text: 'Cancel',
+        style: 'cancel'
+      },
+      {
+        text: "confirm",
+        onPress: () => deleteOtherInvite(ID)
+      }
+    ],
+    {
+      cancelable: true
+    }
+  )
+}
 
  const deleteFriendInvite = (id) => {
   //need confirm....
@@ -288,8 +338,7 @@ const loadImage = async (photo, photoExtension) => {
         Admin: false,
         removed: false,
         lastEnter: Timestamp.now(),
-        lastExit: Timestamp.now(),
-        ExpoPushToken: myData.current.ExpoPushToken
+        lastExit: Timestamp.now()
       }),
 
       setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
@@ -419,64 +468,69 @@ const loadImage = async (photo, photoExtension) => {
 
  const deleteResponse = (id, selectorValue) => {
   if(selectorValue=='friends'){
-    deleteFriendInvite(id);
+    AlertDeleteFriend(id);
   }
   else {
-    deleteOtherInvite(id);
+    AlertDeleteOther(id);
   }
  }
 
  return (
    <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}> 
     <View style={{flex:1, backgroundColor: backgroundColor}} >
+     
      <View style={styles.homeHeader}>
        <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Invites</Text>
      </View>
 
-     
-     {/* Page Contents */}
-     {listIndicator? ( <ActivityIndicator size={80} color='#613a5f' animating={listIndicator} style={{flex:1}} /> ) : (
-      <View style={{flex:1, padding:10, paddingBottom:20}}>
       
-      {/* selectors */}
-      <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, justifyContent:'space-between', paddingTop:10}}>
-        <View style={{flex:1, alignItems:'flex-end', paddingTop:12, paddingRight:3, marginRight:3}}>
-          <Pressable
-            onPress={selectFriends}
-            style={({ pressed }) => [
-              {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? selectorColor : 'grey'}
-            ]}
-          >
-            <View style={{flexDirection:'row', alignItems:'center',}}>
-              <Text style={{color:"white", fontSize: 16,}}>From Friends</Text>
-            </View>
-          </Pressable>
-          { (FriendsInvitesNum > 0) && <Text style={styles.badge}>{ FriendsInvitesNum }</Text> }
-        </View>
+      {/* Page Contents */}
+      {listIndicator? ( <ActivityIndicator size={80} color='#613a5f' animating={listIndicator} style={{flex:1}} /> ) : (
+        <View style={{flex:1, padding:10, paddingBottom:20}}>
+        
+        {/* selectors */}
+        <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, justifyContent:'space-between', paddingTop:10}}>
+          <View style={{flex:1, alignItems:'flex-end', paddingTop:12, paddingRight:3, marginRight:3}}>
+            <Pressable
+              onPress={selectFriends}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? selectorColor : 'grey'}
+              ]}
+            >
+              <View style={{flexDirection:'row', alignItems:'center',}}>
+                <Text style={{color:"white", fontSize: 16,}}>From Friends</Text>
+              </View>
+            </Pressable>
+            { (FriendsInvitesNum > 0) && <Text style={styles.badge}>{ FriendsInvitesNum }</Text> }
+          </View>
 
-        <View style={{flex:1, alignItems:'flex-end', paddingTop:12, paddingRight:3}}>
-          <Pressable
-            onPress={selectOthers}
-            style={({ pressed }) => [
-              {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='others')? selectorColor : 'grey'}
-            ]}
-          >
-            <View style={{flexDirection:'row', alignItems:'center',}}>
-              <Text style={{color:"white", fontSize: 16,}}>From Others</Text>
-            </View>
-          </Pressable>
-          { (OthersInvitesNum > 0) && <Text style={styles.badge}>{ OthersInvitesNum }</Text> }
+          <View style={{flex:1, alignItems:'flex-end', paddingTop:12, paddingRight:3}}>
+            <Pressable
+              onPress={selectOthers}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='others')? selectorColor : 'grey'}
+              ]}
+            >
+              <View style={{flexDirection:'row', alignItems:'center',}}>
+                <Text style={{color:"white", fontSize: 16,}}>From Others</Text>
+              </View>
+            </Pressable>
+            { (OthersInvitesNum > 0) && <Text style={styles.badge}>{ OthersInvitesNum }</Text> }
+          </View>
         </View>
+        
+        {/* Lists */}
+
+        {(selector=='friends') && renderList(FriendsInvites, title, FriendsInvitesNum)}
+
+        {(selector=='others') && renderList(OthersInvites, title, OthersInvitesNum)} 
+
       </View>
-      
-      {/* Lists */}
+      )}
 
-      {(selector=='friends') && renderList(FriendsInvites, title, FriendsInvitesNum)}
-
-      {(selector=='others') && renderList(OthersInvites, title, OthersInvitesNum)} 
-    </View>
-    )}
-
+      <BannerAd unitId={AdID} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+        requestOptions={{requestNonPersonalizedAdsOnly:true}} 
+      />
     </View>
    </SafeAreaView>
  )

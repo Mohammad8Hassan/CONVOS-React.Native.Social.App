@@ -21,7 +21,6 @@ import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider, } from 'react
 import SystemMessage from '../shared/SystemMessage';
 import ErrorScreen from './ErrorScreen';
 import * as Notifications from 'expo-notifications';
-import { async } from '@firebase/util';
 
 
 export default function Details({ route, navigation }) {
@@ -80,14 +79,13 @@ export default function Details({ route, navigation }) {
 
   useEffect(() => {
     mount.current = true;
-
-    console.log(route.name)
     
     updateDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
       lastAccessed: Timestamp.now(),
       unread: 0
     });
     
+    //get conv data, make sure it still exists, make sure i'm a participant, make sure component still mounted
     const unsubscribe = onSnapshot(doc(db, 'Conversations', id), async snapShot => {
       if(snapShot.data()) {
         const checkExist = await getDoc(doc(db, 'Conversations', id, 'Participants', user.uid))
@@ -96,148 +94,157 @@ export default function Details({ route, navigation }) {
             setPost(snapShot.data());
         
             setIsAvailable(true);
+
+            let participants = {};
+            let participantsID = [];
+
+            const participantsRef = collection(db, 'Conversations', id, 'Participants');
+            
+            updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
+              lastEnter: Timestamp.now(),
+            }).then(e => {
+              unsubscribe3.current =  onSnapshot(participantsRef, async snapShot => {
+                await Promise.all(snapShot.docChanges().map(async change => {
+          
+                  if(change.type === 'added') {
+                    console.log('participant added: ', change.doc.data());
+                    const info = await getDoc(doc(db, 'Users', change.doc.id));
+          
+                    const photo = await loadImage(info.data().Photo, info.data().photoExtension);
+          
+                    if(change.doc.data().Admin) {
+                      convAuthorID.current = change.doc.id;
+                      convAuthorUri.current = photo;
+                      convAuthorName.current = info.data().Name;
+                    }
+          
+                    if (change.doc.id != user.uid && !change.doc.data().removed)
+                    participantsID.push({...change.doc.data(), id: change.doc.id, photo: photo, name: info.data().Name, removed: change.doc.data().removed, token:info.data().ExpoPushToken?info.data().ExpoPushToken:null});
+                    console.log('added, pushed: ', change.doc.data());
+                  
+                    participants[change.doc.id + 'Name'] = info.data().Name;
+                    participants[change.doc.id + 'Photo'] = photo;
+                    participants[change.doc.id + 'ID'] = change.doc.id;
+                    participants[change.doc.id + 'REM'] = change.doc.data().removed;
+                    
+                    if(info.data().ExpoPushToken && change.doc.id != user.uid && !tokensArray.current.find(e => e == info.data().ExpoPushToken) && !change.doc.data().removed)
+                      tokensArray.current.push(info.data().ExpoPushToken);
+          
+                    // console.log('1participants: ', participants);
+                    // console.log('1participantsID: ', participantsID);
+                  }
+                  else if(change.type === 'modified' && (change.doc.data().removed !== participants[change.doc.id + 'REM'])) {
+                    if(change.doc.data().removed == true) {
+                      console.log("modified - removed");
+                      if(change.doc.id == user.uid) {
+                        navigation.replace('Error');
+                      }
+                      else {
+                        const index = participantsID.map(e => e.id).indexOf(change.doc.id);
+                        
+                        if(participantsID[index].token) { //search properly...
+                          const index2 = tokensArray.current.indexOf(participantsID[index].token);
+                          console.log("person removed: ", tokensArray.current[index2]);
+                          tokensArray.current.splice(index2, 1);
+                        }
+
+                        participantsID.splice(index, 1);
+          
+                        participants[change.doc.id + 'REM'] = true;
+                        
+                        if(mount.current) {
+                          setAllComments(prev => {
+                            prev.forEach(comment => {
+                              if(comment['authorID'] == change.doc.id) {
+                                comment['removed'] = true;
+                              }
+                            })
+                            
+                            return [...prev];
+                          })
+                        }
+                      }
+          
+                    }
+                    else if(change.doc.data().removed == false) {
+                      console.log("modified - re-enter");
+                      const info = await getDoc(doc(db, 'Users', change.doc.id))
+                      if(info.data().ExpoPushToken && change.doc.id != user.uid && !tokensArray.current.find(e => e == info.data().ExpoPushToken)){
+                        tokensArray.current.push(info.data().ExpoPushToken);
+                      } 
+
+                      console.log("person re-entered: ", info.data().ExpoPushToken)
+
+                      if (change.doc.id != user.uid && !change.doc.data().removed) {
+                        participantsID.push({...change.doc.data(), id: change.doc.id, 
+                          photo: participants[change.doc.id + 'Photo'], name: participants[change.doc.id + 'Name'], 
+                          removed: change.doc.data().removed, token: info.data().ExpoPushToken});
+
+                          console.log("re-entered, pushed: ", participantsID);
+                      }
+                      
+            
+                      participants[change.doc.id + 'REM'] = false;
+          
+                      if(mount.current) {
+                        setAllComments(prev => {
+                          prev.forEach(comment => {
+                            if(comment['authorID'] == change.doc.id) {
+                              comment['removed'] = false;
+                            }
+                          })
+                          
+                          return [...prev];
+                        })
+                      }
+                      
+                    }
+                    
+                  } 
+                  else if (change.type == 'modified') {
+                    console.log("just modified");
+                    // update the local values for other users when someone enters/exits
+                    const index = participantsID.map(e => e.id).indexOf(change.doc.id);
+                    participantsID[index].lastEnter = change.doc.data().lastEnter;
+                    participantsID[index].lastExit = change.doc.data().lastExit;
+
+                    if(!participantsID[index].token){
+                      const info = await getDoc(doc(db, 'Users', change.doc.id))
+                      if(info.data().ExpoPushToken && change.doc.id != user.uid && !tokensArray.current.find(e => e == info.data().ExpoPushToken)){
+                        tokensArray.current.push(info.data().ExpoPushToken);
+                        participantsID[index].token
+                      }
+                      
+                      console.log("tokens: ", tokensArray.current);
+                    }
+                    
+                  }
+          
+                  
+                }))
+                
+                if(mount.current) {
+                  setAllParticipants(participants);
+                  setParticipantsIDs(participantsID);
+                  setData(prev => {prev = participantsID; return [...prev]});
+                  setSelector('all');
+                  setNum(participantsID.length + 1);
+                }
+                
+              }, error => {console.log(error)});
+            })
+            .catch(err => {console.log("nothing to update")})
           }
         }
         else {
-          // deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id))
-          //   .then(res => console.log('removed')).catch(err => console.log(err))
           navigation.replace('Error');
         }
         
-        
-        // getDoc(doc(db, 'Users', snapShot.data().authorID))
-        //   .then(author => {
-        //     setUri(author.data().Photo);
-        //   })
       }
       else {
-        // setIsAvailable(false);
-        // deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id))
-        //   .then(res => console.log('removed')).catch(err => console.log(err))
         navigation.replace('Error');
       }
     }, error => {console.log(error)})
-    
-
-    let participants = {};
-    let participantsID = [];
-
-    const participantsRef = collection(db, 'Conversations', id, 'Participants');
-    
-    updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
-      lastEnter: Timestamp.now(),
-    }).then(e => {
-      unsubscribe3.current =  onSnapshot(participantsRef, async snapShot => {
-      
-        await Promise.all(snapShot.docChanges().map(async change => {
-  
-          if(change.type === 'added') {
-            console.log('participant added: ', change.doc.data());
-            const info = await getDoc(doc(db, 'Users', change.doc.id));
-  
-            const photo = await loadImage(info.data().Photo, info.data().photoExtension);
-  
-            if(change.doc.data().Admin) {
-              convAuthorID.current = change.doc.id;
-              convAuthorUri.current = photo;
-              convAuthorName.current = info.data().Name;
-            }
-  
-            if (change.doc.id != user.uid && !change.doc.data().removed)
-            participantsID.push({...change.doc.data(), id: change.doc.id, photo: photo, name: info.data().Name, removed: change.doc.data().removed});
-  
-            participants[change.doc.id + 'Name'] = info.data().Name;
-            participants[change.doc.id + 'Photo'] = photo;
-            participants[change.doc.id + 'ID'] = change.doc.id;
-            participants[change.doc.id + 'REM'] = change.doc.data().removed;
-            
-            if(info.data().ExpoPushToken !== undefined && change.doc.id != user.uid && !tokensArray.current.find(e => e == info.data().ExpoPushToken))
-              tokensArray.current.push(info.data().ExpoPushToken);
-  
-            // console.log('1participants: ', participants);
-            // console.log('1participantsID: ', participantsID);
-          }
-          else if(change.type === 'modified' && (change.doc.data().removed !== participants[change.doc.id + 'REM'])) {
-            if(change.doc.data().removed == true) {
-              if(change.doc.id == user.uid) {
-                navigation.replace('Error');
-              }
-              else {
-                // console.log('participantsID: ', participantsID);
-                const index = participantsID.map(e => e.id).indexOf(change.doc.id);
-                // console.log('index: ', index);
-                // participantsID[index].removed = true;
-                // console.log('participantsID[index]: ', participantsID[index])
-                participantsID.splice(index, 1);
-  
-                if(change.doc.data().ExpoPushToken !== undefined) {
-                  const index2 = tokensArray.current.map(e => e.ExpoPushToken).indexOf(change.doc.data().ExpoPushToken);
-                  tokensArray.current.splice(index2, 1);
-                }
-  
-                participants[change.doc.id + 'REM'] = true;
-                
-                if(mount.current) {
-                  setAllComments(prev => {
-                    prev.forEach(comment => {
-                      if(comment['authorID'] == change.doc.id) {
-                        comment['removed'] = true;
-                      }
-                    })
-                    
-                    return [...prev];
-                  })
-                }
-              }
-  
-            }
-            else if(change.doc.data().removed == false) {
-              // const index = participantsID.map(e => e.id).indexOf(change.doc.id);
-              // participantsID[index].removed = false;
-              if (change.doc.id != user.uid && !change.doc.data().removed)
-              participantsID.push({id: change.doc.id, 
-                photo: participants[change.doc.id + 'Photo'], name: participants[change.doc.id + 'Name'], 
-                removed: change.doc.data().removed});
-  
-              if(change.doc.data().ExpoPushToken !== undefined && !tokensArray.current.find(e => e == change.doc.data().ExpoPushToken)) {
-                tokensArray.current.push(change.doc.data().ExpoPushToken)
-              }
-    
-              participants[change.doc.id + 'REM'] = false;
-  
-              if(mount.current) {
-                setAllComments(prev => {
-                  prev.forEach(comment => {
-                    if(comment['authorID'] == change.doc.id) {
-                      comment['removed'] = false;
-                    }
-                  })
-                  
-                  return [...prev];
-                })
-              }
-              
-            }
-            
-          } else if (change.type == 'modified') {
-            const index = participantsID.map(e => e.id).indexOf(change.doc.id);
-            participantsID[index].lastEnter = change.doc.data().lastEnter;
-            participantsID[index].lastExit = change.doc.data().lastExit;
-          }
-  
-          
-        }))
-        
-        if(mount.current) {
-          setAllParticipants(participants);
-          setParticipantsIDs(participantsID);
-          setData(prev => {prev = participantsID; return [...prev]});
-          setSelector('all');
-          setNum(participantsID.length + 1);
-        }
-        
-      }, error => {console.log(error)});
-    })
     
 
     
@@ -246,7 +253,7 @@ export default function Details({ route, navigation }) {
       mount.current = false;
       updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
         lastExit: Timestamp.now(),
-      })
+      }).catch(err => {console.log('nothing here too')})
       unsubscribe();
       unsubscribe3.current != undefined? unsubscribe3.current() : null;
       unsubscribe2.current != undefined? unsubscribe2.current() : null;
@@ -308,7 +315,8 @@ export default function Details({ route, navigation }) {
         if(scrollView.current && scrollAfter.current) {
           scrollView.current.scrollToEnd();
         } else {
-          setUnreadMessages(prev => {return prev+1})
+          if(commentsFlag.current != 'first render')
+            setUnreadMessages(prev => {return prev+1})
         }
         setCommentsIndicator(false);
       }
@@ -321,7 +329,7 @@ export default function Details({ route, navigation }) {
   }, [allParticipants])
 
   const isCloseToBottom = ({layoutMeasurement, contentOffset, contentSize}) => {
-    const paddingToBottom = 100;
+    const paddingToBottom = 50;
     if(layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
         setUnreadMessages(0);
         return true;
@@ -332,16 +340,15 @@ export default function Details({ route, navigation }) {
   };
   
   const scrollNow = () => {
-    if(scrollView.current) 
+    console.log('pressed');
+    if(scrollView.current){
+      console.log("scroll now true");
       scrollView.current.scrollToEnd();
+      if(unreadMessages > 0)
+        setUnreadMessages(0);
+    }
   }
 
-  useEffect(() => {
-    if(scrollView.current && commentsFlag.current == 'first render') {
-      scrollView.current.scrollToEnd();
-      commentsFlag.current = 'rendered';
-    }
-  }, [allComments])
 
   const checkCache = async (uri) => {
     try {
@@ -486,9 +493,7 @@ export default function Details({ route, navigation }) {
     let theComment = comment;
     if(theComment.trim().length === 0) return;
 
-    console.log('b4 trim: ', theComment);
     theComment = theComment.trimEnd().trimStart();
-    console.log('after trim: ', theComment);
 
     scrollView.current.scrollToEnd();
     setComment('');
@@ -501,22 +506,27 @@ export default function Details({ route, navigation }) {
       system: false
     })
 
-    // const messageTime = Timestamp.now();
-    participantsIDs.map(async person => {
-      // console.log("messageTime: ", messageTime.toDate().getMinutes().toString());
-      // console.log("lastEnter: ", person.lastEnter.toDate().getMinutes().toString());
-      // console.log("lastExit: ", person.lastExit.toDate().getMinutes().toString());
-      // console.log("decesion: ", messageTime > person.lastEnter && messageTime > person.lastExit);
+    updateUndread(theComment);
+  }
 
-      if(person.lastEnter < person.lastExit){
+  const updateUndread = (theComment) => {
+    participantsIDs.map(async person => {
+      if(person.lastEnter && person.lastExit)
+      {
+        if(person.lastEnter < person.lastExit){
+          updateDoc(doc(db, 'Users', person.ID, 'My Conversations', id), {
+            unread: increment(1)
+          })
+        }
+      }
+      else if(!person.lastEnter && !person.lastExit) {
         updateDoc(doc(db, 'Users', person.ID, 'My Conversations', id), {
           unread: increment(1)
         })
       }
     })
 
-    console.log("tokensArray: ", tokensArray.current)
-
+    console.log("tokens2: ", tokensArray.current);
     sendPushNotification(tokensArray.current, post.title, theComment);
   }
 
@@ -887,7 +897,7 @@ export default function Details({ route, navigation }) {
                   ) : (
                     <ScrollView ref={scrollView} onScroll={({nativeEvent}) => {
                       isCloseToBottom(nativeEvent)? scrollAfter.current = true : scrollAfter.current = false
-                    }}>
+                    }} onContentSizeChange={() => {commentsFlag.current == 'first render'? (scrollNow(),commentsFlag.current = 'rendered'): null}}>
                       <View style={styles.listContainer}>
                         {
                           allComments.map(comment => {
@@ -940,11 +950,12 @@ export default function Details({ route, navigation }) {
                     {unreadMessages == 0? null : (
                         <Pressable
                           onPress={() => scrollNow()}
+                          pressRetentionOffset={{bottom: 30, left: 60, right: 20, top: 20}}
                           style={({ pressed }) => [
                             {opacity: pressed ? 0.5: 1, alignItems:'flex-end', justifyContent:'flex-start'}
                           ]}
                         >
-                        <View style={{elevation:10, position:'absolute', flexDirection:'row', alignItems:'center', backgroundColor:'#e374b5', paddingHorizontal:7, alignItems:'center', justifyContent:'center', borderRadius:25}}>
+                        <View style={{elevation:10, position:'absolute', flexDirection:'row', alignItems:'center', backgroundColor:'#e374b5', padding:7, alignItems:'center', justifyContent:'center', borderRadius:25}}>
                           <MaterialIcons name='keyboard-arrow-down' size={25} color='white' />
                           <Text style={{color:'white', fontSize:17}}> {unreadMessages} </Text>
                         </View>

@@ -620,6 +620,7 @@ export default function NewConv({ navigation }) {
                   placeholder='Title'
                   onChangeText={props.handleChange('title')}
                   value={props.values.title}
+                  maxLength={30}
                 />
                 { (props.touched.title && props.errors.title) && <Text style={styles.errorText}>{props.errors.title}</Text> }
 
@@ -630,7 +631,8 @@ export default function NewConv({ navigation }) {
                   onChangeText={props.handleChange('body')}
                   value={props.values.body}
                   textAlignVertical= 'top'
-                  multiline 
+                  multiline
+                  maxLength={300} 
                 />
                 { (props.touched.body && props.errors.body) && <Text style={styles.errorText}>{props.errors.body}</Text> }
 

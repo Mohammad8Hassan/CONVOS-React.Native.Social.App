@@ -13,8 +13,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import store from './store';
 import { Provider } from 'react-redux';
 import Navigation from './Navigation';
-import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
+import MobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
+import { initializeFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyABRLZgFavsNeL1TrQ0YsvyIEDxn3I3fWY",
@@ -27,6 +27,21 @@ const firebaseConfig = {
 
 // Initialize Firebase
 !getApps().length? initializeAuth(initializeApp(firebaseConfig), {persistence: getReactNativePersistence(AsyncStorage)}): getApp();
+
+MobileAds().setRequestConfiguration({
+  maxAdContentRating: MaxAdContentRating.PG,
+})
+  .then(() => {
+    MobileAds().initialize()
+      .then(() => console.log("mobile ads initialized"))
+  })
+  .catch(err => {
+    console.log("ad config failed: ", err);
+  })
+
+if( __DEV__){
+  initializeFirestore(getApp(), {experimentalForceLongPolling: true, useFetchStreams:false});
+}
 
 
 export default function App() {

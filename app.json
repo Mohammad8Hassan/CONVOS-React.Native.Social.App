@@ -47,7 +47,16 @@
         {
           "photosPermission": "The app accesses your photos to let you customize your profile picture."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/Imgs/trayIcon.png"
+        }
       ]
     ]
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-4623463929646643~6794231765"
   }
 }

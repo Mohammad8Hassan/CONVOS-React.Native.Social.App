@@ -21,7 +21,7 @@ export default function ErrorScreen({ navigation }) {
         <View style={styles.na}>
           <View style={styles.naHeader}>
             <MaterialIcons name='warning' color='#853259' size={40} style={{flex:1}}/>
-            <Text style={{flex:6, color:'#853259', fontSize:20, fontFamily:'Solway-Bold'}}>Conversation not available</Text>
+            <Text style={{flex:6, color:'#853259', fontSize:20, fontFamily:'Solway-Bold'}} adjustsFontSizeToFit numberOfLines={1}>Conversation not available</Text>
           </View>
 
           <View style={styles.naBody}>
@@ -46,8 +46,8 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   naBody: {
-    marginHorizontal:20,
-    marginTop:10,
+    // marginHorizontal:20,
+    marginTop:30,
     alignItems: 'flex-start'
   },
 })

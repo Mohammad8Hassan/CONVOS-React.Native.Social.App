@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { StyleSheet, Text, View, Image, Pressable, ToastAndroid, SafeAreaView,
 Alert, Switch, Platform } from 'react-native'
 // import { SafeAreaView } from 'react-native-safe-area-context'
@@ -7,10 +7,13 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from "expo-file-system";
-import { onSnapshot, doc, getFirestore } from 'firebase/firestore';
+import { onSnapshot, doc, getFirestore, initializeFirestore, updateDoc } from 'firebase/firestore';
 import { useDispatch, useSelector } from 'react-redux';
 import { setLightTheme, setDarkTheme } from '../features/themeSlice';
 import * as NavigationBar from 'expo-navigation-bar';
+import { getApp } from 'firebase/app';
+import _ from 'lodash';
+
 
 export default function Settings({ navigation }) {
   const [photoUrl, setPhotoUrl] = useState(null);
@@ -18,6 +21,8 @@ export default function Settings({ navigation }) {
 
   const user = getAuth().currentUser;
   const db = getFirestore();
+
+  // const db = initializeFirestore(getApp(), {experimentalForceLongPolling: true, useFetchStreams:false});
   const focused = useIsFocused();
 
   const dispatch = useDispatch();
@@ -140,6 +145,20 @@ export default function Settings({ navigation }) {
     }
   }
 
+  const LogOut = useCallback(_.debounce(() => {
+
+    updateDoc(doc(db, 'Users', user.uid), {
+      ExpoPushToken: null
+    })
+    .then(() => {
+      signOut(getAuth())
+      .then(() => console.log("signed out"))
+      .catch(e => console.log(e))
+    })
+
+  }, 3000, {"leading": true, "trailing": false}), [])
+
+
   return (
     <SafeAreaView style={{flex:1, backgroundColor:mainColor}}>
       <View style={[styles.homeHeader, {backgroundColor:mainColor}]}>
@@ -202,11 +221,7 @@ export default function Settings({ navigation }) {
         
 
         <Pressable  
-          onPress={() => {
-            signOut(getAuth())
-              .then(() => console.log("signed out"))
-              .catch(e => console.log(e))
-          }}
+          onPress={LogOut}
           style={({ pressed }) => [
             {opacity: pressed ? 0.5: 1}, styles.out
            ]}

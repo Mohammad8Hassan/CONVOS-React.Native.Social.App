@@ -7,7 +7,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import { Entypo } from '@expo/vector-icons';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy,
-   doc, deleteDoc, setDoc, Timestamp, updateDoc, getDoc, getDocs } from 'firebase/firestore'
+   doc, deleteDoc, setDoc, Timestamp, updateDoc, getDoc, getDocs, initializeFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 // import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +19,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setNewKey } from '../features/themeSlice';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
+import { getApp } from 'firebase/app';
 
 
 
@@ -47,10 +49,6 @@ const createNotificationsChannels = async () => {
   }
 }
 
-async function deleteChannel(id) {
-  await Notifications.deleteNotificationChannelAsync(id);
-}
-
 async function registerForPushNotificationsAsync() {
   let token;
   if (Device.isDevice) {
@@ -66,8 +64,11 @@ async function registerForPushNotificationsAsync() {
       return;
     }
 
-    token = (await Notifications.getExpoPushTokenAsync()).data;
-    // console.log('expo token (home): ', token);
+    const appConfig = require('../app.json');
+    const projectId = appConfig?.expo?.extra?.eas?.projectId;
+    token = (await Notifications.getExpoPushTokenAsync({
+      projectId
+    })).data;
 
   } else {
     // alert('Must use physical device for Push Notifications');
@@ -88,6 +89,8 @@ export default function Home({ route, navigation }) {
     }),
   });
 
+  const AdID = (!Device.isDevice || __DEV__)? TestIds.BANNER : "ca-app-pub-4623463929646643/1541905082";
+  
   const [modalVisible, setModalVisible] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [convID, setConvID] = useState('');
@@ -99,8 +102,11 @@ export default function Home({ route, navigation }) {
   const [photoUrl, setPhotoUrl] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [expoPushToken, setExpoPushToken] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const db = getFirestore();
+
+  // const db = initializeFirestore(getApp(), {experimentalForceLongPolling: true, useFetchStreams:false});
   const user = getAuth().currentUser;
   
   //redux store
@@ -115,6 +121,8 @@ export default function Home({ route, navigation }) {
   const authors = useRef({});
   const flag = useRef('first render');
   const myData = useRef({});
+  const unsubscribeUser = useRef();
+  const mounted = useRef(false);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -139,40 +147,39 @@ export default function Home({ route, navigation }) {
 
 
   useEffect(() => {
+    mounted.current = true;
+
     const colRef = collection(db, 'Users', user.uid, 'My Conversations');
     const q = query(colRef, orderBy('lastAccessed'));
     let result = [];
     // let authors = {};
 
-    deleteChannel('Conversations')
-    .then(() => {
-      createNotificationsChannels();
-    })
+    createNotificationsChannels();
     
-    const unsubscribeUser = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
-      const photo = await loadImage(snapShot.data().Photo, snapShot.data().photoExtension);
-      setPhotoUrl(photo);
+    registerForPushNotificationsAsync()
+      .then(async token => {
+        if(token == 'noDevice') {
+          await updateDoc(doc(db, 'Users', user.uid), {
+            ExpoPushToken: null
+          })
+        }
+        else {
+          await updateDoc(doc(db, 'Users', user.uid), {
+            ExpoPushToken: token
+          })
+        }
+   
+        // user data listener
+        unsubscribeUser.current = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
+          const photo = await loadImage(snapShot.data().Photo, snapShot.data().photoExtension);
+          
+          if(mounted) setPhotoUrl(photo);
 
-      if(snapShot.data().ExpoPushToken === undefined) {
-        console.log('no token found, fetching...');
-        registerForPushNotificationsAsync()
-          .then(async token => {
-            if(token == 'noDevice') return
-            
-            setExpoPushToken(token);
-    
-            await updateDoc(doc(db, 'Users', user.uid), {
-              ExpoPushToken: token
-            })
-          });
-      }
-      else {
-        console.log(snapShot.data().ExpoPushToken)
-      }
+          myData.current = snapShot.data();
+        }, error => {console.log(error)})
+      });
 
-      myData.current = snapShot.data();
-    }, error => {console.log(error)})
-
+    // my conversations listener
     const unsubscribe1 = onSnapshot(q, async snapShot => {
       for(let change of snapShot.docChanges()) {
         if(change.type === 'added') {
@@ -235,7 +242,7 @@ export default function Home({ route, navigation }) {
     
     return () => {
       unsubscribe1();
-      unsubscribeUser();
+      unsubscribeUser.current();
     }
   }, [])
 
@@ -251,27 +258,6 @@ export default function Home({ route, navigation }) {
     })
   }, [conversations])
 
-
-  // Can use this function below OR use Expo's Push Notification Tool from: https://expo.dev/notifications
-  async function sendPushNotification(expoPushToken) {
-    const message = {
-      to: expoPushToken,
-      sound: 'default',
-      title: 'inception',
-      body: 'incepting...',
-      data: { someData: 'goes here' },
-    };
-
-    await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
-  }
 
   const checkCache = async (uri) => {
     try {
@@ -328,10 +314,30 @@ export default function Home({ route, navigation }) {
     }
   }
 
-  const deletePost = (id) => {
-    deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
-    deleteDoc(doc(db, 'Conversations', id));
+  const deletePost = async (id) => {
+    setDeleting(true);
+
+    const [allMessages, allPartis] = await Promise.all([
+      getDocs(collection(db, 'Conversations', id, 'Comments')),
+      getDocs(collection(db, 'Conversations', id, 'Participants'))
+    ])
     
+
+    await Promise.all([
+      allMessages.docs.map(async message => {
+        deleteDoc(message.ref);
+      }),
+
+      allPartis.docs.map(async person => {
+        deleteDoc(person.ref);
+      }),
+
+      deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id))
+    ])
+
+    deleteDoc(doc(db, 'Conversations', id))
+
+    setDeleting(false);
   }
 
   const showAlert = (id) => {
@@ -356,7 +362,8 @@ export default function Home({ route, navigation }) {
 
   const leaveConversations = async (id) => {
     const checkExist = await getDoc(doc(db, 'Conversations', id, 'Participants', user.uid));
-    if(checkExist.data().removed == true) {
+
+    if(!checkExist.exists() || checkExist.data().removed == true) {
       await deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
     }
     else {
@@ -462,7 +469,6 @@ export default function Home({ route, navigation }) {
           removed: false,
           lastEnter: Timestamp.now(),
           lastExit: Timestamp.now(),
-          ExpoPushToken: myData.current.ExpoPushToken
         })
 
         addDoc(collection(db, 'Conversations', convID, 'Comments'), {
@@ -506,7 +512,6 @@ export default function Home({ route, navigation }) {
           removed: false,
           lastEnter: Timestamp.now(),
           lastExit: Timestamp.now(),
-          ExpoPushToken: myData.current.ExpoPushToken
         })
 
         await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {
@@ -562,6 +567,17 @@ export default function Home({ route, navigation }) {
     <SafeAreaView style={{flex:1, backgroundColor:mainColor}}>
       <View style={{flex:1, backgroundColor:backgroundColor,}}>
         
+        <Modal visible={deleting} animationType='fade' transparent={true} onRequestClose={null}>
+          <View style={styles.outerView}>
+            <TouchableWithoutFeedback>
+              <View style={styles.innerView2}>
+                <ActivityIndicator size={80} color='#d4c86e' animating={true} style={{flex:1}}/>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </Modal>
+
+
         <Modal visible={modalVisible} animationType='fade' transparent={true}
           onRequestClose={clickOut}
         >
@@ -636,17 +652,12 @@ export default function Home({ route, navigation }) {
               <Text style={{color:topButtonsColors, fontSize:16, marginRight:5, fontFamily:'Solway-Regular'}}>New</Text>
               <Entypo name='new-message' size={20} color={topButtonsColors} />
           </TouchableOpacity>
-
-          <TouchableOpacity onPress={async () => {await sendPushNotification('ExponentPushToken[0EQmPoFv9EPCmZ0aF4TkWi]');}} style={[styles.newConv, {borderColor:topButtonsColors}]}>
-              <Text style={{color:topButtonsColors, fontSize:16, marginRight:5, fontFamily:'Solway-Regular'}}>Send</Text>
-              <Entypo name='new-message' size={20} color={topButtonsColors} />
-          </TouchableOpacity>
         </View>
 
         {(conversations.length == 0 && !conversationsIndicator)? (
           <View style={[styles.newMid, {borderColor:topButtonsColors}]}>
             <Text style={{color:topButtonsColors, fontSize:18, fontFamily:'Solway-Regular', opacity:0.5}}>
-              Welcome, {user.displayName} 😃{'\n'}{'\n'}
+              {/* Welcome, {user.displayName} 😃{'\n'}{'\n'} */}
 
               You can join, or create a new conversation.{'\n'}{'\n'}
               Or go to 'Friends' tab below to add your friends
@@ -658,73 +669,78 @@ export default function Home({ route, navigation }) {
             </Text>
             </TouchableOpacity>
           </View>
-        ) : null}
+        ) : (
+          <View style={{flex: 1}}>
+            {conversationsIndicator? (
+              <ActivityIndicator size={80} color={mainColor} animating={conversationsIndicator} style={{flex:1}} />
+            ) : (
+              <>
+                <FlatList data={conversations} refreshControl={
+                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#613a5f']} />
+                } renderItem={({ item }) => (
+                  <TouchableOpacity onPress={() => enter2(item.id)} style={styles.item}>
+                    <Card>
+                      <View style={styles.content}>
+                        <View style={styles.header}>
+                            <Text style={[styles.titleText, {color:homeConvTitleColor}]} numberOfLines={1}>{ item.title }</Text>
+                            {item.unread == 0 || item.unread == undefined? null : (
+                              <View style={{elevation:8, backgroundColor:'#e655aa', alignItems:'center', justifyContent:'center', borderRadius:50, padding:5, marginRight:5}}>
+                                <Text style={{color:'white', fontSize:17}}> {item.unread} </Text>
+                              </View>
+                            )}
+                            <Menu>
+                              <MenuTrigger>
+                                <MaterialIcons name='more-horiz' size={24} color="grey" style={{padding:3}}/>
+                              </MenuTrigger>
+                              <MenuOptions>
+                                {user.uid == item.authorID ? (
+                                  <MenuOption onSelect={() => showAlert(item.id)}>
+                                    <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Conversation</Text>
+                                  </MenuOption>
+                                ) : null
+                                }
+                                {item.authorID != user.uid ? (
+                                  <MenuOption onSelect={() => showAlertLeave(item.id)}>
+                                    <Text style={{color: "red", fontSize: 18, margin: 5}}>Leave Conversation</Text>
+                                  </MenuOption>
+                                ) : null
+                                }
+                              </MenuOptions>
+                            </Menu>
+                        </View>
+                        <Text style={[styles.body, {color:homeConvBodyColor}]} numberOfLines={2}>{ item.body }</Text>
+                      </View>
+                    
+                      <View style={styles.createdViewContainer}>
+                        <View style={[styles.createdView, {backgroundColor:conAuthorBarColor}]}>
+                          {item.authorID == user.uid? (
+                              <Text style={[styles.createdAuthor, {color:convAuthorTextColor}]} numberOfLines={1}>{ user.displayName }</Text>
+                            ) : (
+                              <Text style={[styles.createdAuthor, {color:convAuthorTextColor}]} numberOfLines={1}>{ item.author }</Text>
+                            )
+                          }
+                          {/* <Text style={styles.createdTime}>{ item.dateCreated.toDateString()}</Text> */}
+                        </View>
+                        {item.authorID == user.uid? (
+                            <Image source={{uri: photoUrl}} style={[styles.pic, {borderColor:null}]} />
+                          ) : (
+                            <Image source={{uri: item.uri}} style={[styles.pic, {borderColor:null}]} />
+                          )
+                        }
+                      </View>
+      
+                    </Card>
+                  </TouchableOpacity>
+                )}/>
 
-        <View style={{flex: 1}}>
-          {conversationsIndicator? (
-            <ActivityIndicator size={80} color={mainColor} animating={conversationsIndicator} style={{flex:1}} />
-          ) : (
-            <FlatList data={conversations} refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#613a5f']} />
-            } renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => enter2(item.id)} style={styles.item}>
-                <Card>
-                  <View style={styles.content}>
-                    <View style={styles.header}>
-                      <Text style={[styles.titleText, {color:homeConvTitleColor}]} numberOfLines={1}>{ item.title }</Text>
-                        {item.unread == 0 || item.unread == undefined? null : (
-                          <View style={{backgroundColor:'#e374b5', alignItems:'center', justifyContent:'center', borderRadius:8}}>
-                            <Text style={{color:'white', fontSize:17}}> {item.unread} </Text>
-                          </View>
-                        )}
-                        <Menu>
-                          <MenuTrigger>
-                            <MaterialIcons name='more-horiz' size={24} color="grey" style={{padding:3}}/>
-                          </MenuTrigger>
-                          <MenuOptions>
-                            {user.uid == item.authorID ? (
-                              <MenuOption onSelect={() => showAlert(item.id)}>
-                                <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Conversation</Text>
-                              </MenuOption>
-                            ) : null
-                            }
-                            {item.authorID != user.uid ? (
-                              <MenuOption onSelect={() => showAlertLeave(item.id)}>
-                                <Text style={{color: "red", fontSize: 18, margin: 5}}>Leave Conversation</Text>
-                              </MenuOption>
-                            ) : null
-                            }
-                          </MenuOptions>
-                        </Menu>
-                    </View>
-                    <Text style={[styles.body, {color:homeConvBodyColor}]} numberOfLines={2}>{ item.body }</Text>
-                  </View>
-                 
-                  <View style={styles.createdViewContainer}>
-                    <View style={[styles.createdView, {backgroundColor:conAuthorBarColor}]}>
-                      {item.authorID == user.uid? (
-                          <Text style={[styles.createdAuthor, {color:convAuthorTextColor}]} numberOfLines={1}>{ user.displayName }</Text>
-                        ) : (
-                          <Text style={[styles.createdAuthor, {color:convAuthorTextColor}]} numberOfLines={1}>{ item.author }</Text>
-                        )
-                      }
-                      {/* <Text style={styles.createdTime}>{ item.dateCreated.toDateString()}</Text> */}
-                    </View>
-                    {item.authorID == user.uid? (
-                        <Image source={{uri: photoUrl}} style={[styles.pic, {borderColor:null}]} />
-                      ) : (
-                        <Image source={{uri: item.uri}} style={[styles.pic, {borderColor:null}]} />
-                      )
-                    }
-                  </View>
-  
-                </Card>
-              </TouchableOpacity>
-            )}/>
-          )}
-          
-        </View>
-        
+                <BannerAd unitId={AdID} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+                  requestOptions={{requestNonPersonalizedAdsOnly:true}} 
+                />
+              </>
+            )} 
+          </View>
+        )}
+
       </View>
     </SafeAreaView>
   );
@@ -822,7 +838,8 @@ const styles = StyleSheet.create({
   header: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    alignItems:'center'
   },
   item: {
     marginHorizontal: 10,
@@ -863,6 +880,12 @@ const styles = StyleSheet.create({
     opacity:1,
     margin: 20,
     marginVertical: 80
+  },
+  innerView2: {
+    alignItems:'center',
+    justifyContent:'center',
+    padding: 10,
+    elevation: 15,
   },
   inputP:{
     backgroundColor: 'white',

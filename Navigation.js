@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, StatusBar } from 'react-native'
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { DrawerActions, NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import Home from './screens/Home'
 import Details from './screens/Details'
@@ -15,9 +15,10 @@ import Friends from './screens/Friends';
 import Invites from './screens/Invites';
 import ErrorScreen from './screens/ErrorScreen';
 import Verify from './screens/Verify';
+import Network from './screens/Network';
 import { useSelector } from 'react-redux';
 import { MenuProvider } from 'react-native-popup-menu';
-
+import NetInfo from '@react-native-community/netinfo';
 
 export default function Navigation(props) {
   const tabColor = useSelector(state => state.theme.tabColor);
@@ -33,6 +34,8 @@ export default function Navigation(props) {
   const ByMeStack = createNativeStackNavigator();
   const MainStack = createNativeStackNavigator();
 
+  const [networkStatus, setNetworkStatus] = useState(true);
+
   useEffect(() => {
     if(refresh != null){
       console.log('refresh: ', refresh);
@@ -40,6 +43,18 @@ export default function Navigation(props) {
     }
       
   }, [refresh])
+
+  useEffect(() => {
+    const networkListener = NetInfo.addEventListener(state => {
+      console.log('is internet reachable?: ', state.isInternetReachable);
+      setNetworkStatus(state.isInternetReachable);
+      console.log('networkStatus.current: ', networkStatus);
+    })
+
+    return () => {
+      networkListener();
+    }
+  }, [])
 
   function TabScreens() {
     return(
@@ -125,31 +140,38 @@ export default function Navigation(props) {
 
       <NavigationContainer>
         <MainStack.Navigator screenOptions={() => ({ headerShown: false,})}>
-          { (props.isSignedin == false || props.isSignedin == null) ? 
-          
-          (
+          {networkStatus? (
             <>
-              <MainStack.Screen name="Login" component={Login} />
-              <MainStack.Screen name="Register" component={Register} />
-            </>
-          ) 
-          : 
-          (
-            <>
-              {(props.isVerified) ? 
+              { (props.isSignedin == false || props.isSignedin == null) ? 
+              
               (
-                <MainStack.Screen name="Tab" component={TabScreens} />
-              )
-              :
+                <>
+                  <MainStack.Screen name="Login" component={Login} />
+                  <MainStack.Screen name="Register" component={Register} />
+                </>
+              ) 
+              : 
               (
-                <MainStack.Screen name="Verify" component={Verify} />
+                <>
+                  {(props.isVerified) ? 
+                  (
+                    <MainStack.Screen name="Tab" component={TabScreens} />
+                  )
+                  :
+                  (
+                    <MainStack.Screen name="Verify" component={Verify} />
+                  )
+                  }
+                </>
+                
               )
+
               }
             </>
-            
-          )
-
-          }
+          ) : (
+            <MainStack.Screen name='Network' component={Network} />
+          )}
+          
         </MainStack.Navigator>
       </NavigationContainer>
 

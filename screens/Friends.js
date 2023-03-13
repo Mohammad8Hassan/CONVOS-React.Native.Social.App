@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, 
-  deleteDoc, Timestamp, setDoc, getDocs, where, getDoc, updateDoc } from 'firebase/firestore'
+  deleteDoc, Timestamp, setDoc, getDocs, where, getDoc, updateDoc, initializeFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 import _ from 'lodash';
@@ -14,18 +14,18 @@ import * as FileSystem from "expo-file-system";
 import { useDispatch, useSelector } from 'react-redux';
 import { setNewKey } from '../features/themeSlice';
 import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
+import { getApp } from 'firebase/app';
 
-// Notifications.setNotificationHandler({
-//   handleNotification: async () => ({
-//     shouldShowAlert: true,
-//     shouldPlaySound: true,
-//     shouldSetBadge: true,
-//   }),
-// });
 
 export default function Friends({ navigation }) {
 
+  const AdID = (!Device.isDevice || __DEV__)? TestIds.BANNER : "ca-app-pub-4623463929646643/6113738748";
+
   const db = getFirestore();
+
+  // const db = initializeFirestore(getApp(), {experimentalForceLongPolling: true, useFetchStreams:false});
   const user = getAuth().currentUser;
 
   const [email, setEmail] = useState('');
@@ -941,83 +941,85 @@ export default function Friends({ navigation }) {
             )
             : 
             (
-              <FlatList data={data} removeClippedSubviews={false} refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#613a5f']} />
-              } renderItem={({ item }) => (
-                <View style={[styles.item, {backgroundColor: (selector=='friends'? 'none': friendBackground)}]}>
+              <>
+                <FlatList data={data} removeClippedSubviews={false} refreshControl={
+                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#613a5f']} />
+                } renderItem={({ item }) => (
+                  <View style={[styles.item, {backgroundColor: (selector=='friends'? 'none': friendBackground)}]}>
 
-                  <View style={{flexDirection:'row', alignItems:'center', backgroundColor:friendBackground, padding:4, borderRadius:20}}>
-                    <Image source={{uri: item.Photoo}} style={{height:40, width:40, borderRadius:40,}} />
-                    <View style={{flex:1, marginLeft:10, marginRight:3, alignItems:'center', }}>
-                      <Text style={{color:'white', fontSize:18,}} selectable>{ item.Namee }</Text>
-                      <Text style={{color:'#d1d1d1', fontSize:13, fontStyle:'italic'}} numberOfLines={1} > {item.id} </Text>
+                    <View style={{flexDirection:'row', alignItems:'center', backgroundColor:friendBackground, padding:4, borderRadius:20}}>
+                      <Image source={{uri: item.Photoo}} style={{height:40, width:40, borderRadius:40,}} />
+                      <View style={{flex:1, marginLeft:10, marginRight:3, alignItems:'center', }}>
+                        <Text style={{color:'white', fontSize:18,}} selectable>{ item.Namee }</Text>
+                        <Text style={{color:'#d1d1d1', fontSize:13, fontStyle:'italic'}} numberOfLines={1} > {item.id} </Text>
+                      </View>
+
+                      {(selector == 'friends') && 
+                        <Pressable
+                          style={({ pressed }) => [
+                            {opacity: pressed ? 0.5: 1}, styles.menu
+                          ]}
+                        >
+                          <Menu>
+                            <MenuTrigger>
+                              <MaterialIcons name='more-horiz' size={20} color='white'  />
+                            </MenuTrigger>
+                            <MenuOptions>
+                              <MenuOption onSelect={() => copyToClipboard(item.ID)}>
+                                <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>Copy ID</Text>
+                              </MenuOption>
+                              <MenuOption onSelect={() => showAlert(item.ID, item.Name)}>
+                                <Text style={{color: "red", fontSize: 18, margin: 5}}>Remove friend</Text>
+                              </MenuOption>
+                              <MenuOption onSelect={() => showAlertBlock(item.ID, item.Name)}>
+                                <Text style={{color: "red", fontSize: 18, margin: 5}}>Block</Text>
+                              </MenuOption>
+                            </MenuOptions>
+                          </Menu>
+                        </Pressable>
+                      }
                     </View>
 
-                    {(selector == 'friends') && 
+                    {(selector == 'received') && 
+                      <View style={{flexDirection:'row', marginBottom:5, marginTop:5, marginRight:5, justifyContent:'flex-end', alignItems:'center'}}>
+                        <Pressable
+                          onPress={() => approveRequest(item.ID)}
+                          style={({ pressed }) => [
+                            {opacity: pressed ? 0.5: 1}, styles.approve
+                          ]}
+                        >
+                          <View style={{flexDirection:'row', alignItems:'center',}}>
+                            <Text style={{color:"white", fontSize: 16,}}>approve</Text>
+                          </View>
+                        </Pressable>
+
+                        <Pressable
+                          onPress={() => ignoreRequest(item.ID)}
+                          style={({ pressed }) => [
+                            {opacity: pressed ? 0.5: 1}, styles.delete
+                          ]}
+                        >
+                          <View style={{flexDirection:'row', alignItems:'center',}}>
+                            <Text style={{color:"white", fontSize: 16,}}>ignore</Text>
+                          </View>
+                        </Pressable>
+                      </View>
+                    }
+                    {(selector=='sent') && 
                       <Pressable
+                        onPress={() => cancelRequest(item.ID)}
                         style={({ pressed }) => [
-                          {opacity: pressed ? 0.5: 1}, styles.menu
+                          {opacity: pressed ? 0.5: 1}, styles.cancel
                         ]}
                       >
-                        <Menu>
-                          <MenuTrigger>
-                            <MaterialIcons name='more-horiz' size={20} color='white'  />
-                          </MenuTrigger>
-                          <MenuOptions>
-                            <MenuOption onSelect={() => copyToClipboard(item.ID)}>
-                              <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>Copy ID</Text>
-                            </MenuOption>
-                            <MenuOption onSelect={() => showAlert(item.ID, item.Name)}>
-                              <Text style={{color: "red", fontSize: 18, margin: 5}}>Remove friend</Text>
-                            </MenuOption>
-                            <MenuOption onSelect={() => showAlertBlock(item.ID, item.Name)}>
-                              <Text style={{color: "red", fontSize: 18, margin: 5}}>Block</Text>
-                            </MenuOption>
-                          </MenuOptions>
-                        </Menu>
+                        <View style={{flexDirection:'row', alignItems:'center',}}>
+                          <Text style={{color:"white", fontSize: 16,}}>cancel</Text>
+                        </View>
                       </Pressable>
                     }
                   </View>
-
-                  {(selector == 'received') && 
-                    <View style={{flexDirection:'row', marginBottom:5, marginTop:5, marginRight:5, justifyContent:'flex-end', alignItems:'center'}}>
-                      <Pressable
-                        onPress={() => approveRequest(item.ID)}
-                        style={({ pressed }) => [
-                          {opacity: pressed ? 0.5: 1}, styles.approve
-                        ]}
-                      >
-                        <View style={{flexDirection:'row', alignItems:'center',}}>
-                          <Text style={{color:"white", fontSize: 16,}}>approve</Text>
-                        </View>
-                      </Pressable>
-
-                      <Pressable
-                        onPress={() => ignoreRequest(item.ID)}
-                        style={({ pressed }) => [
-                          {opacity: pressed ? 0.5: 1}, styles.delete
-                        ]}
-                      >
-                        <View style={{flexDirection:'row', alignItems:'center',}}>
-                          <Text style={{color:"white", fontSize: 16,}}>ignore</Text>
-                        </View>
-                      </Pressable>
-                    </View>
-                  }
-                  {(selector=='sent') && 
-                    <Pressable
-                      onPress={() => cancelRequest(item.ID)}
-                      style={({ pressed }) => [
-                        {opacity: pressed ? 0.5: 1}, styles.cancel
-                      ]}
-                    >
-                      <View style={{flexDirection:'row', alignItems:'center',}}>
-                        <Text style={{color:"white", fontSize: 16,}}>cancel</Text>
-                      </View>
-                    </Pressable>
-                  }
-                </View>
-              )} />
+                )} />
+              </>
             )}
           </View>
         
@@ -1087,75 +1089,76 @@ export default function Friends({ navigation }) {
       {/* Page Contents */}
       
       {listIndicator? ( <ActivityIndicator size={80} color='#613a5f' animating={listIndicator} style={{flex:1}} /> ) : (
-        <View style={{flex:1, padding:10, paddingBottom:20}}>
+        <>
+          <View style={{flex:1, padding:10, paddingBottom:20}}>
 
-        {/* Selectors */}
+            {/* Selectors */}
 
-        <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, justifyContent:'space-between', paddingTop:10,}}>
-          <View style={{paddingTop:12, flex: (selector=='friends')? 2 : 1, marginRight:10}}>
-            <Pressable
-              onPress={() => {setSelector('friends'); setTitle('Friends - '); setNum(FriendsNum)}}
-              style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? selectorColor: 'grey'}
-              ]}
-            >
-              <View style={{flexDirection:'row', alignItems:'center',}}>
-                {/* <FontAwesome5 name='user-friends' size={27} color='white' /> */}
-                <Text style={{color:"white", fontSize: 16,}} adjustsFontSizeToFit numberOfLines={2}>Friends List</Text>
+            <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, justifyContent:'space-between', paddingTop:10,}}>
+              <View style={{paddingTop:12, flex: (selector=='friends')? 2 : 1, marginRight:10}}>
+                <Pressable
+                  onPress={() => {setSelector('friends'); setTitle('Friends - '); setNum(FriendsNum)}}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? selectorColor: 'grey'}
+                  ]}
+                >
+                  <View style={{flexDirection:'row', alignItems:'center',}}>
+                    {/* <FontAwesome5 name='user-friends' size={27} color='white' /> */}
+                    <Text style={{color:"white", fontSize: 16,}} adjustsFontSizeToFit numberOfLines={2}>Friends List</Text>
+                  </View>
+                </Pressable>
               </View>
-            </Pressable>
-          </View>
 
-          <View style={{paddingTop:12, flex: (selector=='received')? 2 : 1}}>
-            <Pressable
-              onPress={() => {setSelector('received'); setTitle('Received Requests - '); setNum(receivedRequestsNum)}}
-              style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='received')? selectorColor: 'grey'}
-              ]}
-            >
-              <View style={{flexDirection:'row', alignItems:'center',}}>
-                {/* <MaterialCommunityIcons name='email-receive-outline' size={30} color='white' /> */}
-                <Text style={{color:"white", fontSize: 16,}} adjustsFontSizeToFit numberOfLines={2}>Received Requests</Text>
+              <View style={{paddingTop:12, flex: (selector=='received')? 2 : 1}}>
+                <Pressable
+                  onPress={() => {setSelector('received'); setTitle('Received Requests - '); setNum(receivedRequestsNum)}}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='received')? selectorColor: 'grey'}
+                  ]}
+                >
+                  <View style={{flexDirection:'row', alignItems:'center',}}>
+                    {/* <MaterialCommunityIcons name='email-receive-outline' size={30} color='white' /> */}
+                    <Text style={{color:"white", fontSize: 16,}} adjustsFontSizeToFit numberOfLines={2}>Received Requests</Text>
+                  </View>
+                </Pressable>
+                { (receivedRequestsNum > 0) && <Text style={styles.badge}>{ receivedRequestsNum }</Text> }
               </View>
-            </Pressable>
-            { (receivedRequestsNum > 0) && <Text style={styles.badge}>{ receivedRequestsNum }</Text> }
-          </View>
-          
-          <View style={{paddingTop:12, flex: (selector=='sent')? 2 : 1, marginLeft:10}}>
-            <Pressable
-              onPress={() => {setSelector('sent'); setTitle('Sent Requests - '); setNum(sentRequestsNum)}}
-              style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='sent')? selectorColor: 'grey'}
-              ]}
-            >
-              <View style={{flexDirection:'row', alignItems:'center',}}>
-                {/* <MaterialCommunityIcons name='email-fast-outline' size={30} color='white' /> */}
-                <Text style={{color:"white", fontSize: 16,}} adjustsFontSizeToFit numberOfLines={2}>Sent Requests</Text>
+              
+              <View style={{paddingTop:12, flex: (selector=='sent')? 2 : 1, marginLeft:10}}>
+                <Pressable
+                  onPress={() => {setSelector('sent'); setTitle('Sent Requests - '); setNum(sentRequestsNum)}}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='sent')? selectorColor: 'grey'}
+                  ]}
+                >
+                  <View style={{flexDirection:'row', alignItems:'center',}}>
+                    {/* <MaterialCommunityIcons name='email-fast-outline' size={30} color='white' /> */}
+                    <Text style={{color:"white", fontSize: 16,}} adjustsFontSizeToFit numberOfLines={2}>Sent Requests</Text>
+                  </View>
+                </Pressable>
+                { (sentRequestsNum > 0) && <Text style={styles.badge}>{ sentRequestsNum }</Text> }
               </View>
-            </Pressable>
-            { (sentRequestsNum > 0) && <Text style={styles.badge}>{ sentRequestsNum }</Text> }
+            </View>
+            
+            
+            {/* Lists */}
+            
+            {(selector == 'friends' && !listIndicator)? ( renderList(Friends, 'Friends - ', FriendsNum) ): null}
+
+            {(selector == 'received' && !listIndicator)? ( renderList(receivedRequests, 'Received Friend Requests - ', receivedRequestsNum) ) : null}
+
+            {(selector == 'sent' && !listIndicator)? ( renderList(sentRequests, 'Sent Friend Requests - ', sentRequestsNum) ) : null}
+
+            <View style={{alignItems:'flex-end', }}>
+              <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={[styles.addbtn, {backgroundColor:addButton}]}>
+                <MaterialIcons name='person-add' size={33} color={addButtonInside}/>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-        
-        
-        {/* Lists */}
-        
-        {(selector == 'friends' && !listIndicator)? ( renderList(Friends, 'Friends - ', FriendsNum) ): null}
-
-        {(selector == 'received' && !listIndicator)? ( renderList(receivedRequests, 'Received Friend Requests - ', receivedRequestsNum) ) : null}
-
-        {(selector == 'sent' && !listIndicator)? ( renderList(sentRequests, 'Sent Friend Requests - ', sentRequestsNum) ) : null}
-
-        <View style={{alignItems:'flex-end', }}>
-          <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={[styles.addbtn, {backgroundColor:addButton}]}>
-            <MaterialIcons name='person-add' size={33} color={addButtonInside}/>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={async () => {sendFriendNotification('ExponentPushToken[0EQmPoFv9EPCmZ0aF4TkWi]')}} style={[styles.addbtn, {backgroundColor:addButton}]}>
-            <MaterialIcons name='person-add' size={33} color={addButtonInside}/>
-          </TouchableOpacity>
-        </View>
-        
-      </View>
+          <BannerAd unitId={AdID} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            requestOptions={{requestNonPersonalizedAdsOnly:true}} 
+          />
+        </>
       )}
       </View>
     </SafeAreaView>
