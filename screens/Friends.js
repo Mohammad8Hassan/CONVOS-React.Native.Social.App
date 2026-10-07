@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, TextInput,
     Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, Alert, 
-    ActivityIndicator, SafeAreaView, Cli, Platform, RefreshControl} from 'react-native';
+    ActivityIndicator, Cli, Platform, RefreshControl} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useState, useCallback, useRef } from 'react';
 // import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -10,7 +11,7 @@ import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, o
 import { getAuth } from 'firebase/auth';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 import _ from 'lodash';
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { useDispatch, useSelector } from 'react-redux';
 import { setNewKey } from '../features/themeSlice';
 import * as Notifications from 'expo-notifications';

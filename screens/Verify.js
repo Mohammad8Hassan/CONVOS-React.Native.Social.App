@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View, Pressable, SafeAreaView, Alert, ToastAndroid, Platform,
+import { StyleSheet, Text, View, Pressable, Alert, ToastAndroid, Platform,
   Modal, TouchableWithoutFeedback, KeyboardAvoidingView, TextInput, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 //import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getAuth, signOut, sendEmailVerification, EmailAuthProvider, reauthenticateWithCredential,

@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from 'react'
 import { 
   StyleSheet, Text, View, Button, KeyboardAvoidingView, TouchableOpacity,
-  Pressable, ScrollView, Modal, ActivityIndicator, ToastAndroid, Alert
+  Pressable, ScrollView, Modal, ActivityIndicator, ToastAndroid, Alert, Platform
 } from 'react-native'
 import { TextInput } from 'react-native-gesture-handler'
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,

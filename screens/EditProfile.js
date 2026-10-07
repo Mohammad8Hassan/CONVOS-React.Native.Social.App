@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState,} from 'react'
 import { StyleSheet, Text, View, Image, Pressable, TextInput, KeyboardAvoidingView,
-   ScrollView, Modal, ToastAndroid, ActivityIndicator, SafeAreaView, Alert, 
+   ScrollView, Modal, ToastAndroid, ActivityIndicator, Alert, 
    TouchableWithoutFeedback, Platform } from 'react-native'
-//import { SafeAreaView } from 'react-native-safe-area-context'
+
+import { SafeAreaView } from 'react-native-safe-area-context';//import { SafeAreaView } from 'react-native-safe-area-context'
 import { getAuth, signOut, reauthenticateWithCredential, updateProfile, EmailAuthProvider,
   updateEmail, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -11,7 +12,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL, getMetadata, } from 'fire
 import * as ImagePicker from 'expo-image-picker';
 import { useIsFocused } from '@react-navigation/native';
 import { updateDoc, getFirestore, doc,  onSnapshot} from 'firebase/firestore';
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { useDispatch } from 'react-redux';
 import { setRefresh } from '../features/themeSlice';
 
@@ -60,7 +61,7 @@ export default function EditProfile({ navigation }) {
 
   const changePhoto = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [4, 3],
       quality: 1

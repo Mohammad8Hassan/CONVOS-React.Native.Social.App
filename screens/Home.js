@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef} from 'react';
 import { StyleSheet, Text, View, Button, FlatList, TouchableOpacity, ImageBackground, Modal,
   KeyboardAvoidingView, ScrollView, Alert, Image, TouchableWithoutFeedback, TextInput, Pressable, ToastAndroid,
-  ActivityIndicator, SafeAreaView, Platform, RefreshControl} from 'react-native';
+  ActivityIndicator, Platform, RefreshControl} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Card from '../shared/Card';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +15,7 @@ import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import _ from 'lodash';
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { useDispatch, useSelector } from 'react-redux';
 import { setNewKey } from '../features/themeSlice';
 import * as Device from 'expo-device';
@@ -83,7 +84,8 @@ export default function Home({ route, navigation }) {
 
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => ({
-      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
     }),
@@ -171,6 +173,10 @@ export default function Home({ route, navigation }) {
    
         // user data listener
         unsubscribeUser.current = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
+          if(!snapShot.exists()) {
+            console.log("Users doc missing for current user:", user.uid);
+            return;
+          }
           const photo = await loadImage(snapShot.data().Photo, snapShot.data().photoExtension);
           
           if(mounted) setPhotoUrl(photo);
@@ -186,6 +192,11 @@ export default function Home({ route, navigation }) {
           // console.log("triggered added: ", change.doc.data());
           if(authors.current[change.doc.data().authorID+'ID'] == undefined) {
             const info = await getDoc(doc(db, 'Users', change.doc.data().authorID));
+
+            if(!info.exists()) {
+              console.log("Users doc missing for conversation author:", change.doc.data().authorID);
+              continue;
+            }
 
             const photo = await loadImage(info.data().Photo, info.data().photoExtension);
 

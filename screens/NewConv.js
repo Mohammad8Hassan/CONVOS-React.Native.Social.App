@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, Modal, TextInput,
   Pressable, TouchableWithoutFeedback, ToastAndroid, Keyboard, FlatList, 
-   Alert, RefreshControl, Switch, ActivityIndicator, SafeAreaView, Platform } from 'react-native';
+   Alert, RefreshControl, Switch, ActivityIndicator, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useState, useCallback, useRef } from 'react'
 // import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAuth } from 'firebase/auth';
@@ -9,7 +10,7 @@ import { addDoc, serverTimestamp, setDoc, getFirestore, getDocs,
   collection, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import * as yup from 'yup';
 import { Formik } from 'formik';
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 
 const reviewSchema = yup.object({
   title: yup.string()

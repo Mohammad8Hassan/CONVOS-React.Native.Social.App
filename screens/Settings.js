@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
-import { StyleSheet, Text, View, Image, Pressable, ToastAndroid, SafeAreaView,
-Alert, Switch, Platform } from 'react-native'
-// import { SafeAreaView } from 'react-native-safe-area-context'
+import { StyleSheet, Text, View, Image, Pressable, ToastAndroid, Alert, Switch, Platform } from 'react-native'
+
+import { SafeAreaView } from 'react-native-safe-area-context';// import { SafeAreaView } from 'react-native-safe-area-context'
 import { getAuth, signOut } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { onSnapshot, doc, getFirestore, initializeFirestore, updateDoc } from 'firebase/firestore';
 import { useDispatch, useSelector } from 'react-redux';
 import { setLightTheme, setDarkTheme } from '../features/themeSlice';
@@ -131,15 +131,13 @@ export default function Settings({ navigation }) {
   const toggleSwitch = () => {
     if(theme) {
       if(Platform.OS === 'android') {
-        NavigationBar.setBackgroundColorAsync("#613a5f");
-        NavigationBar.setButtonStyleAsync('light');
+        NavigationBar.setStyle('dark');
       }
       dispatch(setDarkTheme());
     }
     else {
       if(Platform.OS === 'android') {
-        NavigationBar.setBackgroundColorAsync("white");
-        NavigationBar.setButtonStyleAsync('dark');
+        NavigationBar.setStyle('light');
       }
       dispatch(setLightTheme());
     }

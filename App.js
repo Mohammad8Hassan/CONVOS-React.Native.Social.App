@@ -1,13 +1,11 @@
 import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect, useRef, useState } from 'react';
 import * as Font from 'expo-font';
-import { Platform, } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { onAuthStateChanged, getAuth,} from 'firebase/auth';
-import {initializeAuth, getReactNativePersistence} from 'firebase/auth/react-native';
+import { onAuthStateChanged, getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import * as NavigationBar from 'expo-navigation-bar';
 import { enableScreens } from 'react-native-screens';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import store from './store';
@@ -82,9 +80,6 @@ export default function App() {
 
     prepare();
 
-    if(Platform.OS === 'android')
-      NavigationBar.setBackgroundColorAsync("#613a5f");
-
     getAuth().onAuthStateChanged(async user => {
       if(user) {
         if(user.emailVerified) {
@@ -118,11 +113,11 @@ export default function App() {
   }
 
   return (
-    <Provider store={store} >
-
-      <Navigation isSignedin={isSignedin} isVerified={isVerified} setIsVerified={setIsVerified}/>
-      
-    </Provider>
+    <GestureHandlerRootView style={{flex:1}}>
+      <Provider store={store} >
+        <Navigation isSignedin={isSignedin} isVerified={isVerified} setIsVerified={setIsVerified}/>
+      </Provider>
+    </GestureHandlerRootView>
   );
 
 }

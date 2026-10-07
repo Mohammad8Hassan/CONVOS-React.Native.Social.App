@@ -6,14 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/Imgs/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/Imgs/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#261235"
-    },
-    "updates": {
-      "fallbackToCacheTimeout": 0
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -32,16 +24,20 @@
     "web": {
       "favicon": "./assets/Imgs/icon.png"
     },
-    "androidStatusBar": {
-      "barStyle": "light-content",
-      "backgroundColor": "#261235"
-    },
     "extra": {
       "eas": {
         "projectId": "a40b7fe3-e425-45cf-bda6-acecfacc0465"
       }
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/Imgs/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#261235"
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -52,6 +48,12 @@
         "expo-notifications",
         {
           "icon": "./assets/Imgs/trayIcon.png"
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-4623463929646643~6794231765"
         }
       ]
     ]

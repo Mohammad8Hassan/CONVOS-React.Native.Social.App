@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, Button, ImageBackground, Image, KeyboardAvoidingView,
   TextInput, ScrollView, FlatList, Modal, Alert, Pressable, Keyboard, ToastAndroid, ActivityIndicator,
-  SafeAreaView, Platform
+  Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import { Foundation } from '@expo/vector-icons';
@@ -15,7 +16,7 @@ import { Entypo } from '@expo/vector-icons'
 import avatar from '../assets/Imgs/avatar.png';
 import RenderComment from '../shared/RenderComment';
 import RenderOthersComment from '../shared/RenderOthersComment';
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Clipboard from 'expo-clipboard';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider, } from 'react-native-popup-menu';
 import SystemMessage from '../shared/SystemMessage';
@@ -27,7 +28,8 @@ export default function Details({ route, navigation }) {
 
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => ({
-      shouldShowAlert: (id == notification.request.content.data.convID )? false : true,
+      shouldShowBanner: (id == notification.request.content.data.convID )? false : true,
+      shouldShowList: (id == notification.request.content.data.convID )? false : true,
       shouldPlaySound: (id == notification.request.content.data.convID )? false : true,
       shouldSetBadge: (id == notification.request.content.data.convID )? false : true,
     }),
