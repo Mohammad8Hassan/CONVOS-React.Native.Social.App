@@ -4,7 +4,24 @@ React Native / Expo social app: conversations, friends, invites, push notificati
 
 - Package name / bundle id: `com.mohammadHassan.CONVOS`, Expo slug `CONVOS`
 - Entry: `node_modules/expo/AppEntry.js` -> [App.js](App.js) -> [Navigation.js](Navigation.js)
-- State: Redux Toolkit ([store.js](store.js), [features/](features/)); screens in [screens/](screens/), shared components in [shared/](shared/)
+- State: Redux Toolkit ([store.js](store.js), [features/](features/), theme only); screens in [screens/](screens/), shared helpers/components in [shared/](shared/)
+- Lint: `yarn lint` (ESLint 9 flat config in [eslint.config.js](eslint.config.js): `no-undef`, react-hooks rules). Run it after edits.
+
+## Code layout (after the refactor)
+
+Screens only wire things together; logic and UI pieces live next to them:
+
+| Folder | Contents |
+|---|---|
+| [services/](services/) | Firestore writes / external calls, no React: `friends.js`, `conversations.js`, `notifications.js` (channels, push token, `sendPush`) |
+| [hooks/](hooks/) | Firestore listeners / screen logic as hooks: `useFriendsData`, `useFriendSearch`, `useConversationParticipants`, `useConversationComments`, `useInvitees` |
+| [components/friends/](components/friends/), [components/details/](components/details/), [components/newconv/](components/newconv/) | Pieces of the Friends, Details and NewConv screens |
+| [shared/](shared/) | `imageCache.js` (`loadImage`), `userProfile.js` (`getUserProfile`: safe user read + photo), `confirm.js` (confirm dialog), `notify.js` (Android toast / iOS alert), plus the older comment/card components |
+
+Conventions worth keeping:
+- Read another user's doc with `getUserProfile(db, uid)`, never `getDoc(...).data().Photo`. On a cold start the emulator network is not up yet and Firestore answers from an empty cache (`data()` undefined) or throws "client is offline".
+- Refactored files carry `REFACTOR NOTE:` comments saying how the code used to be. Remove them once nobody needs the history.
+- `screens/Home.js`, `EditProfile.js`, `Invites.js` and `Settings.js` have **not** been split yet (see TODO).
 - Package manager: **yarn 1.x** (`yarn.lock` is the lockfile). Do not create `package-lock.json`.
 
 ## Branch / git
@@ -101,17 +118,17 @@ Removed: `expo-app-loading` (unused, removed from SDK).
 9. Runtime: two `Uncaught (in promise) TypeError: Cannot read property 'Photo' of undefined` after sign-in -> added Firestore doc-exists guards. Not reproducible on relaunch; the root cause (which doc was missing) was never confirmed.
 10. Layout overflowing system bars on screens such as "invite participant" -> SafeAreaView change above. The Home screen was verified visually; the invite-participant screen was **not** re-checked after the fix.
 
-## Known issues / bugs (pre-existing, NOT fixed)
+## Known issues / bugs
 
-Found with an `eslint no-undef` pass over the sources:
+Fixed during the refactor (kept here so the history is clear): `prepareImg` in Home, `showAlert(item.id)` in the Details collapsed menu, `showAlert` in `RenderOthersComment`, navigators created inside the `Navigation` component, `console.log` noise (now a no-op outside `__DEV__`, see App.js), duplicate participants in Details.
 
-- [screens/Details.js:866](screens/Details.js#L866) and [:870](screens/Details.js#L870): `showAlert(item.id)` uses `item`, which is not defined there (outside any list). Tapping "View Participants" / "Delete Post" in the post menu will throw.
-- [screens/Home.js:222](screens/Home.js#L222): `prepareImg` is not defined (should likely be `loadImage`). Hit when a conversation is modified and its author is not cached.
-- [shared/RenderOthersComment.js:10](shared/RenderOthersComment.js#L10): `showAlert` is not defined in that file.
-- Navigators (`createBottomTabNavigator`, `createNativeStackNavigator`) are created inside the `Navigation` component in [Navigation.js](Navigation.js); they should be module-level, otherwise they are recreated on every render and may remount screens.
-- `console.log` noise: Navigation logs `is internet reachable?` / `networkStatus.current` repeatedly.
+Still open:
+
+- **Friends**: the search uses the whitespace-stripped ID but Send/Block use the ID as typed (a trailing space breaks Send); blocking a friend shows two toasts ("Removed" then "Blocked"); friend-request docs store `Email: res.data().email` (lower-case field, probably a typo for `Email`); if "Approve" finds the request gone, the modal spinner stays on.
+- Duplicate `alignItems` keys in styles: [screens/Conversations.js:174](screens/Conversations.js#L174), [screens/Home.js:649](screens/Home.js#L649) (ESLint `no-dupe-keys`).
+- Details: `Notifications.setNotificationHandler` is set on every render and is global, so Home can overwrite it while a conversation is open.
 - Firebase web config (including API key) is hard-coded in [App.js](App.js). Firebase web API keys are not secrets, but make sure Firestore/Storage rules and API key restrictions are tight.
-- Avatars appeared as empty circles in the emulator; not investigated (may be missing photos on test users or an image-cache/`expo-file-system/legacy` issue).
+- Avatars appeared as empty circles in the emulator before the cold-start guards; re-check, they may be fixed.
 
 ## TODO / follow-ups
 
@@ -123,9 +140,11 @@ Found with an `eslint no-undef` pass over the sources:
 - [ ] Emulator reports "Google Play services out of date" (requires 212800000, has 201817022). Use an AVD image with Play Store/updated Play Services or a real device if ads/Firebase misbehave.
 - [ ] Rebuild EAS dev/preview/production builds (`eas.json` profiles) and test them; EAS CLI and build images changed since SDK 45. Old SDK 45 builds are not compatible with the new JS.
 - [ ] Fix the known bugs listed above.
+- [ ] Split the remaining large screens the same way as Friends/Details/NewConv: Home (~880), EditProfile (~770), Invites (~600). Reuse `getUserProfile`, `confirm`, `notify`, `sendPush`.
+- [ ] Test the Friends, Details and NewConv refactors end to end on a device (see git history for what changed): friends add/approve/block flows, conversation comments, removing/re-adding participants, unread counter.
 - [ ] Reduce reliance on deprecated/legacy APIs: `expo-file-system/legacy` -> new `expo-file-system` API, `SafeAreaView` warnings, `ImagePicker` options, `expo-navigation-bar` deprecated helpers.
-- [ ] Consider moving React Navigation navigators out of the component body and cleaning up `react-native-screens` (`enableScreens(false)` in App.js is a leftover).
-- [ ] Add `eslint` (with `no-undef`) to the project; the missing-import bugs above were only found by an ad hoc lint run.
+- [ ] Clean up `react-native-screens` (`enableScreens(false)` in App.js is a leftover). Navigators are already module-level.
+- [ ] Clear the ESLint warnings (`yarn lint`): unused imports/variables and `react-hooks/exhaustive-deps` (some `[]` dependency arrays are intentional).
 - [ ] Yarn warnings: `react-native-screens > react-freeze` peer dep warns about React 17 (harmless on React 19).
 - [ ] Commit the upgrade on `upgrade-expo` (user does git), then merge/PR when verified.
 
@@ -133,4 +152,6 @@ Found with an `eslint no-undef` pass over the sources:
 
 - Always check Node version first (`node -v` must be >= 22.13) and JDK before any native build.
 - Metro and adb were started by Claude during the upgrade session and were stopped at the end. The emulator itself was left running.
+- Run `yarn lint` (or `npx eslint .`) and an `npx expo export --platform android --output-dir <tmp>` bundle check after refactors.
+- Files in this repo use CRLF line endings; keep them when editing from scripts.
 - Scratch/lint files were kept outside the repo (in the session scratchpad); nothing temporary remains in the project except the generated `android/` folder.

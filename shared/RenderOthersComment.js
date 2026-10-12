@@ -3,11 +3,14 @@ import React from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
 import Hyperlink from 'react-native-hyperlink';
 
+// REFACTOR NOTE: the delete icon called an undefined `showAlert(...)` (ReferenceError on tap). It now calls
+// the `alert` callback the parent passes in, like RenderComment does. (It only shows for your own comments,
+// which Details renders with RenderComment, so this icon is effectively never visible.)
 export default function RenderOthersComment(props) {
   return (
     <View style={{flexDirection:'row', flex:1, opacity: (props.comment.removed == true)? 0.5 : 1}}>
       <View style={styles.delete} >
-        {(props.userID == props.comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => showAlert(props.comment.id)}/>}
+        {(props.userID == props.comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => props.alert(props.comment.id)}/>}
       </View>
 
       <View style={styles.commentView} >
@@ -81,4 +84,4 @@ const styles = StyleSheet.create({
     color: 'grey',
     fontSize: 12
   },
-})
+})
