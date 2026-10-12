@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Button, FlatList, TouchableOpacity, ImageBackground, Modal,
-  KeyboardAvoidingView, ScrollView, Alert
+  KeyboardAvoidingView, ScrollView
 } from 'react-native';
 import { globalStyles } from '../shared/globalStyles';
 import Card from '../shared/Card';
@@ -11,6 +11,7 @@ import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, o
 import { getAuth } from 'firebase/auth';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { confirm } from '../shared/confirm';
 
 
 
@@ -51,23 +52,8 @@ export default function Conversations({ navigation }) {
   }
 
   const showAlert = (id) => {
-    Alert.alert(
-      'Delete Post?',
-      'Are you sure you want to delete this post?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: "confirm",
-          onPress: () => deletePost(id)
-        }
-      ],
-      {
-        cancelable: true
-      }
-    )
+    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
+    confirm('Delete Post?', 'Are you sure you want to delete this post?', () => deletePost(id))
   }
 
   const addReview = (review) => {

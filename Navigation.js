@@ -20,115 +20,119 @@ import { useSelector } from 'react-redux';
 import { MenuProvider } from 'react-native-popup-menu';
 import NetInfo from '@react-native-community/netinfo';
 
-export default function Navigation(props) {
+// REFACTOR NOTE: Tabs / HomeStack / ByMeStack / MainStack used to be created inside the Navigation
+// component, and TabScreens / SettingsScreens / HomeStackScreens were declared inside it too.
+// That made React see brand-new navigator and component types on every render (theme change,
+// network change...), remounting the whole tab tree and its screens. They are now module-level.
+const Tabs = createBottomTabNavigator()
+const HomeStack = createNativeStackNavigator();
+const ByMeStack = createNativeStackNavigator();
+const MainStack = createNativeStackNavigator();
+
+function SettingsScreens() {
+  return(
+    <ByMeStack.Navigator screenOptions={() => ({ 
+      headerShown: false,
+      })}>
+      <ByMeStack.Screen name="Overview" component={Settings} />
+      <ByMeStack.Screen name="Edit Profile" component={EditProfile} />
+    </ByMeStack.Navigator>
+  );
+}
+
+function HomeStackScreens() {
+  return(
+    <HomeStack.Navigator screenOptions={() => ({ 
+      headerShown: false,
+      })}>
+      <HomeStack.Screen name="My Conversations" component={Home} />
+      <HomeStack.Screen name="Details" component={Details} />
+      <HomeStack.Screen name="New Conversation" component={NewConv} />
+      <HomeStack.Screen name="Error" component={ErrorScreen} />
+    </HomeStack.Navigator>
+  );
+}
+
+// REFACTOR NOTE: reads its own theme colors now (they used to come from Navigation's closure).
+function TabScreens() {
   const tabColor = useSelector(state => state.theme.tabColor);
-  const statusBarColor = useSelector(state => state.theme.statusBarColor);
-  const statusBarContent = useSelector(state => state.theme.statusBarContent);
   const iconDefaultColor = useSelector(state => state.theme.iconColor);
   const iconActiveColor = useSelector(state => state.theme.iconActiveColor);
-  const keyValue = useSelector(state => state.theme.key);
-  const refresh = useSelector(state => state.theme.refresh);
 
-  const Tabs = createBottomTabNavigator()
-  const HomeStack = createNativeStackNavigator();
-  const ByMeStack = createNativeStackNavigator();
-  const MainStack = createNativeStackNavigator();
+  return(
+    <Tabs.Navigator screenOptions={({route}) => ({
+      tabBarIcon: ({focused}) => {
+        let iconName;
+        let iconColor;
+
+        if(route.name =='Home'){
+          iconName = 'home'
+          iconColor = focused
+            ? iconActiveColor
+            : iconDefaultColor;
+        } else if(route.name == 'Settings') {
+          iconName = 'settings'
+          iconColor = focused
+            ? iconActiveColor
+            : iconDefaultColor;
+        } else if (route.name == 'Friends') {
+          iconName = 'people'
+          iconColor = focused
+            ? iconActiveColor
+            : iconDefaultColor;
+        } else if (route.name == 'Invites') {
+          iconName = 'envelope-letter'
+          iconColor = focused
+            ? iconActiveColor
+            : iconDefaultColor;
+        }
+
+        return <SimpleLineIcons name={iconName} size={27} color={iconColor} />;
+      },
+      tabBarStyle: {backgroundColor: tabColor, elevation:15, borderTopWidth:0,
+       display: (getFocusedRouteNameFromRoute(route) == 'Details' || getFocusedRouteNameFromRoute(route) == 'New Conversation'
+       || getFocusedRouteNameFromRoute(route) == 'Error' || getFocusedRouteNameFromRoute(route) == 'Edit Profile')
+       ? 'none' : 'flex'},
+      tabBarActiveTintColor: iconActiveColor,
+      tabBarInactiveTintColor: iconDefaultColor,
+      headerShown: false,
+      tabBarHideOnKeyboard: true,
+      // tabBarShowLabel:false
+      lazy: false
+    })}>
+      <Tabs.Screen name="Home" component={HomeStackScreens}/>
+      <Tabs.Screen name="Invites" component={Invites} options={{tabBarBadge: null}}/>
+      <Tabs.Screen name="Friends" component={Friends} />
+      <Tabs.Screen name="Settings" component={SettingsScreens} />
+    </Tabs.Navigator>
+  )
+}
+
+export default function Navigation(props) {
+  const statusBarColor = useSelector(state => state.theme.statusBarColor);
+  const statusBarContent = useSelector(state => state.theme.statusBarContent);
+  const refresh = useSelector(state => state.theme.refresh);
 
   const [networkStatus, setNetworkStatus] = useState(true);
 
   useEffect(() => {
     if(refresh != null){
-      console.log('refresh: ', refresh);
       props.setIsVerified(refresh);
     }
       
   }, [refresh])
 
+  // REFACTOR NOTE: the three console.log calls here (and the one in the `refresh` effect above) printed on every
+  // network/theme change; removed. Also dropped the unused `keyValue` / `iconColor` selectors from this component.
   useEffect(() => {
     const networkListener = NetInfo.addEventListener(state => {
-      console.log('is internet reachable?: ', state.isInternetReachable);
       setNetworkStatus(state.isInternetReachable);
-      console.log('networkStatus.current: ', networkStatus);
     })
 
     return () => {
       networkListener();
     }
   }, [])
-
-  function TabScreens() {
-    return(
-      <Tabs.Navigator screenOptions={({route}) => ({
-        tabBarIcon: ({focused}) => {
-          let iconName;
-          let iconColor;
-  
-          if(route.name =='Home'){
-            iconName = 'home'
-            iconColor = focused
-              ? iconActiveColor
-              : iconDefaultColor;
-          } else if(route.name == 'Settings') {
-            iconName = 'settings'
-            iconColor = focused
-              ? iconActiveColor
-              : iconDefaultColor;
-          } else if (route.name == 'Friends') {
-            iconName = 'people'
-            iconColor = focused
-              ? iconActiveColor
-              : iconDefaultColor;
-          } else if (route.name == 'Invites') {
-            iconName = 'envelope-letter'
-            iconColor = focused
-              ? iconActiveColor
-              : iconDefaultColor;
-          }
-  
-          return <SimpleLineIcons name={iconName} size={27} color={iconColor} />;
-        },
-        tabBarStyle: {backgroundColor: tabColor, elevation:15, borderTopWidth:0,
-         display: (getFocusedRouteNameFromRoute(route) == 'Details' || getFocusedRouteNameFromRoute(route) == 'New Conversation'
-         || getFocusedRouteNameFromRoute(route) == 'Error' || getFocusedRouteNameFromRoute(route) == 'Edit Profile')
-         ? 'none' : 'flex'},
-        tabBarActiveTintColor: iconActiveColor,
-        tabBarInactiveTintColor: iconDefaultColor,
-        headerShown: false,
-        tabBarHideOnKeyboard: true,
-        // tabBarShowLabel:false
-        lazy: false
-      })}>
-        <Tabs.Screen name="Home" component={HomeStackScreens}/>
-        <Tabs.Screen name="Invites" component={Invites} options={{tabBarBadge: null}}/>
-        <Tabs.Screen name="Friends" component={Friends} />
-        <Tabs.Screen name="Settings" component={SettingsScreens} />
-      </Tabs.Navigator>
-    )
-  }
-
-  function SettingsScreens() {
-    return(
-      <ByMeStack.Navigator screenOptions={() => ({ 
-        headerShown: false,
-        })}>
-        <ByMeStack.Screen name="Overview" component={Settings} />
-        <ByMeStack.Screen name="Edit Profile" component={EditProfile} />
-      </ByMeStack.Navigator>
-    );
-  }
-
-  function HomeStackScreens() {
-    return(
-      <HomeStack.Navigator screenOptions={() => ({ 
-        headerShown: false,
-        })}>
-        <HomeStack.Screen name="My Conversations" component={Home} />
-        <HomeStack.Screen name="Details" component={Details} />
-        <HomeStack.Screen name="New Conversation" component={NewConv} />
-        <HomeStack.Screen name="Error" component={ErrorScreen} />
-      </HomeStack.Navigator>
-    );
-  }
 
   return (
     <MenuProvider backHandler={true}>  

@@ -15,69 +15,22 @@ import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import _ from 'lodash';
-import * as FileSystem from "expo-file-system/legacy";
 import { useDispatch, useSelector } from 'react-redux';
 import { setNewKey } from '../features/themeSlice';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 import { getApp } from 'firebase/app';
+import { loadImage } from '../shared/imageCache';
+import { confirm } from '../shared/confirm';
+import { createNotificationsChannels, registerForPushNotificationsAsync } from '../services/notifications';
+import { getUserProfile } from '../shared/userProfile';
 
 
 
-const createNotificationsChannels = async () => {
-  if (Platform.OS === 'android') {
-    Notifications.setNotificationChannelAsync('Conversations', {
-      name: 'Conversations',
-      importance: Notifications.AndroidImportance.MAX,
-      enableVibrate: false,
-      lightColor: '#FF231F7C',
-    });
+// REFACTOR NOTE: createNotificationsChannels and registerForPushNotificationsAsync used to be defined here;
+// they now live in ../services/notifications.
 
-    Notifications.setNotificationChannelAsync('Friends', {
-      name: 'Friends',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
-    });
-
-    Notifications.setNotificationChannelAsync('Invites', {
-      name: 'Invites',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
-    });
-  }
-}
-
-async function registerForPushNotificationsAsync() {
-  let token;
-  if (Device.isDevice) {
-
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== 'granted') {
-      alert('Failed to get push token for push notification!');
-      return;
-    }
-
-    const appConfig = require('../app.json');
-    const projectId = appConfig?.expo?.extra?.eas?.projectId;
-    token = (await Notifications.getExpoPushTokenAsync({
-      projectId
-    })).data;
-
-  } else {
-    // alert('Must use physical device for Push Notifications');
-    return "noDevice";
-  }
-
-  return token;
-}
 
 // component
 export default function Home({ route, navigation }) {
@@ -191,18 +144,21 @@ export default function Home({ route, navigation }) {
         if(change.type === 'added') {
           // console.log("triggered added: ", change.doc.data());
           if(authors.current[change.doc.data().authorID+'ID'] == undefined) {
-            const info = await getDoc(doc(db, 'Users', change.doc.data().authorID));
+            // REFACTOR NOTE: used to be getDoc + `if(!info.exists()) continue;`. getDoc itself can throw
+            // ("client is offline" on a cold start), which rejected the whole listener callback and
+            // dropped every conversation after it. getUserProfile returns null for both cases; the
+            // conversation is now still listed (author blank, not cached so it is retried later).
+            const authorID = change.doc.data().authorID;
+            const profile = await getUserProfile(db, authorID);
 
-            if(!info.exists()) {
-              console.log("Users doc missing for conversation author:", change.doc.data().authorID);
-              continue;
+            if(profile) {
+              authors.current[authorID + 'Name'] = profile.Name;
+              authors.current[authorID + 'Photo'] = profile.photo;
+              authors.current[authorID + 'ID'] = authorID;
             }
-
-            const photo = await loadImage(info.data().Photo, info.data().photoExtension);
-
-            authors.current[info.id + 'Name'] = info.data().Name;
-            authors.current[info.id + 'Photo'] = photo;
-            authors.current[info.id + 'ID'] = info.id;
+            else {
+              console.log("Users doc missing/unreadable for conversation author:", authorID);
+            }
           }
 
           const empty = change.doc.data().dateCreated === null ? Timestamp.now() : change.doc.data().dateCreated;
@@ -227,13 +183,16 @@ export default function Home({ route, navigation }) {
           result.splice(index,1);
 
           if(authors.current[change.doc.data().authorID+'ID'] == undefined) {
-            const info = await getDoc(doc(db, 'Users', change.doc.data().authorID));
+            // REFACTOR NOTE: this used to call `prepareImg`, which was never defined (ReferenceError when an
+            // uncached author appeared), and then read info.data() unguarded. Now getUserProfile (-> loadImage).
+            const authorID = change.doc.data().authorID;
+            const profile = await getUserProfile(db, authorID);
 
-            const photo = await prepareImg(info.data().Photo, info.data().photoExtension);
-
-            authors.current[info.id + 'Name'] = info.data().Name;
-            authors.current[info.id + 'Photo'] = photo;
-            authors.current[info.id + 'ID'] = info.id;
+            if(profile) {
+              authors.current[authorID + 'Name'] = profile.Name;
+              authors.current[authorID + 'Photo'] = profile.photo;
+              authors.current[authorID + 'ID'] = authorID;
+            }
           }
 
           const empty = change.doc.data().dateCreated === null ? Timestamp.now() : change.doc.data().dateCreated;
@@ -270,60 +229,8 @@ export default function Home({ route, navigation }) {
   }, [conversations])
 
 
-  const checkCache = async (uri) => {
-    try {
-      let info = await FileSystem.getInfoAsync(uri);
-      return { ...info, err: false };
-    } catch (error) {
-      return {
-        exists: false,
-        err: true,
-        msg: error,
-      };
-    }
-  }
-
-  const cacheImage = async (uri, cacheUri) => {
-    // console.log('will download');
-    try {
-      const createDownload = FileSystem.createDownloadResumable(
-        uri,
-        cacheUri,
-      );
-      const downloadImage = await createDownload.downloadAsync();
-      return {
-        cached: true,
-        err: false,
-        path: downloadImage.uri,
-      };
-    } 
-    catch (error) {
-      return {
-        cached: false,
-        err: true,
-        msg: error,
-      };
-    }
-  }
-
-  const loadImage = async (photo, photoExtension) => {
-    const newUri = /[^=]*$/.exec(photo)[0];
-    const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
-    const isNew = await checkCache(cacheFileUri);
-    if (isNew.exists) {
-      // console.log("cached!");
-      return cacheFileUri;
-    } else {
-      let cached = await cacheImage(photo, cacheFileUri);
-      if (cached.cached) {
-        // console.log("cached new!");
-        return cached.path;
-      } else {
-        console.log("Couldn't load Image!");
-        console.log(cached.msg)
-      }
-    }
-  }
+  // REFACTOR NOTE: checkCache / cacheImage / loadImage used to be defined right here (~54 lines,
+  // identical copy in 7 screens). They are now imported from ../shared/imageCache.
 
   const deletePost = async (id) => {
     setDeleting(true);
@@ -352,23 +259,8 @@ export default function Home({ route, navigation }) {
   }
 
   const showAlert = (id) => {
-    Alert.alert(
-      'Delete Conversation?',
-      'Are you sure you want to delete this conversation?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: "confirm",
-          onPress: () => deletePost(id)
-        }
-      ],
-      {
-        cancelable: true
-      }
-    )
+    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
+    confirm('Delete Conversation?', 'Are you sure you want to delete this conversation?', () => deletePost(id))
   }
 
   const leaveConversations = async (id) => {
@@ -395,23 +287,8 @@ export default function Home({ route, navigation }) {
   }
 
   const showAlertLeave = (id) => {
-    Alert.alert(
-      'Leave Conversation?',
-      'Are you sure you want to leave this conversation?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: "confirm",
-          onPress: () => leaveConversations(id)
-        }
-      ],
-      {
-        cancelable: true
-      }
-    )
+    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
+    confirm('Leave Conversation?', 'Are you sure you want to leave this conversation?', () => leaveConversations(id))
   }
 
   const clickOut = () => {

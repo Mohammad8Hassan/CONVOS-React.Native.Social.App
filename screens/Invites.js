@@ -14,12 +14,14 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, } from 'react-native-popup-menu';
 import _ from 'lodash';
 import { useIsFocused } from '@react-navigation/native';
-import * as FileSystem from "expo-file-system/legacy";
 import { useDispatch, useSelector } from 'react-redux';
 import { setNewKey } from '../features/themeSlice';
 import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 import { getApp } from 'firebase/app';
 import * as Device from 'expo-device';
+import { loadImage } from '../shared/imageCache';
+import { confirm } from '../shared/confirm';
+import { getUserProfile } from '../shared/userProfile';
 
 export default function Friends({ navigation }) {
 
@@ -68,6 +70,10 @@ export default function Friends({ navigation }) {
     .then(res => {
       myData.current = res.data();
     })
+    // REFACTOR NOTE: had no .catch, so "client is offline" on a cold start was an uncaught promise rejection.
+    .catch(err => {
+      console.log(err);
+    })
 
    // Friends Invites
    const colRef3 = collection(db, 'Users', user.uid, 'Friends Invites');
@@ -78,17 +84,11 @@ export default function Friends({ navigation }) {
 
      for (const dok of snapShot.docs) {
       const empty = dok.data().timeStamp === null ? Timestamp.now() : dok.data().timeStamp;
-      let info = null;
-      let photo = null;
-      try{
-        info = await getDoc(doc(db, 'Users', dok.data().authorID));
-        photo = await loadImage(info.data().Photo, info.data().photoExtension);
-      }
-      catch(err){
-        console.log(err);
-      }
-      
-      result.unshift({...dok.data(), ID: dok.id, timeStamp: empty.toDate(), Name: info.data().Name, Photo: photo});
+      // REFACTOR NOTE: the old try/catch swallowed the read error but then used `info.data().Name`
+      // outside it, so a failed/missing user doc still crashed. getUserProfile returns null instead.
+      const profile = await getUserProfile(db, dok.data().authorID);
+
+      result.unshift({...dok.data(), ID: dok.id, timeStamp: empty.toDate(), Name: profile ? profile.Name : '', Photo: profile ? profile.photo : null});
       num++;
      }
     //  console.log(result);
@@ -110,10 +110,10 @@ export default function Friends({ navigation }) {
     
      for (const dok of snapShot.docs) {
        const empty = dok.data().timeStamp === null ? Timestamp.now() : dok.data().timeStamp;
-       const info = await getDoc(doc(db, 'Users', dok.data().authorID));
-       const photo = await loadImage(info.data().Photo, info.data().photoExtension);
+       // REFACTOR NOTE: same unguarded getDoc + info.data() as above, now via getUserProfile.
+       const profile = await getUserProfile(db, dok.data().authorID);
 
-       result.unshift({...dok.data(), ID: dok.id,  timeStamp: empty.toDate(), Name: info.data().Name, Photo: photo});
+       result.unshift({...dok.data(), ID: dok.id,  timeStamp: empty.toDate(), Name: profile ? profile.Name : '', Photo: profile ? profile.photo : null});
        num++;
      }
 
@@ -227,45 +227,15 @@ export default function Friends({ navigation }) {
  const AlertDeleteFriend = (id) => {
   console.log(id);
   const ID = id;
-  Alert.alert(
-    'Delete Invite?',
-    '',
-    [
-      {
-        text: 'Cancel',
-        style: 'cancel'
-      },
-      {
-        text: "confirm",
-        onPress: () => deleteFriendInvite(ID)
-      }
-    ],
-    {
-      cancelable: true
-    }
-  )
+  // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
+  confirm('Delete Invite?', '', () => deleteFriendInvite(ID))
 }
 
 const AlertDeleteOther = (id) => {
   console.log(id);
   const ID = id;
-  Alert.alert(
-    'Delete Invite?',
-    '',
-    [
-      {
-        text: 'Cancel',
-        style: 'cancel'
-      },
-      {
-        text: "confirm",
-        onPress: () => deleteOtherInvite(ID)
-      }
-    ],
-    {
-      cancelable: true
-    }
-  )
+  // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
+  confirm('Delete Invite?', '', () => deleteOtherInvite(ID))
 }
 
  const deleteFriendInvite = (id) => {
@@ -273,60 +243,8 @@ const AlertDeleteOther = (id) => {
   deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
  }
 
- const checkCache = async (uri) => {
-  try {
-    let info = await FileSystem.getInfoAsync(uri);
-    return { ...info, err: false };
-  } catch (error) {
-    return {
-      exists: false,
-      err: true,
-      msg: error,
-    };
-  }
-}
-
-const cacheImage = async (uri, cacheUri) => {
-  // console.log('will download');
-  try {
-    const createDownload = FileSystem.createDownloadResumable(
-      uri,
-      cacheUri,
-    );
-    const downloadImage = await createDownload.downloadAsync();
-    return {
-      cached: true,
-      err: false,
-      path: downloadImage.uri,
-    };
-  } 
-  catch (error) {
-    return {
-      cached: false,
-      err: true,
-      msg: error,
-    };
-  }
-}
-
-const loadImage = async (photo, photoExtension) => {
-  const newUri = /[^=]*$/.exec(photo)[0];
-  const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
-  const isNew = await checkCache(cacheFileUri);
-  if (isNew.exists) {
-    // console.log("cached!");
-    return cacheFileUri;
-  } else {
-    let cached = await cacheImage(photo, cacheFileUri);
-    if (cached.cached) {
-      // console.log("cached new!");
-      return cached.path;
-    } else {
-      console.log("Couldn't load Image!");
-      console.log(cached.msg)
-    }
-  }
-}
+  // REFACTOR NOTE: checkCache / cacheImage / loadImage used to be defined right here (~54 lines,
+  // identical copy in 7 screens). They are now imported from ../shared/imageCache.
 
  const joinOtherConversation = async (id, title, body, authorID) => {
   const checkExists = await getDoc(doc(db, 'Conversations', id));

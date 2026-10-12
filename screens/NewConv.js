@@ -10,7 +10,8 @@ import { addDoc, serverTimestamp, setDoc, getFirestore, getDocs,
   collection, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import * as yup from 'yup';
 import { Formik } from 'formik';
-import * as FileSystem from "expo-file-system/legacy";
+import { loadImage } from '../shared/imageCache';
+import { sendPush } from '../services/notifications';
 
 const reviewSchema = yup.object({
   title: yup.string()
@@ -227,15 +228,8 @@ export default function NewConv({ navigation }) {
       channelId: 'Invites'
     };
 
-    await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
+    // REFACTOR NOTE: used to be an inline fetch() to the Expo push API (headers + JSON body); now sendPush().
+    await sendPush(message);
   }
 
   const selectFriends = () => {
@@ -405,60 +399,8 @@ export default function NewConv({ navigation }) {
     console.log('other removed ', selectedOthersNum);
   }
 
-  const checkCache = async (uri) => {
-    try {
-      let info = await FileSystem.getInfoAsync(uri);
-      return { ...info, err: false };
-    } catch (error) {
-      return {
-        exists: false,
-        err: true,
-        msg: error,
-      };
-    }
-  }
-
-  const cacheImage = async (uri, cacheUri) => {
-    // console.log('will download');
-    try {
-      const createDownload = FileSystem.createDownloadResumable(
-        uri,
-        cacheUri,
-      );
-      const downloadImage = await createDownload.downloadAsync();
-      return {
-        cached: true,
-        err: false,
-        path: downloadImage.uri,
-      };
-    } 
-    catch (error) {
-      return {
-        cached: false,
-        err: true,
-        msg: error,
-      };
-    }
-  }
-
-  const loadImage = async (photo, photoExtension) => {
-    const newUri = /[^=]*$/.exec(photo)[0];
-    const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
-    const isNew = await checkCache(cacheFileUri);
-    if (isNew.exists) {
-      // console.log("cached!");
-      return cacheFileUri;
-    } else {
-      let cached = await cacheImage(photo, cacheFileUri);
-      if (cached.cached) {
-        // console.log("cached new!");
-        return cached.path;
-      } else {
-        console.log("Couldn't load Image!");
-        console.log(cached.msg)
-      }
-    }
-  }
+  // REFACTOR NOTE: checkCache / cacheImage / loadImage used to be defined right here (~54 lines,
+  // identical copy in 7 screens). They are now imported from ../shared/imageCache.
 
   return (
     <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}>

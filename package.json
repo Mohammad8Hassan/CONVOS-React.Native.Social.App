@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
+    "lint": "eslint .",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -48,7 +49,12 @@
     "yup": "^0.32.11"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.0"
+    "@babel/core": "^7.29.0",
+    "@eslint/js": "^9",
+    "eslint": "^9",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0"
   },
   "private": true
 }

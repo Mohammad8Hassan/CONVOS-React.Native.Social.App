@@ -6,13 +6,13 @@ import { getAuth, signOut } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from "expo-file-system/legacy";
 import { onSnapshot, doc, getFirestore, initializeFirestore, updateDoc } from 'firebase/firestore';
 import { useDispatch, useSelector } from 'react-redux';
 import { setLightTheme, setDarkTheme } from '../features/themeSlice';
 import * as NavigationBar from 'expo-navigation-bar';
 import { getApp } from 'firebase/app';
 import _ from 'lodash';
+import { loadImage } from '../shared/imageCache';
 
 
 export default function Settings({ navigation }) {
@@ -38,6 +38,9 @@ export default function Settings({ navigation }) {
 
   useEffect(() => {
     const unsubscribeUser = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
+      // REFACTOR NOTE: no guard here before - on a cold start with no network the first snapshot comes
+      // from an empty cache, data() is undefined and `.Photo` threw "Cannot read property 'Photo' of undefined".
+      if(!snapShot.exists()) return;
       const photo = await loadImage(snapShot.data().Photo, snapShot.data().photoExtension);
       setPhotoUrl(photo);
     }, error => {console.log(error)})
@@ -73,60 +76,8 @@ export default function Settings({ navigation }) {
     }
   }
 
-  const checkCache = async (uri) => {
-    try {
-      let info = await FileSystem.getInfoAsync(uri);
-      return { ...info, err: false };
-    } catch (error) {
-      return {
-        exists: false,
-        err: true,
-        msg: error,
-      };
-    }
-  }
-
-  const cacheImage = async (uri, cacheUri) => {
-    // console.log('will download');
-    try {
-      const createDownload = FileSystem.createDownloadResumable(
-        uri,
-        cacheUri,
-      );
-      const downloadImage = await createDownload.downloadAsync();
-      return {
-        cached: true,
-        err: false,
-        path: downloadImage.uri,
-      };
-    } 
-    catch (error) {
-      return {
-        cached: false,
-        err: true,
-        msg: error,
-      };
-    }
-  }
-
-  const loadImage = async (photo, photoExtension) => {
-    const newUri = /[^=]*$/.exec(photo)[0];
-    const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
-    const isNew = await checkCache(cacheFileUri);
-    if (isNew.exists) {
-      // console.log("cached!");
-      return cacheFileUri;
-    } else {
-      let cached = await cacheImage(photo, cacheFileUri);
-      if (cached.cached) {
-        // console.log("cached new!");
-        return cached.path;
-      } else {
-        console.log("Couldn't load Image!");
-        console.log(cached.msg)
-      }
-    }
-  }
+  // REFACTOR NOTE: checkCache / cacheImage / loadImage used to be defined right here (~54 lines,
+  // identical copy in 7 screens). They are now imported from ../shared/imageCache.
 
   const toggleSwitch = () => {
     if(theme) {

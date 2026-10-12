@@ -16,12 +16,14 @@ import { Entypo } from '@expo/vector-icons'
 import avatar from '../assets/Imgs/avatar.png';
 import RenderComment from '../shared/RenderComment';
 import RenderOthersComment from '../shared/RenderOthersComment';
-import * as FileSystem from "expo-file-system/legacy";
 import * as Clipboard from 'expo-clipboard';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider, } from 'react-native-popup-menu';
 import SystemMessage from '../shared/SystemMessage';
 import ErrorScreen from './ErrorScreen';
 import * as Notifications from 'expo-notifications';
+import { loadImage } from '../shared/imageCache';
+import { confirm } from '../shared/confirm';
+import { sendPush } from '../services/notifications';
 
 
 export default function Details({ route, navigation }) {
@@ -352,99 +354,17 @@ export default function Details({ route, navigation }) {
   }
 
 
-  const checkCache = async (uri) => {
-    try {
-      let info = await FileSystem.getInfoAsync(uri);
-      return { ...info, err: false };
-    } catch (error) {
-      return {
-        exists: false,
-        err: true,
-        msg: error,
-      };
-    }
-  }
-
-  const cacheImage = async (uri, cacheUri) => {
-    // console.log('will download');
-    try {
-      const createDownload = FileSystem.createDownloadResumable(
-        uri,
-        cacheUri,
-      );
-      const downloadImage = await createDownload.downloadAsync();
-      return {
-        cached: true,
-        err: false,
-        path: downloadImage.uri,
-      };
-    } 
-    catch (error) {
-      return {
-        cached: false,
-        err: true,
-        msg: error,
-      };
-    }
-  }
-
-  const loadImage = async (photo, photoExtension) => {
-    const newUri = /[^=]*$/.exec(photo)[0];
-    const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
-    const isNew = await checkCache(cacheFileUri);
-    if (isNew.exists) {
-      // console.log("cached!");
-      return cacheFileUri;
-    } else {
-      let cached = await cacheImage(photo, cacheFileUri);
-      if (cached.cached) {
-        // console.log("cached new!");
-        return cached.path;
-      } else {
-        console.log("Couldn't load Image!");
-        console.log(cached.msg)
-      }
-    }
-  }
+  // REFACTOR NOTE: checkCache / cacheImage / loadImage used to be defined right here (~54 lines,
+  // identical copy in 7 screens). They are now imported from ../shared/imageCache.
 
   const showAlert = (id) => {
-    Alert.alert(
-      'Delete Message?',
-      'Are you sure you want to delete this Message?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: "confirm",
-          onPress: () => deleteComment(id)
-        }
-      ],
-      {
-        cancelable: true
-      }
-    )
+    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
+    confirm('Delete Message?', 'Are you sure you want to delete this Message?', () => deleteComment(id))
   }
 
   const showAlertConversation = () => {
-    Alert.alert(
-      'Delete Conversation?',
-      'Are you sure you want to delete this conversation?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: "confirm",
-          onPress: () => deleteConversation()
-        }
-      ],
-      {
-        cancelable: true
-      }
-    )
+    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
+    confirm('Delete Conversation?', 'Are you sure you want to delete this conversation?', () => deleteConversation())
   }
 
   const deleteConversation = () => {
@@ -453,23 +373,8 @@ export default function Details({ route, navigation }) {
   }
 
   const showAlertUser = (id, name) => {
-    Alert.alert(
-      'Remove User?',
-      'Are you sure you want to remove ' + name + ' from this conversation?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: "confirm",
-          onPress: () => removeUser(id, name)
-        }
-      ],
-      {
-        cancelable: true
-      }
-    )
+    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
+    confirm('Remove User?', 'Are you sure you want to remove ' + name + ' from this conversation?', () => removeUser(id, name))
   }
 
   const removeUser = async (userID, name) => {
@@ -544,15 +449,8 @@ export default function Details({ route, navigation }) {
       // vibrate: false
     };
 
-    await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
+    // REFACTOR NOTE: used to be an inline fetch() to the Expo push API (headers + JSON body); now sendPush().
+    await sendPush(message);
   }
 
   const deleteComment = (commentId) => {

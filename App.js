@@ -14,6 +14,12 @@ import Navigation from './Navigation';
 import MobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
 import { initializeFirestore } from 'firebase/firestore';
 
+// REFACTOR NOTE: ~150 console.log calls were scattered across the screens and ran in release builds too.
+// Instead of editing each one, console.log is now a no-op outside development. console.warn/error are untouched.
+if (!__DEV__) {
+  console.log = () => {};
+}
+
 const firebaseConfig = {
   apiKey: "AIzaSyABRLZgFavsNeL1TrQ0YsvyIEDxn3I3fWY",
   authDomain: "convos-app-1.firebaseapp.com",

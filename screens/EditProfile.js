@@ -12,9 +12,10 @@ import { getStorage, ref, uploadBytes, getDownloadURL, getMetadata, } from 'fire
 import * as ImagePicker from 'expo-image-picker';
 import { useIsFocused } from '@react-navigation/native';
 import { updateDoc, getFirestore, doc,  onSnapshot} from 'firebase/firestore';
-import * as FileSystem from "expo-file-system/legacy";
 import { useDispatch } from 'react-redux';
 import { setRefresh } from '../features/themeSlice';
+import { loadImage } from '../shared/imageCache';
+import { confirm } from '../shared/confirm';
 
 
 export default function EditProfile({ navigation }) {
@@ -40,6 +41,9 @@ export default function EditProfile({ navigation }) {
 
   useEffect(() => {
     const unsubscribeUser = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
+      // REFACTOR NOTE: no guard here before - on a cold start with no network the first snapshot comes
+      // from an empty cache, data() is undefined and `.Photo` threw "Cannot read property 'Photo' of undefined".
+      if(!snapShot.exists()) return;
       const photo = await loadImage(snapShot.data().Photo, snapShot.data().photoExtension);
       setPhotoUrl(photo);
     }, error => {console.log(error)})
@@ -241,99 +245,17 @@ export default function EditProfile({ navigation }) {
   }
   
   const showAlertEmail = () => {
-    Alert.alert(
-      'Change Email?',
-      'You will not be able to access your account until you verify the new email address',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: "proceed",
-          onPress: () => setModalVisible(true)
-        }
-      ],
-      {
-        cancelable: true
-      }
-    )
+    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "proceed" buttons (~16 lines); now uses confirm().
+    confirm('Change Email?', 'You will not be able to access your account until you verify the new email address', () => setModalVisible(true), 'proceed')
   }
 
   const showAlertRemove = () => {
-    Alert.alert(
-      'Remove your profile picture?',
-      '',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: "confirm",
-          onPress: () => removePhoto()
-        }
-      ],
-      {
-        cancelable: true
-      }
-    )
+    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
+    confirm('Remove your profile picture?', '', () => removePhoto())
   }
 
-  const checkCache = async (uri) => {
-    try {
-      let info = await FileSystem.getInfoAsync(uri);
-      return { ...info, err: false };
-    } catch (error) {
-      return {
-        exists: false,
-        err: true,
-        msg: error,
-      };
-    }
-  }
-
-  const cacheImage = async (uri, cacheUri) => {
-    // console.log('will download');
-    try {
-      const createDownload = FileSystem.createDownloadResumable(
-        uri,
-        cacheUri,
-      );
-      const downloadImage = await createDownload.downloadAsync();
-      return {
-        cached: true,
-        err: false,
-        path: downloadImage.uri,
-      };
-    } 
-    catch (error) {
-      return {
-        cached: false,
-        err: true,
-        msg: error,
-      };
-    }
-  }
-
-  const loadImage = async (photo, photoExtension) => {
-    const newUri = /[^=]*$/.exec(photo)[0];
-    const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;
-    const isNew = await checkCache(cacheFileUri);
-    if (isNew.exists) {
-      // console.log("cached!");
-      return cacheFileUri;
-    } else {
-      let cached = await cacheImage(photo, cacheFileUri);
-      if (cached.cached) {
-        // console.log("cached new!");
-        return cached.path;
-      } else {
-        console.log("Couldn't load Image!");
-        console.log(cached.msg)
-      }
-    }
-  }
+  // REFACTOR NOTE: checkCache / cacheImage / loadImage used to be defined right here (~54 lines,
+  // identical copy in 7 screens). They are now imported from ../shared/imageCache.
 
   const changePassword = () => {
     setPasswordIndicator(true);
