@@ -16,3 +16,10 @@ web-build/
 # generated native projects (prebuild)
 /android
 /ios
+
+# firebase backend
+functions/node_modules/
+functions/*.log
+*-firebase-adminsdk-*.json
+serviceAccount*.json
+.firebase/
