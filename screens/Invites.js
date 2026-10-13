@@ -22,6 +22,7 @@ import * as Device from 'expo-device';
 import { loadImage } from '../shared/imageCache';
 import { confirm } from '../shared/confirm';
 import { getUserProfile } from '../shared/userProfile';
+import { joinConversation as joinConversationOnServer, joinErrorMessage } from '../services/conversations';
 
 export default function Friends({ navigation }) {
 
@@ -165,64 +166,42 @@ export default function Friends({ navigation }) {
   setNum(OthersInvitesNum)
  }
 
- const joinFriendConversation = async (id, title, body, authorID) => {
-  const checkExists = await getDoc(doc(db, 'Conversations', id));
-  if(checkExists.exists()) {
-    await setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
-      Name: user.displayName,
-      ID: user.uid,
-      Admin: false,
-      removed: false,
-      lastEnter: Timestamp.now(),
-      lastExit: Timestamp.now(),
-    });
-  
-    setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
-      authorID: authorID,
-      title: title,
-      body: body,
-      dateCreated: Timestamp.now(),
-      lastAccessed: Timestamp.now(),
-      unread: 0
-    });
+// REFACTOR NOTE: joinFriendConversation and joinOtherConversation used to write the participant, "My
+ // Conversations" and "joined" comment documents from the phone (~55 lines each, almost identical).
+ // Both are now one call to the joinConversation Cloud Function, which accepts the invite (instead of
+ // the conversation password) and removes it.
+ const joinFromInvite = async (id, inviteCollection) => {
+  try {
+    await joinConversationOnServer(id);
 
-    addDoc(collection(db, 'Conversations', id, 'Comments'), {
-      comment: 'joined',
-      author: user.displayName,
-      authorID: user.uid,
-      timeStamp: serverTimestamp(),
-      system: true,
-      Name2: user.displayName,
-      uri2: user.photoURL,
-      removed2: false,
-    });
-
-    deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
-    
     if(Platform.OS === 'android')
       ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
-  
-    navigation.navigate('Details', { id });
-  }
-  else {
-    Alert.alert(
-      'Error',
-      'Conversation no longer exist',
-      [
-        {
-          text: 'Close',
-          style: 'cancel'
-        },
-      ],
-      {
-        cancelable: true
-      }
-    )
 
-    deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
+    // REFACTOR NOTE: was navigation.navigate('Details', { id }). Details lives in the Home tab's stack and this
+    // screen is a sibling tab; React Navigation 7 (the Expo upgrade moved from 6) no longer finds screens
+    // inside another tab's navigator, so the join worked but opening the conversation threw "NAVIGATE ...
+    // was not handled by any navigator". The parent tab is named explicitly now.
+    navigation.navigate('Home', { screen: 'Details', params: { id } });
   }
+  catch(err) {
+    console.log(err);
 
+    let message = joinErrorMessage(err);
+    // only delete the invite when the server says the *conversation* is gone: a plain "not-found" can
+    // also mean the function itself could not be reached (wrong region / not deployed)
+    if(err.code == 'functions/not-found' && err.details && err.details.reason == 'conversation-not-found') {
+      message = 'Conversation no longer exist';
+      deleteDoc(doc(db, 'Users', user.uid, inviteCollection, id));
+    }
+    else if(err.code == 'functions/failed-precondition') {
+      message = 'This invite is no longer valid. Ask for the conversation password to join.';
+    }
+
+    Alert.alert('Error', message, [{ text: 'Close', style: 'cancel' }], { cancelable: true });
+  }
  }
+
+ const joinFriendConversation = (id) => joinFromInvite(id, 'Friends Invites');
 
  const AlertDeleteFriend = (id) => {
   console.log(id);
@@ -246,70 +225,12 @@ const AlertDeleteOther = (id) => {
   // REFACTOR NOTE: checkCache / cacheImage / loadImage used to be defined right here (~54 lines,
   // identical copy in 7 screens). They are now imported from ../shared/imageCache.
 
- const joinOtherConversation = async (id, title, body, authorID) => {
-  const checkExists = await getDoc(doc(db, 'Conversations', id));
-  if(checkExists.exists()) {
-    console.log('exists');
-    await Promise.all([
-      setDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
-        Name: user.displayName,
-        ID: user.uid,
-        Admin: false,
-        removed: false,
-        lastEnter: Timestamp.now(),
-        lastExit: Timestamp.now()
-      }),
-
-      setDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
-        authorID: authorID,
-        title: title,
-        body: body,
-        dateCreated: Timestamp.now(),
-        lastAccessed: Timestamp.now(),
-        unread: 0
-      }),
-
-      deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', id)),
-    ])
-    
-    await addDoc(collection(db, 'Conversations', id, 'Comments'), {
-      comment: 'joined',
-      author: user.displayName,
-      authorID: user.uid,
-      timeStamp: serverTimestamp(),
-      system: true,
-      Name2: user.displayName,
-      uri2: user.photoURL,
-      removed2: false,
-    })
-    
-    if(Platform.OS === 'android')
-      ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
-  
-    navigation.navigate('Details', { id });
-  }
-  else {
-    Alert.alert(
-      'Error',
-      'Conversation no longer exist',
-      [
-        {
-          text: 'Close',
-          style: 'cancel'
-        },
-      ],
-      {
-        cancelable: true
-      }
-    )
-
-    deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', id));
-  }
-
- }
+ const joinOtherConversation = (id) => joinFromInvite(id, 'Other Invites');
 
  const deleteOtherInvite = (id) => {
-  deleteDoc(doc(db, 'Users', user.uid, 'Others Invites', id));
+  // REFACTOR NOTE: this used the collection name 'Others Invites' (typo); the real one is 'Other Invites',
+  // so dismissing an "others" invite never deleted anything.
+  deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', id));
  }
 
  const renderList = (data, listTitle, listNum) => {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Keyboard } from 'react-native';
-import { getFirestore, collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { getFirestore, collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getUserProfile } from '../shared/userProfile';
 
@@ -98,11 +98,14 @@ export default function useInvitees() {
       if(already)
         return finish(' is already added!', already.Name);
 
-      const res = await getDocs(query(collection(db, 'Users'), where('ID', '==', searchID)));
-      if(res.empty)
+      // REFACTOR NOTE: this used to be getDocs(query(collection(db,'Users'), where('ID','==',searchID))),
+      // which needs permission to *list* the Users collection. A user's document id is their uid (= the ID
+      // field), so a plain getDoc is the same lookup and rules can forbid listing all users.
+      const res = await getDoc(doc(db, 'Users', searchID));
+      if(!res.exists())
         return finish('No users found!');
 
-      const data = res.docs[0].data();
+      const data = res.data();
       setSelected(prev => [...prev, {...data, name: data.Name, photo: data.Photo, kind: 'other'}]);
       setSearching(false);
     } catch(err) {

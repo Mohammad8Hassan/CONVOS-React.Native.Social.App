@@ -7,11 +7,13 @@ import * as yup from 'yup';
 // REFACTOR NOTE: this is the title / body / participants preview / password / Create part of
 // screens/NewConv.js (the Formik form inside a ScrollView), together with its yup schema and styles.
 // It owns `hasPassword` and the (cosmetic) pull-to-refresh state; the screen only gets
-// onSubmit(values, hasPassword). Two small cleanups:
-//  - toggling the password switch used to *mutate* Formik's `props.values.password = '123456'`;
-//    it now uses setFieldValue.
-//  - the typed values are kept by Formik only (nothing else read them).
-const reviewSchema = yup.object({
+// onSubmit(values, hasPassword). Toggling the password switch used to *mutate* Formik's
+// `props.values.password = '123456'`; there is no default password any more (see schemas below).
+// REFACTOR NOTE: there was one schema where `password` was always required, which is why the field was
+// pre-filled with '123456' even when the conversation had no password (and that default became the real
+// password if the author just flipped the switch). The password is only validated when the switch is
+// on, there is no default, and the author has to choose it.
+const baseShape = {
   title: yup.string()
     .required()
     .max(30)
@@ -20,6 +22,10 @@ const reviewSchema = yup.object({
     .required()
     .max(300)
     .min(1),
+};
+const schemaWithoutPassword = yup.object(baseShape);
+const schemaWithPassword = yup.object({
+  ...baseShape,
   password: yup.string()
     .required()
     .max(16)
@@ -45,9 +51,9 @@ export default function ConversationForm({ selected, submitting, onOpenParticipa
       progressBackgroundColor={'white'} />}
       >
         <Formik
-          initialValues={{title: '', body: '', password: '123456'}}
-          onSubmit={(values) => onSubmit(values, hasPassword)}
-          validationSchema={reviewSchema}
+          initialValues={{title: '', body: '', password: ''}}
+          onSubmit={(values) => onSubmit({...values, password: hasPassword ? values.password : ''}, hasPassword)}
+          validationSchema={hasPassword ? schemaWithPassword : schemaWithoutPassword}
         >
           {props => (
             <View style={{alignItems:'flex-start', flex:1,}}>
@@ -101,11 +107,7 @@ export default function ConversationForm({ selected, submitting, onOpenParticipa
               <View style={{flexDirection:'row', marginTop:20, alignItems:'center'}}>
                 <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginRight:5, fontFamily:'Solway-Regular'}}>Password</Text>
                 <Switch
-                  onValueChange={() => {
-                    if(!props.values.password)
-                      props.setFieldValue('password', '123456');
-                    setHasPassword(prev => !prev);
-                  }}
+                  onValueChange={() => setHasPassword(prev => !prev)}
                   value={hasPassword}
                 />
               </View>
@@ -113,10 +115,16 @@ export default function ConversationForm({ selected, submitting, onOpenParticipa
                   <>
                     <TextInput
                       style={[styles.input, {marginTop:10}]}
-                      placeholder='Password'
+                      placeholder='Password (6-16 characters)'
                       onChangeText={props.handleChange('password')}
                       value={props.values.password}
+                      maxLength={16}
+                      autoCapitalize='none'
+                      autoCorrect={false}
                     />
+                    <Text style={styles.hint}>
+                      Share it with the people you want to join. It can't be shown again after you create the conversation.
+                    </Text>
                     { (props.touched.password && props.errors.password) && <Text style={styles.errorText}>{props.errors.password}</Text> }
                   </>
                 ) : null
@@ -156,6 +164,14 @@ const styles = StyleSheet.create({
     alignSelf:'stretch',
     marginRight: 50,
     borderRadius:10,
+  },
+  hint: {
+    color: '#ede9f2',
+    opacity: 0.8,
+    fontStyle: 'italic',
+    marginLeft: 10,
+    marginRight: 50,
+    marginBottom: 5,
   },
   errorText: {
     color: '#ff9cc3',

@@ -44,6 +44,15 @@ export default function useConversationParticipants({ id, navigation }) {
 
     markConversationOpened(db, user, id);
 
+    // The rules stop non-participants and removed participants from reading the conversation. When that
+    // happens while listening (you were removed, or the conversation was deleted) Firestore ends the
+    // listener with permission-denied; show the same "not available" screen as before.
+    const onListenError = (error) => {
+      console.log(error);
+      if(error && error.code == 'permission-denied' && mount.current)
+        navigation.replace('Error');
+    }
+
     // listens to the participants of the conversation. `participants` / `participantsID` are
     // mutated in place across snapshots (as before) and published to state at the end of each one.
     const listenToParticipants = () => {
@@ -165,7 +174,7 @@ export default function useConversationParticipants({ id, navigation }) {
           setData([...participantsID]);
           setNum(participantsID.length + 1);
         }
-      }, error => {console.log(error)});
+      }, onListenError);
     }
 
     // get conv data, make sure it still exists, make sure i'm a participant, make sure component still mounted
@@ -200,7 +209,7 @@ export default function useConversationParticipants({ id, navigation }) {
           unsubscribeParticipants.current = listenToParticipants();
         })
         .catch(err => {console.log("nothing to update")})
-    }, error => {console.log(error)})
+    }, onListenError)
 
     return () => {
       mount.current = false;

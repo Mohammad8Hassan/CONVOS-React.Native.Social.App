@@ -1,10 +1,15 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
+const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 
 admin.initializeApp();
 const db = admin.firestore();
+// Old conversations (and invites) were written by earlier versions of the app and may lack fields such as
+// title / body / authorID. Writing `undefined` to Firestore throws, which made joining them fail with an
+// internal error; undefined properties are simply skipped now.
+db.settings({ ignoreUndefinedProperties: true });
 const { FieldValue, Timestamp } = admin.firestore;
 
 // Keep this in the same region as the Firestore database (Firebase console > Firestore > Data: "Location").
@@ -38,14 +43,21 @@ const verifyPassword = async (password, record) => {
 
 // ---- helpers
 
+// Every deliberate refusal is logged (never the password), so "why was I refused" can be read in the logs:
+// npx firebase-tools functions:log --only joinConversation
+const reject = (code, message, details) => {
+  logger.warn('refused', { code, message, details });
+  return new HttpsError(code, message, details);
+};
+
 const requireAuth = (request) => {
-  if (!request.auth) throw new HttpsError('unauthenticated', 'You must be signed in.');
+  if (!request.auth) throw reject('unauthenticated', 'You must be signed in.');
   return request.auth.uid;
 };
 
 const requireString = (value, name) => {
   if (typeof value !== 'string' || value.length === 0)
-    throw new HttpsError('invalid-argument', `${name} is required.`);
+    throw reject('invalid-argument', `${name} is required.`);
   return value;
 };
 
@@ -53,14 +65,14 @@ const requireString = (value, name) => {
 const requireConversationId = (value) => {
   const id = requireString(value, 'conversationId');
   if (id.includes('/') || id.length > 100)
-    throw new HttpsError('invalid-argument', 'Invalid conversationId.');
+    throw reject('invalid-argument', 'Invalid conversationId.');
   return id;
 };
 
 const requirePasswordFormat = (password) => {
   requireString(password, 'password');
   if (password.length < MIN_PASSWORD || password.length > MAX_PASSWORD)
-    throw new HttpsError('invalid-argument', `Password must be ${MIN_PASSWORD}-${MAX_PASSWORD} characters.`);
+    throw reject('invalid-argument', `Password must be ${MIN_PASSWORD}-${MAX_PASSWORD} characters.`);
   return password;
 };
 
@@ -85,7 +97,7 @@ const checkPassword = async (conversationId, uid, password, secret) => {
 
   const attempt = (await attemptRef.get()).data() || {};
   if (attempt.lockedUntil && attempt.lockedUntil.toMillis() > Date.now())
-    throw new HttpsError('resource-exhausted', 'Too many wrong attempts. Try again in a few minutes.');
+    throw reject('resource-exhausted', 'Too many wrong attempts. Try again in a few minutes.');
 
   if (await verifyPassword(password, secret)) {
     if (attempt.count || attempt.lockedUntil) await attemptRef.delete();
@@ -101,7 +113,20 @@ const checkPassword = async (conversationId, uid, password, secret) => {
   } else {
     await attemptRef.set({ count });
   }
-  throw new HttpsError('permission-denied', 'Incorrect Password!');
+  throw reject('permission-denied', 'Incorrect Password!');
+};
+
+// Being invited is a way in without the password (that is how the app worked: the invites screen joins
+// directly). Only the conversation AUTHOR can invite people (the app has no other invite feature, and the
+// Firestore rules only let the author create invite documents), so an invite only counts when it names
+// the author as its sender. A made-up invite from anybody else does not open a protected conversation.
+const hasValidInvite = async (conversationId, uid, conversation) => {
+  const snaps = await Promise.all([
+    db.doc(`Users/${uid}/Friends Invites/${conversationId}`).get(),
+    db.doc(`Users/${uid}/Other Invites/${conversationId}`).get(),
+  ]);
+
+  return snaps.some(snap => snap.exists && snap.get('authorID') === conversation.authorID);
 };
 
 // ---- callable functions
@@ -114,11 +139,11 @@ exports.setConversationPassword = onCall(async (request) => {
   const password = requirePasswordFormat(request.data && request.data.password);
 
   const conversation = await db.doc(`Conversations/${conversationId}`).get();
-  if (!conversation.exists) throw new HttpsError('not-found', 'Conversation not found.');
+  if (!conversation.exists) throw reject('not-found', 'Conversation not found.');
   if (conversation.get('authorID') !== uid)
-    throw new HttpsError('permission-denied', 'Only the author can set the password.');
+    throw reject('permission-denied', 'Only the author can set the password.');
   if (conversation.get('hasPassword') !== true)
-    throw new HttpsError('failed-precondition', 'This conversation is not password protected.');
+    throw reject('failed-precondition', 'This conversation is not password protected.');
 
   const record = { ...(await hashPassword(password)), updatedAt: FieldValue.serverTimestamp() };
   await db.doc(`ConversationSecrets/${conversationId}`).set(record);
@@ -135,7 +160,7 @@ exports.joinConversation = onCall(async (request) => {
 
   const conversationRef = db.doc(`Conversations/${conversationId}`);
   const conversationSnap = await conversationRef.get();
-  if (!conversationSnap.exists) throw new HttpsError('not-found', 'No conversations found!');
+  if (!conversationSnap.exists) throw reject('not-found', 'No conversations found!', { reason: 'conversation-not-found' });
   const conversation = conversationSnap.data();
 
   const participantRef = db.doc(`Conversations/${conversationId}/Participants/${uid}`);
@@ -143,13 +168,16 @@ exports.joinConversation = onCall(async (request) => {
   const alreadyIn = participant.exists && participant.get('removed') === false;
 
   if (!alreadyIn) {
-    if (conversation.hasPassword) {
+    const invited = conversation.hasPassword ? await hasValidInvite(conversationId, uid, conversation) : false;
+    logger.info('join attempt', { conversationId, uid, hasPassword: !!conversation.hasPassword, invited });
+
+    if (conversation.hasPassword && !invited) {
       if (typeof password !== 'string' || password.length === 0)
-        throw new HttpsError('failed-precondition', 'This conversation needs a password.');
+        throw reject('failed-precondition', 'This conversation needs a password.', { reason: 'password-required' });
 
       const secret = await getSecret(conversationId, conversation);
       if (!secret)
-        throw new HttpsError('failed-precondition', 'This conversation has no password configured yet.');
+        throw reject('failed-precondition', 'This conversation has no password configured yet.');
 
       await checkPassword(conversationId, uid, password, secret);
     }
@@ -186,9 +214,9 @@ exports.joinConversation = onCall(async (request) => {
   const myConversationRef = db.doc(`Users/${uid}/My Conversations/${conversationId}`);
   if (!(await myConversationRef.get()).exists) {
     await myConversationRef.set({
-      authorID: conversation.authorID,
-      title: conversation.title,
-      body: conversation.body,
+      authorID: conversation.authorID || '',
+      title: conversation.title || '',
+      body: conversation.body || '',
       dateCreated: Timestamp.now(),
       lastAccessed: Timestamp.now(),
       unread: 0,

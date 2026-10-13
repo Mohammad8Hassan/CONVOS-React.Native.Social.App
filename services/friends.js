@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 
 // REFACTOR NOTE: these Firestore reads/writes used to be written inline in screens/Friends.js,
 // mixed with UI calls (setShowIndicator, toasts, modal state). The screen now only calls these
@@ -48,16 +48,22 @@ export const ignoreFriendRequest = (db, user, id) => {
 }
 
 // returns false when the request no longer exists, true when the approval was started
+// REFACTOR NOTE: these four writes used to be separate setDoc/deleteDoc calls fired one after another.
+// They are one batch now: the rules only let you add yourself to somebody's friends list while their "Sent
+// Requests" entry for you exists, and inside a batch that is checked before any of the writes apply (so
+// the request is still there). It also makes the friendship all-or-nothing.
 export const approveFriendRequest = async (db, user, id) => {
   const requestCheck = await getDoc(doc(db, 'Users', user.uid, 'Received Requests', id));
   if (!requestCheck.exists()) return false;
 
   getDoc(doc(db, 'Users', id))
     .then(res => {
-      deleteDoc(doc(db, 'Users', id, 'Sent Requests', user.uid));
-      deleteDoc(doc(db, 'Users', user.uid, 'Received Requests', id));
+      const batch = writeBatch(db);
 
-      setDoc(doc(db, 'Users', user.uid, 'Friends', id), {
+      batch.delete(doc(db, 'Users', id, 'Sent Requests', user.uid));
+      batch.delete(doc(db, 'Users', user.uid, 'Received Requests', id));
+
+      batch.set(doc(db, 'Users', user.uid, 'Friends', id), {
         Name: res.data().Name,
         ID: res.data().ID,
         Email: res.data().email,
@@ -65,13 +71,15 @@ export const approveFriendRequest = async (db, user, id) => {
         since: serverTimestamp()
       });
 
-      setDoc(doc(db, 'Users', id, 'Friends', user.uid), {
+      batch.set(doc(db, 'Users', id, 'Friends', user.uid), {
         Name: user.displayName,
         ID: user.uid,
         Email: user.email,
         Photo: user.photoURL,
         since: serverTimestamp()
       });
+
+      return batch.commit();
     })
     .catch(err => {
       console.log(err);

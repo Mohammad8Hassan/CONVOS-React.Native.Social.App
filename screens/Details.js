@@ -113,7 +113,7 @@ export default function Details({ route, navigation }) {
         <>
           <ParticipantsModal
             visible={modalOpen} onClose={() => setModalOpen(false)}
-            post={post} num={num} user={user} photoUrl={photoUrl}
+            num={num} user={user} photoUrl={photoUrl || user.photoURL}
             data={data} extraData={participantsIDs} convAuthorId={convAuthor.current.id}
             onRemoveUser={confirmRemoveUser}
             onCopyUserId={(uid) => copyToClipboard(uid, 'user ID copied')}

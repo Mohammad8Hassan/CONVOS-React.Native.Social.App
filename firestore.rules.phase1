@@ -1,0 +1,26 @@
+rules_version = '2';
+
+// ROLLBACK COPY: the Phase 1 rules (same permissions as the original single wildcard, listed per collection,
+// plus the server-only collections closed). To go back:
+//   copy this file over firestore.rules, then: npx firebase-tools deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /ConversationSecrets/{conversationId} {
+      allow read, write: if false;
+    }
+    match /JoinAttempts/{attemptId} {
+      allow read, write: if false;
+    }
+
+    match /Users/{path=**} {
+      allow read, write: if request.auth != null;
+    }
+    match /Conversations/{path=**} {
+      allow read, write: if request.auth != null;
+    }
+    match /Posts/{path=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

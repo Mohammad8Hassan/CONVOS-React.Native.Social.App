@@ -1,18 +1,16 @@
-import { useState } from 'react';
 import { StyleSheet, Text, View, Image, FlatList, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons, Entypo } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider } from 'react-native-popup-menu';
 
 // REFACTOR NOTE: this was the `<Modal>` block (~130 lines) at the top of the render in screens/Details.js,
-// together with the `showPassword` state (only this modal used it) and the styles only it used.
+// together with the styles only it used. It used to end with a "Password" row (show/hide the conversation
+// password to every member); removed: passwords are hashed on the server now and can't be shown.
 // `convAuthorId` is the uid of the conversation author: they see "remove" on other participants.
 export default function ParticipantsModal({
-  visible, onClose, post, num, user, photoUrl, data, extraData, convAuthorId,
+  visible, onClose, num, user, photoUrl, data, extraData, convAuthorId,
   onRemoveUser, onCopyUserId, onCopyMyId,
 }) {
-  const [showPassword, setShowPassword] = useState(false);
-
   return (
     <Modal visible={visible} animationType='slide' onRequestClose={onClose}>
       <MenuProvider skipInstanceCheck style={{flex:1}}>
@@ -98,29 +96,6 @@ export default function ParticipantsModal({
             )} />
           </View>
 
-          {/* password (only for password protected conversations) */}
-          {post.hasPassword ? (
-            <View style={{backgroundColor:'#8c7699', elevation:15, marginBottom:20, paddingVertical:8, marginTop:15, shadowOffset: {width:0, height:5}, shadowOpacity: 0.3, shadowRadius: 3,}}>
-              <View>
-                <Text style={{fontFamily:'Solway-Regular', color:"white", fontSize: 20, marginLeft: 10, marginBottom:10}}>Password</Text>
-              </View>
-
-              <View style={styles.header}>
-                <Text style={{fontFamily:'Solway-Regular', color:"white", fontSize: 20, marginLeft: 10, marginRight:20}}>
-                  { showPassword ? post.password : '•'.repeat(post.password.length) }
-                </Text>
-                <Pressable
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={({ pressed }) => [
-                    {opacity: pressed ? 0.5: 1}
-                  ]}
-                >
-                  <Entypo name={showPassword ? 'eye-with-line' : 'eye'} size={30} color={'#613a5f'} />
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
           </View>
         </SafeAreaView>
       </MenuProvider>
@@ -154,10 +129,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight:10,
     marginLeft:'auto'
-  },
-  header: {
-    flexDirection: 'row',
-    marginHorizontal: 15,
-    alignItems: 'center'
   },
 });

@@ -25,6 +25,7 @@ import { loadImage } from '../shared/imageCache';
 import { confirm } from '../shared/confirm';
 import { createNotificationsChannels, registerForPushNotificationsAsync } from '../services/notifications';
 import { getUserProfile } from '../shared/userProfile';
+import { joinConversation as joinConversationOnServer, joinErrorMessage } from '../services/conversations';
 
 
 
@@ -241,19 +242,16 @@ export default function Home({ route, navigation }) {
     ])
     
 
+    // REFACTOR NOTE: this was `Promise.all([array, array, promise])`, which does not wait for the deletes
+    // inside the arrays, and the conversation was deleted without waiting for its comments/participants.
+    // The rules decide "author" from the conversation document, so it must be deleted last.
     await Promise.all([
-      allMessages.docs.map(async message => {
-        deleteDoc(message.ref);
-      }),
-
-      allPartis.docs.map(async person => {
-        deleteDoc(person.ref);
-      }),
-
+      ...allMessages.docs.map(message => deleteDoc(message.ref)),
+      ...allPartis.docs.map(person => deleteDoc(person.ref)),
       deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id))
     ])
 
-    deleteDoc(doc(db, 'Conversations', id))
+    await deleteDoc(doc(db, 'Conversations', id))
 
     setDeleting(false);
   }
@@ -299,126 +297,38 @@ export default function Home({ route, navigation }) {
     setPassword('');
   }
 
+  // REFACTOR NOTE: this used to read the conversation document and compare the typed password with
+  // `convRef.data().password` right here, then write the participant, "joined" comment and
+  // "My Conversations" documents from the phone (~120 lines, two near-identical branches for "no
+  // password" and "password ok"). Anyone who could read the document could read the password.
+  // The joinConversation Cloud Function now does all of it (existence check, "already joined",
+  // password / invite check, the writes). If it answers "password-required" the password box is shown.
+  // The app no longer reads conversations it is not a participant of (rules forbid it).
   const joinConversation = async (convID) => {
     setShowIndicator(true);
     setResponse(null);
-    
+
     convID = convID.replace(/\s/g,'');
 
-    const convRef = await getDoc(doc(db, 'Conversations', convID));
-    if(showPassword == false) {
-      console.log('11111');
-      if(convID == '') {
-        setShowIndicator(false);
-        setResponse('No conversations found!');
-        return;
-      }
-      
-      if(convRef.exists()) {
-        console.log('22222');
-        const checkExist = await getDoc(doc(db, 'Conversations', convID, 'Participants', user.uid));
-        if(checkExist.exists() && checkExist.data().removed == false) {
-          console.log('already joined!');
-          navigation.navigate('Details', { id: convID });
-          return;
-        }
-    
-        // const checkBan = await getDoc(doc(db, 'Conversations', convID, 'Banned Users', user.uid));
-        // if(checkBan.exists()) {
-        //   console.log('BANNED!');
-        //   setResponse('unable to join Conversation');
-        //   setShowIndicator(false);
-        //   return;
-        // }
-        
-        if(convRef.data().hasPassword) {
-          console.log('enter password');
-          setShowPassword(true);
-          setShowIndicator(false);
-          return;
-        }
-
-        const [friendInvited, otherInvited] = await Promise.all([
-          getDoc(doc(db, 'Users', user.uid, 'Friends Invites', convID)),
-          getDoc(doc(db, 'Users', user.uid, 'Other Invites', convID))
-        ])
-        
-        if(friendInvited.exists()){
-          deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', convID));
-        }
-        if(otherInvited.exists()){
-          deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', convID));
-        }
-  
-        await setDoc(doc(db, 'Conversations', convID, 'Participants', user.uid), {
-          ID: user.uid,
-          Name: user.displayName,
-          Admin: false,
-          removed: false,
-          lastEnter: Timestamp.now(),
-          lastExit: Timestamp.now(),
-        })
-
-        addDoc(collection(db, 'Conversations', convID, 'Comments'), {
-          comment: 'joined',
-          author: user.displayName,
-          authorID: user.uid,
-          timeStamp: serverTimestamp(),
-          system: true,
-          Name2: user.displayName,
-          uri2: user.photoURL,
-          removed2: false,
-        })
-
-        if(!conversations.find(e => e.id == convID)) {
-          await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {
-            authorID: convRef.data().authorID,
-            title: convRef.data().title,
-            body: convRef.data().body,
-            dateCreated: Timestamp.now(),
-            lastAccessed: Timestamp.now(),
-            unread: 0
-          })
-        }
-        
-        console.log('enter 1 ..');
-        navigation.navigate('Details', { id: convID });
-      } 
-      else {
-        console.log('33333');
-        setShowIndicator(false);
-        setResponse('No conversations found!');
-      }
+    if(convID == '') {
+      setShowIndicator(false);
+      setResponse('No conversations found!');
+      return;
     }
-    else {
-      console.log('44444');
-      if(password == convRef.data().password) {
-        await setDoc(doc(db, 'Conversations', convID, 'Participants', user.uid), {
-          ID: user.uid,
-          Name: user.displayName,
-          Admin: false,
-          removed: false,
-          lastEnter: Timestamp.now(),
-          lastExit: Timestamp.now(),
-        })
 
-        await setDoc(doc(db, 'Users', user.uid, 'My Conversations', convID), {
-          authorID: convRef.data().authorID,
-          title: convRef.data().title,
-          body: convRef.data().body,
-          dateCreated: Timestamp.now(),
-          lastAccessed: Timestamp.now(),
-          unread: 0
-        })
-        console.log('enter 2 ..');
-        navigation.navigate('Details', { id: convID });
-      }
-      else {
-        console.log('wrong password!');
+    try {
+      await joinConversationOnServer(convID, showPassword ? password : undefined);
+      navigation.navigate('Details', { id: convID });
+    } catch(err) {
+      if(err.details && err.details.reason == 'password-required' && !showPassword) {
+        setShowPassword(true);
         setShowIndicator(false);
-        setResponse('Incorrect Password!');
         return;
       }
+
+      console.log(err);
+      setShowIndicator(false);
+      setResponse(joinErrorMessage(err));
     }
   }
 
