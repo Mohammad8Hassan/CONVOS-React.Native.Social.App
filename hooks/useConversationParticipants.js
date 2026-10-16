@@ -59,6 +59,42 @@ export default function useConversationParticipants({ id, navigation }) {
       let participants = {};
       let participantsID = [];
 
+      const publish = () => {
+        if(!mount.current) return;
+        setAllParticipants({...participants});
+        setParticipantsIDs(participantsID);
+        setData([...participantsID]);
+        setNum(participantsID.length + 1);
+      }
+
+      // getUserProfile already retries a few times, but a cold start can outlast that. When a participant is
+      // still without name or photo, try again later (up to 4 times, 3s apart more each time) instead of
+      // leaving them blank until the screen is reopened.
+      const retryTimers = new Set();
+      const retryProfile = (uid, attempt = 1) => {
+        if(attempt > 4) return;
+
+        const timer = setTimeout(async () => {
+          retryTimers.delete(timer);
+          if(!mount.current) return;
+
+          const profile = await getUserProfile(db, uid, { retries: 0 });
+          if(!mount.current) return;
+          if(!profile || !profile.photo) return retryProfile(uid, attempt + 1);
+
+          participants[uid + 'Name'] = profile.Name;
+          participants[uid + 'Photo'] = profile.photo;
+
+          const index = participantsID.findIndex(e => e.id == uid);
+          if(index != -1) participantsID[index] = {...participantsID[index], name: profile.Name, photo: profile.photo};
+
+          if(convAuthor.current.id == uid) convAuthor.current = { id: uid, uri: profile.photo, name: profile.Name };
+
+          publish();
+        }, attempt * 3000);
+        retryTimers.add(timer);
+      }
+
       const addToken = (token) => {
         if(token && !tokensArray.current.find(e => e == token))
           tokensArray.current.push(token);
@@ -85,6 +121,8 @@ export default function useConversationParticipants({ id, navigation }) {
         const name = profile ? profile.Name : participant.Name;
         const photo = profile ? profile.photo : null;
         const token = profile && profile.ExpoPushToken ? profile.ExpoPushToken : null;
+
+        if(!profile || !profile.photo) retryProfile(change.doc.id);
 
         if(participant.Admin) {
           convAuthor.current = { id: change.doc.id, uri: photo, name: name };
@@ -152,7 +190,7 @@ export default function useConversationParticipants({ id, navigation }) {
         }
       }
 
-      return onSnapshot(collection(db, 'Conversations', id, 'Participants'), async snapShot => {
+      const unsubscribe = onSnapshot(collection(db, 'Conversations', id, 'Participants'), async snapShot => {
         await Promise.all(snapShot.docChanges().map(async change => {
           if(change.type === 'added') {
             await handleAdded(change);
@@ -168,13 +206,14 @@ export default function useConversationParticipants({ id, navigation }) {
           }
         }))
 
-        if(mount.current) {
-          setAllParticipants({...participants});
-          setParticipantsIDs(participantsID);
-          setData([...participantsID]);
-          setNum(participantsID.length + 1);
-        }
+        publish();
       }, onListenError);
+
+      return () => {
+        unsubscribe();
+        retryTimers.forEach(clearTimeout);
+        retryTimers.clear();
+      };
     }
 
     // get conv data, make sure it still exists, make sure i'm a participant, make sure component still mounted

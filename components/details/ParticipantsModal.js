@@ -9,7 +9,7 @@ import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider } from 'react-
 // `convAuthorId` is the uid of the conversation author: they see "remove" on other participants.
 export default function ParticipantsModal({
   visible, onClose, num, user, photoUrl, data, extraData, convAuthorId,
-  onRemoveUser, onCopyUserId, onCopyMyId,
+  onRemoveUser, onCopyUserId, onCopyMyId, onShowUserQr, onShowMyQr,
 }) {
   return (
     <Modal visible={visible} animationType='slide' onRequestClose={onClose}>
@@ -46,6 +46,9 @@ export default function ParticipantsModal({
                   <MaterialIcons name='more-horiz' size={20} color='white' style={{padding:8}} />
                 </MenuTrigger>
                 <MenuOptions>
+                  <MenuOption onSelect={onShowMyQr}>
+                    <Text style={{fontSize: 18, margin: 5}}>show QR code</Text>
+                  </MenuOption>
                   <MenuOption onSelect={onCopyMyId}>
                     <Text style={{fontSize: 18, margin: 5}}>copy ID</Text>
                   </MenuOption>
@@ -83,6 +86,10 @@ export default function ParticipantsModal({
                             <Text style={{color: "#b00535", fontSize: 18, margin: 5}}>remove</Text>
                           </MenuOption>
                         ) : null}
+
+                        <MenuOption onSelect={() => onShowUserQr(item.id, item.name)}>
+                          <Text style={{fontSize: 18, margin: 5}}>show QR code</Text>
+                        </MenuOption>
 
                         <MenuOption onSelect={() => onCopyUserId(item.id)}>
                           <Text style={{fontSize: 18, margin: 5}}>copy ID</Text>

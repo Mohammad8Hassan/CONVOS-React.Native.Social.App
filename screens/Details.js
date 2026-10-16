@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { StyleSheet, View, KeyboardAvoidingView, Platform } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, View, Modal, ActivityIndicator, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
@@ -15,6 +17,7 @@ import ConversationCard from '../components/details/ConversationCard';
 import ParticipantsModal from '../components/details/ParticipantsModal';
 import CommentsList from '../components/details/CommentsList';
 import CommentBox from '../components/details/CommentBox';
+import QRCodeModal from '../shared/QRCodeModal';
 
 // REFACTOR NOTE: this screen used to be 1209 lines with 22 useStates, the participants/comments
 // listeners and the whole UI in one function. It now only wires things together; the pieces moved to:
@@ -44,12 +47,19 @@ export default function Details({ route, navigation }) {
   const user = getAuth().currentUser;
 
   const [expanded, setExpanded] = useState(true);
+
+  const insets = useSafeAreaInsets();
+
+  // leaving by any route (back arrow, hardware back, being removed) must not leave the keyboard up
+  useEffect(() => () => Keyboard.dismiss(), []);
   const [modalOpen, setModalOpen] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [qr, setQr] = useState(null); // { title, caption, value } of the QR code being shown
 
   const { post, allParticipants, participantsIDs, data, num, convAuthor, tokensArray } =
     useConversationParticipants({ id, navigation });
 
-  const { allComments, commentsIndicator, unreadMessages, scrollView, scrollNow, onScroll, onContentSizeChange } =
+  const { allComments, commentsIndicator, unreadMessages, scrollView, scrollNow, onScroll, onLayout, onContentSizeChange } =
     useConversationComments({ id, allParticipants });
 
   const postComment = async (theComment) => {
@@ -90,16 +100,32 @@ export default function Details({ route, navigation }) {
     await sendPush(message);
   }
 
+  // runs a slow write behind a blocking spinner; always lowers it, and reports a failure
+  const withSpinner = async (action, errorMessage) => {
+    setWorking(true);
+    try {
+      await action();
+    } catch(err) {
+      console.log(err);
+      notify(errorMessage);
+    } finally {
+      setWorking(false);
+    }
+  }
+
   const confirmDeleteComment = (commentId) => {
-    confirm('Delete Message?', 'Are you sure you want to delete this Message?', () => conversations.deleteComment(db, id, commentId))
+    confirm('Delete Message?', 'Are you sure you want to delete this Message?',
+      () => withSpinner(() => conversations.deleteComment(db, id, commentId), 'Could not delete the message'))
   }
 
   const confirmDeleteConversation = () => {
-    confirm('Delete Conversation?', 'Are you sure you want to delete this conversation?', () => conversations.deleteConversation(db, user, id))
+    confirm('Delete Conversation?', 'Are you sure you want to delete this conversation?',
+      () => withSpinner(() => conversations.deleteConversation(db, user, id), 'Could not delete the conversation'))
   }
 
   const confirmRemoveUser = (userID, name) => {
-    confirm('Remove User?', 'Are you sure you want to remove ' + name + ' from this conversation?', () => conversations.removeParticipant(db, id, userID, name))
+    confirm('Remove User?', 'Are you sure you want to remove ' + name + ' from this conversation?',
+      () => withSpinner(() => conversations.removeParticipant(db, id, userID, name), 'Could not remove ' + name))
   }
 
   const copyToClipboard = async (text, message) => {
@@ -108,7 +134,7 @@ export default function Details({ route, navigation }) {
   }
 
   return (
-    <SafeAreaView style={{flex:1, backgroundColor:'#613a5f'}}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{flex:1, backgroundColor:'#613a5f'}}>
       { post &&
         <View style={{flex:1, backgroundColor:'#faf7fc'}}>
           <ParticipantsModal
@@ -118,23 +144,41 @@ export default function Details({ route, navigation }) {
             onRemoveUser={confirmRemoveUser}
             onCopyUserId={(uid) => copyToClipboard(uid, 'user ID copied')}
             onCopyMyId={() => copyToClipboard(user.uid, 'ID copied')}
+            onShowUserQr={(uid, name) => setQr({ title: 'User ID', caption: name, value: uid })}
+            onShowMyQr={() => setQr({ title: 'My ID', caption: user.displayName, value: user.uid })}
           />
+
+          <QRCodeModal
+            visible={!!qr} onClose={() => setQr(null)}
+            title={qr ? qr.title : ''} caption={qr ? qr.caption : ''} value={qr ? qr.value : ''}
+            onCopy={() => qr && copyToClipboard(qr.value, qr.title + ' copied')}
+          />
+
+          <Modal visible={working} transparent animationType='fade' onRequestClose={() => {}}>
+            <View style={styles.spinnerBackdrop}>
+              <ActivityIndicator size={70} color='#d4c86e' />
+            </View>
+          </Modal>
 
           <ConversationCard
             post={post} id={id} user={user} convAuthor={convAuthor.current}
             expanded={expanded} onToggleExpanded={() => setExpanded(!expanded)}
-            onBack={() => navigation.goBack()}
+            onBack={() => { Keyboard.dismiss(); navigation.goBack(); }}
             onCopyId={() => copyToClipboard(id, 'conversation ID copied')}
+            onShowQr={() => setQr({ title: 'Conversation ID', caption: post.title, value: id })}
             onViewInfo={() => setModalOpen(true)}
             onDelete={confirmDeleteConversation}
           />
 
-          <KeyboardAvoidingView style={styles.container} behavior={Platform.OS==='ios'? 'height' : null}>
+          {/* react-native-keyboard-controller's version, because RN's own left the box under the keyboard with
+              Android's edge-to-edge drawing. It still pads by the keyboard height without the navigation bar
+              (measured: height 330, bar 48, keyboard really 377 from the bottom), hence the offset. */}
+          <KeyboardAvoidingView style={styles.container} behavior='padding' keyboardVerticalOffset={insets.bottom}>
             <View style={{flex:1}}>
               <CommentsList
                 comments={allComments} loading={commentsIndicator} participants={allParticipants}
                 userID={user.uid} onDeleteComment={confirmDeleteComment}
-                scrollRef={scrollView} onScroll={onScroll} onContentSizeChange={onContentSizeChange}
+                scrollRef={scrollView} onScroll={onScroll} onLayout={onLayout} onContentSizeChange={onContentSizeChange}
               />
 
               <CommentBox onSend={postComment} unreadMessages={unreadMessages} onScrollDown={scrollNow} />
@@ -150,5 +194,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor:'#faf7fc'
+  },
+  spinnerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

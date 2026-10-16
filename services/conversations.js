@@ -61,24 +61,25 @@ export const deleteComment = (db, id, commentId) =>
   deleteDoc(doc(db, 'Conversations', id, 'Comments', commentId));
 
 // marks the participant as removed and leaves a "removed" system message in the conversation
-export const removeParticipant = (db, id, userID, name) => {
+// (both writes are returned as one promise now so the screen can show a spinner until they finish)
+export const removeParticipant = (db, id, userID, name) => Promise.all([
   addDoc(collection(db, 'Conversations', id, 'Comments'), {
     comment: 'removed',
     author: name,
     authorID: userID,
     timeStamp: serverTimestamp(),
     system: true,
-  });
+  }),
 
   updateDoc(doc(db, 'Conversations', id, 'Participants', userID), {
     removed: true,
-  });
-}
+  }),
+]);
 
-export const deleteConversation = (db, user, id) => {
-  deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
-  deleteDoc(doc(db, 'Conversations', id));
-}
+export const deleteConversation = (db, user, id) => Promise.all([
+  deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id)),
+  deleteDoc(doc(db, 'Conversations', id)),
+]);
 
 export const incrementUnread = (db, personID, id) =>
   updateDoc(doc(db, 'Users', personID, 'My Conversations', id), {

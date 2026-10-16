@@ -10,7 +10,7 @@ import { Menu, MenuOptions, MenuOption, MenuTrigger } from 'react-native-popup-m
 //    exactly like the expanded menu.
 //  - the caret icon name is derived from `expanded` (it was a separate state kept in sync by an effect).
 export default function ConversationCard({
-  post, id, user, convAuthor, expanded, onToggleExpanded, onBack, onCopyId, onViewInfo, onDelete,
+  post, id, user, convAuthor, expanded, onToggleExpanded, onBack, onCopyId, onShowQr, onViewInfo, onDelete,
 }) {
   const isAuthor = post.authorID == user.uid;
 
@@ -72,6 +72,16 @@ export default function ConversationCard({
               <Text style={{color: 'grey', fontSize:11}} >{ id }</Text>
             </View>
             <Pressable
+              onPress={onShowQr}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.copyID, {marginRight: 6}
+              ]}
+            >
+              <View style={{flexDirection:'row', alignItems:'center',}}>
+                <MaterialIcons name='qr-code' size={16} color='#806b96' />
+              </View>
+            </Pressable>
+            <Pressable
               onPress={onCopyId}
               style={({ pressed }) => [
                 {opacity: pressed ? 0.5: 1}, styles.copyID
@@ -102,6 +112,16 @@ export default function ConversationCard({
             <View style={{alignItems:'flex-end', flex:5, marginRight:4}}>
               <Text style={{color: 'grey'}} >{ id }</Text>
             </View>
+            <Pressable
+              onPress={onShowQr}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.copyID, {marginRight: 6}
+              ]}
+            >
+              <View style={{flexDirection:'row', alignItems:'center',}}>
+                <MaterialIcons name='qr-code' size={16} color='#806b96' />
+              </View>
+            </Pressable>
             <Pressable
               onPress={onCopyId}
               style={({ pressed }) => [

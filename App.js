@@ -1,5 +1,6 @@
 import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useEffect, useRef, useState } from 'react';
 import * as Font from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -120,9 +121,11 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{flex:1}}>
-      <Provider store={store} >
-        <Navigation isSignedin={isSignedin} isVerified={isVerified} setIsVerified={setIsVerified}/>
-      </Provider>
+      <KeyboardProvider>
+        <Provider store={store} >
+          <Navigation isSignedin={isSignedin} isVerified={isVerified} setIsVerified={setIsVerified}/>
+        </Provider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 

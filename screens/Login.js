@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState } from 'react'
 import { 
   StyleSheet, Text, View, Button, KeyboardAvoidingView, TouchableOpacity,
   Pressable, ScrollView, Modal, ActivityIndicator, ToastAndroid, Alert, Platform
@@ -8,9 +8,9 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, se
   setPersistence } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import _ from 'lodash';
 import AuthLayout from '../shared/AuthLayout';
 import AuthInput from '../shared/AuthInput';
+import BusyButton from '../shared/BusyButton';
 
 
 
@@ -22,11 +22,12 @@ export default function Login({ navigation }) {
 
   const emailToReset = useRef('');
 
-  const handleLogin = useCallback(_.debounce((email, password) => {
+  // BusyButton ignores taps while this is pending and shows a spinner (it used to be a 3s lodash debounce with no feedback)
+  const handleLogin = async (email, password) => {
 
     email = email.replace(/\s/g,'');
 
-    signInWithEmailAndPassword(getAuth(), email, password)
+    return signInWithEmailAndPassword(getAuth(), email, password)
       .then(credentials => {
         const user = credentials.user;
         console.log("step 2");
@@ -73,7 +74,7 @@ export default function Login({ navigation }) {
           )
         }
       });
-  }, 3000, {'leading':true, 'trailing':false}), [email, password])
+  }
 
   // const HandleLogin = () => {
   //   signInWithEmailAndPassword(getAuth(), email, password)
@@ -152,12 +153,12 @@ export default function Login({ navigation }) {
         <Text style={styles.link}>Forgot password?</Text>
       </Pressable>
 
-      <Pressable
+      <BusyButton
         onPress={() => handleLogin(email, password)}
         style={({ pressed }) => [{opacity: pressed ? 0.7: 1}, styles.login]}
       >
         <Text style={styles.loginText}>Log in</Text>
-      </Pressable>
+      </BusyButton>
 
       <View style={styles.footerRow}>
         <Text style={styles.footerText}>New here? </Text>

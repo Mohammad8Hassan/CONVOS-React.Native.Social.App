@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, TextInput, Pressable,
   RefreshControl, Switch, ActivityIndicator } from 'react-native';
-import { Formik } from 'formik';
+import { Formik, useFormikContext } from 'formik';
 import * as yup from 'yup';
 
 // REFACTOR NOTE: this is the title / body / participants preview / password / Create part of
@@ -36,8 +36,21 @@ const wait = (timeout) => {
   return new Promise(resolve => setTimeout(resolve, timeout));
 }
 
-export default function ConversationForm({ selected, submitting, onOpenParticipants, onSubmit }) {
-  const [hasPassword, setHasPassword] = useState(false);
+// Reports what is typed so the screen can keep a draft and warn before leaving. Renders nothing.
+function DraftObserver({ hasPassword, onChange }) {
+  const { values } = useFormikContext();
+
+  useEffect(() => {
+    if(onChange) onChange({ title: values.title, body: values.body, password: values.password, hasPassword });
+  }, [values.title, values.body, values.password, hasPassword])
+
+  return null;
+}
+
+// `initialDraft` = { title, body, hasPassword } restored from the last session (the password itself is
+// never stored). `onDraftChange` gets { title, body, password, hasPassword } on every edit.
+export default function ConversationForm({ selected, submitting, onOpenParticipants, onSubmit, initialDraft = {}, onDraftChange }) {
+  const [hasPassword, setHasPassword] = useState(!!initialDraft.hasPassword);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(() => {
@@ -51,12 +64,13 @@ export default function ConversationForm({ selected, submitting, onOpenParticipa
       progressBackgroundColor={'white'} />}
       >
         <Formik
-          initialValues={{title: '', body: '', password: ''}}
+          initialValues={{title: initialDraft.title || '', body: initialDraft.body || '', password: ''}}
           onSubmit={(values) => onSubmit({...values, password: hasPassword ? values.password : ''}, hasPassword)}
           validationSchema={hasPassword ? schemaWithPassword : schemaWithoutPassword}
         >
           {props => (
             <View style={{alignItems:'flex-start', flex:1,}}>
+              <DraftObserver hasPassword={hasPassword} onChange={onDraftChange} />
               <Text style={styles.label}>Title</Text>
               <TextInput
                 style={styles.input}

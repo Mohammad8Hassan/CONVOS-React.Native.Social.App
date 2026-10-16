@@ -13,11 +13,13 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { getApp } from 'firebase/app';
 import _ from 'lodash';
 import { loadImage } from '../shared/imageCache';
+import QRCodeModal from '../shared/QRCodeModal';
 
 
 export default function Settings({ navigation }) {
   const [photoUrl, setPhotoUrl] = useState(null);
   const [updater, setUpdater] = useState(false);
+  const [qrVisible, setQrVisible] = useState(false);
 
   const user = getAuth().currentUser;
   const db = getFirestore();
@@ -111,6 +113,8 @@ export default function Settings({ navigation }) {
   return (
     <SafeAreaView style={{flex:1, backgroundColor:mainColor}}>
       <View style={[styles.container, {backgroundColor:backgroundColor}]}>
+        <QRCodeModal visible={qrVisible} onClose={() => setQrVisible(false)} title='My ID' caption={user.displayName}
+          value={user.uid} onCopy={copyToClipboard} />
 
         <View style={[styles.top, {backgroundColor:mainColor}]}>
           <View style={styles.homeHeader}>
@@ -124,6 +128,14 @@ export default function Settings({ navigation }) {
               <Text style={{color:'white', fontSize:20, fontWeight:'700', marginBottom:4}} numberOfLines={1}>{user.displayName}</Text>
               <View style={{flexDirection:'row', alignItems:'center', marginBottom:10}}>
                 <Text style={{color:'#cfc6d6', fontSize:12, flex:1}} numberOfLines={1}>{user.uid}</Text>
+                <Pressable
+                  onPress={() => setQrVisible(true)}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.copyID, {marginRight: 6}
+                  ]}
+                >
+                  <MaterialIcons name='qr-code' size={15} color='#613a5f' />
+                </Pressable>
                 <Pressable
                   onPress={copyToClipboard}
                   style={({ pressed }) => [

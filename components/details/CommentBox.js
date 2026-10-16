@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, TextInput, Pressable, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
 // REFACTOR NOTE: the message input, the send button and the "N new messages" bubble used to be
@@ -9,6 +10,17 @@ import { MaterialIcons } from '@expo/vector-icons';
 export default function CommentBox({ onSend, unreadMessages, onScrollDown }) {
   const [comment, setComment] = useState('');
   const canSend = comment.trim().length > 0;
+
+  // Details no longer pads the bottom system inset (it would be stacked on top of the keyboard), so the box
+  // adds it itself, but only while the keyboard is down.
+  const insets = useSafeAreaInsets();
+  const [keyboardUp, setKeyboardUp] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardUp(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardUp(false));
+    return () => { show.remove(); hide.remove(); };
+  }, [])
 
   const send = () => {
     if(!canSend) return;
@@ -20,7 +32,7 @@ export default function CommentBox({ onSend, unreadMessages, onScrollDown }) {
 
   return (
     <View style={{ flexDirection:'row',}}>
-      <View style={styles.commentBox}>
+      <View style={[styles.commentBox, { paddingBottom: 8 + (keyboardUp ? 0 : insets.bottom) }]}>
         <TextInput
           style={styles.comment}
           placeholder='Message...'

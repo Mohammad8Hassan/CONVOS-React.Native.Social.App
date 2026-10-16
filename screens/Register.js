@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { 
   StyleSheet, Text, View, Button, KeyboardAvoidingView, TouchableOpacity,
   Pressable, ScrollView, TextInput, ToastAndroid, Platform, Alert
@@ -10,9 +10,9 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Ionicons } from '@expo/vector-icons'
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, deleteDoc, setDoc } from 'firebase/firestore'
 import { SafeAreaView } from 'react-native-safe-area-context';
-import _ from 'lodash';
 import AuthLayout from '../shared/AuthLayout';
 import AuthInput from '../shared/AuthInput';
+import BusyButton from '../shared/BusyButton';
 
 export default function Register({ navigation }) {
     const [email, setEmail] = useState('');
@@ -24,7 +24,8 @@ export default function Register({ navigation }) {
     const storage = getStorage();
     const downloadUrl = 'https://firebasestorage.googleapis.com/v0/b/convos-app-1.appspot.com/o/avatar.png?alt=media&token=b4652957-e5dc-43b1-8c92-ff6f317611de';
     
-    const handleRegister = useCallback(_.debounce(async (email, password) => {
+    // BusyButton ignores taps while this is pending and shows a spinner (it used to be a 3s lodash debounce with no feedback)
+    const handleRegister = async (email, password) => {
       email = email.replace(/\s/g,'');
       const name = firstName.trimEnd().trimStart() + ' ' + lasttName.trimEnd().trimStart();
 
@@ -79,7 +80,7 @@ export default function Register({ navigation }) {
           )
         }
       }
-    }, 3000, {'leading':true, 'trailing':false}), [email, password, firstName, lasttName])
+    }
 
     
   
@@ -91,12 +92,12 @@ export default function Register({ navigation }) {
           keyboardType='email-address' autoCapitalize='none' autoCorrect={false} />
         <AuthInput icon='lock' placeholder='Password' value={password} onChangeText={setPassword} secureTextEntry autoCapitalize='none' />
 
-        <Pressable
+        <BusyButton
           onPress={() => handleRegister(email, password)}
           style={({ pressed }) => [{opacity: pressed ? 0.7: 1}, styles.login]}
         >
           <Text style={styles.loginText}>Sign up</Text>
-        </Pressable>
+        </BusyButton>
 
         <View style={styles.footerRow}>
           <Text style={styles.footerText}>Already have an account? </Text>

@@ -1,12 +1,14 @@
-import { StyleSheet, Text, View, Pressable, ToastAndroid, Platform } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ToastAndroid, Platform, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons'
 import { sendPush } from '../services/notifications';
 import { createConversation } from '../services/conversations';
 import { notify } from '../shared/notify';
+import useAsyncAction from '../shared/useAsyncAction';
 import useInvitees from '../hooks/useInvitees';
 import InviteModal from '../components/newconv/InviteModal';
 import ConversationForm from '../components/newconv/ConversationForm';
@@ -20,14 +22,76 @@ import ConversationForm from '../components/newconv/ConversationForm';
 // Dropped as dead: states `email`, `Others`, `Data`, `title`, `num`, `selector`, the counters, the refs
 // `searchName` / `passwordValue`, and ~40 lines of commented-out code. Creating now also handles a
 // failure (before, a failed write left the spinner on forever).
+//
+// Unsaved work: what is typed (title, body, password switch; never the password) is saved as a draft in
+// AsyncStorage while typing and restored next time the screen opens. Leaving with something typed or people
+// selected asks first (back button, hardware back and swipe all go through `beforeRemove`).
+const draftKey = (uid) => 'draft:newConversation:' + uid;
+
 export default function NewConv({ navigation }) {
   const db = getFirestore();
   const user = getAuth().currentUser;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [activeIndicator, setActiveIndicator] = useState(false);
+  const [initialDraft, setInitialDraft] = useState(null); // null until the stored draft was read
 
   const invitees = useInvitees();
+
+  const current = useRef({ title: '', body: '', password: '', hasPassword: false });
+  const selectedCount = useRef(0);
+  selectedCount.current = invitees.selected.length;
+  const leaving = useRef(false); // set when leaving is allowed (created, or the user chose to discard)
+  const saveTimer = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(draftKey(user.uid))
+      .then(raw => {
+        const draft = raw ? JSON.parse(raw) : {};
+        if(!active) return;
+        if(draft.title || draft.body) notify('Draft restored');
+        setInitialDraft(draft);
+      })
+      .catch(err => { console.log(err); if(active) setInitialDraft({}); })
+    return () => { active = false; clearTimeout(saveTimer.current); }
+  }, [])
+
+  const hasText = () => current.current.title.trim() != '' || current.current.body.trim() != '';
+  const isDirty = () => hasText() || current.current.password != '' || selectedCount.current > 0;
+
+  const saveDraft = () => {
+    clearTimeout(saveTimer.current);
+    const { title, body, hasPassword } = current.current;
+    const write = hasText()
+      ? AsyncStorage.setItem(draftKey(user.uid), JSON.stringify({ title, body, hasPassword }))
+      : AsyncStorage.removeItem(draftKey(user.uid));
+    return write.catch(err => console.log(err));
+  }
+  const clearDraft = () => { clearTimeout(saveTimer.current); return AsyncStorage.removeItem(draftKey(user.uid)).catch(err => console.log(err)); }
+
+  const onDraftChange = (values) => {
+    current.current = values;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(saveDraft, 500);
+  }
+
+  useEffect(() => navigation.addListener('beforeRemove', (e) => {
+    if(leaving.current || !isDirty()) return;
+
+    e.preventDefault();
+    const leave = (action) => { leaving.current = true; navigation.dispatch(e.data.action); };
+
+    const buttons = [{ text: 'Keep editing', style: 'cancel' }];
+    if(hasText()) {
+      buttons.push({ text: 'Save draft & leave', onPress: async () => { await saveDraft(); leave(); } });
+    }
+    buttons.push({ text: 'Discard', style: 'destructive', onPress: async () => { await clearDraft(); leave(); } });
+
+    Alert.alert('Leave without creating?', hasText()
+      ? 'Your conversation has not been created. Save what you typed as a draft?'
+      : 'Your conversation has not been created. The people you selected will be lost.', buttons);
+  }), [navigation])
 
   const addConversation = async (values, hasPassword) => {
     setActiveIndicator(true);
@@ -35,6 +99,9 @@ export default function NewConv({ navigation }) {
     try {
       const { tokens } = await createConversation(db, user, values, hasPassword,
         invitees.selectedFriends, invitees.selectedOthers);
+
+      leaving.current = true;
+      clearDraft();
 
       if(tokens.length > 0)
         sendInviteNotification(tokens, values.title);
@@ -48,6 +115,9 @@ export default function NewConv({ navigation }) {
       notify('Could not create the conversation');
     }
   }
+
+  // ref-guarded: a fast double tap on Create used to start two creations before the spinner showed
+  const [submit] = useAsyncAction(addConversation);
 
   async function sendInviteNotification(expoPushToken, title) {
     const message = {
@@ -87,10 +157,15 @@ export default function NewConv({ navigation }) {
           }}
         />
 
-        <ConversationForm
-          selected={invitees.selected} submitting={activeIndicator}
-          onOpenParticipants={() => setModalOpen(true)} onSubmit={addConversation}
-        />
+        { initialDraft ? (
+          <ConversationForm
+            selected={invitees.selected} submitting={activeIndicator}
+            onOpenParticipants={() => setModalOpen(true)} onSubmit={submit}
+            initialDraft={initialDraft} onDraftChange={onDraftChange}
+          />
+        ) : (
+          <ActivityIndicator size={50} color='#d4c86e' style={{marginTop: 40}} />
+        )}
       </View>
     </SafeAreaView>
   )

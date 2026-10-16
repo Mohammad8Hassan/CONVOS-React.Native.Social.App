@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View, Image, Modal, TextInput, Pressable, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import QRScannerModal from '../../shared/QRScannerModal';
 
 // REFACTOR NOTE: this was the "Invite Participants" `<Modal>` in screens/NewConv.js (~125 lines), plus
 // the states that only it used: `selector`, `title`, `num`, `Data` (kept in sync by effects and by
@@ -14,6 +15,7 @@ export default function InviteModal({
 }) {
   const [selector, setSelector] = useState('friends');
   const [searchID, setSearchID] = useState('');
+  const [scanning, setScanning] = useState(false);
 
   const selectedFriends = selected.filter(e => e.kind == 'friend');
   const selectedOthers = selected.filter(e => e.kind == 'other');
@@ -80,6 +82,15 @@ export default function InviteModal({
         {(selector=='others') &&
           <View style={{backgroundColor:'#8c7699', elevation:15, marginHorizontal:15, padding:10, marginBottom:15, shadowOffset: {width:0, height:5}, shadowOpacity: 0.3, shadowRadius: 5,}}>
             <TextInput placeholder='User ID' value={searchID} onChangeText={text => setSearchID(text)} style={styles.inputP}/>
+            <Pressable
+              onPress={() => setScanning(true)}
+              style={({ pressed }) => [{opacity: pressed ? 0.5: 1}, styles.scan]}
+            >
+              <MaterialIcons name='qr-code-scanner' size={20} color='#613a5f' />
+              <Text style={{color:'#613a5f', fontSize:15, marginLeft:6}}>Scan QR code</Text>
+            </Pressable>
+            <QRScannerModal visible={scanning} onClose={() => setScanning(false)} hint="Scan the person's ID QR code"
+              onScanned={(text) => { setSearchID(text); search.onAdd(text); }} />
             {search.status? (
               <Text style={{marginTop:8, fontSize:18, alignSelf:'center', color:'white', fontStyle:'italic'}}>
                 <Text style={{fontSize:18, color:'#d4c86e', fontStyle:'normal'}}>{ search.name }</Text>
@@ -160,6 +171,17 @@ export default function InviteModal({
 }
 
 const styles = StyleSheet.create({
+  scan: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#d4c86e',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginTop: 4,
+  },
   homeHeader: {
     flexDirection: 'row',
     alignItems:'center',

@@ -51,6 +51,12 @@
         }
       ],
       [
+        "expo-camera",
+        {
+          "cameraPermission": "The camera is used to scan QR codes with a user ID or a conversation ID."
+        }
+      ],
+      [
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-4623463929646643~6794231765"

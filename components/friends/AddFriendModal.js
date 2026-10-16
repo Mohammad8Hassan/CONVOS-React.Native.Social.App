@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { StyleSheet, Text, View, Image, ScrollView, Modal, TextInput, Pressable,
   TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import QRScannerModal from '../../shared/QRScannerModal';
 
 // REFACTOR NOTE: this is the "add a friend by ID" modal and its `renderButton()` that used to sit
 // in screens/Friends.js (~170 lines of JSX + the 12 styles only it used). The search state lives in
@@ -62,6 +65,7 @@ function ConnectionButtons({ connection, searchedID, showIndicator, onUnblock, o
 
 export default function AddFriendModal({ visible, onClose, search, showIndicator, ...actions }) {
   const { searchedID, setSearchedID, found, caption, url, emailResult, searchIndicator } = search;
+  const [scanning, setScanning] = useState(false);
 
   return (
     <Modal visible={visible} animationType='fade' transparent={true} onRequestClose={onClose}>
@@ -71,6 +75,17 @@ export default function AddFriendModal({ visible, onClose, search, showIndicator
           <TouchableWithoutFeedback>
           <View style={styles.innerView}>
             <TextInput placeholder='User ID' value={searchedID} onChangeText={text => setSearchedID(text)} style={styles.inputP}/>
+
+            <Pressable
+              onPress={() => setScanning(true)}
+              style={({ pressed }) => [{opacity: pressed ? 0.5: 1}, styles.scan]}
+            >
+              <MaterialIcons name='qr-code-scanner' size={20} color='#613a5f' />
+              <Text style={{color:'#613a5f', fontSize:15, marginLeft:6}}>Scan QR code</Text>
+            </Pressable>
+
+            <QRScannerModal visible={scanning} onClose={() => setScanning(false)} hint="Scan your friend's ID QR code"
+              onScanned={(text) => { setSearchedID(text); search.search(text); }} />
 
             {/* Middle View */}
 
@@ -96,7 +111,7 @@ export default function AddFriendModal({ visible, onClose, search, showIndicator
               <ActivityIndicator animating={searchIndicator} color='#d4c86e' size={40} style={{alignSelf:'center', marginTop:20}} />
             ) : (
               <Pressable
-                onPress={search.search}
+                onPress={() => search.search()}
                 style={({ pressed }) => [
                   {opacity: pressed ? 0.5: 1}, styles.changeEmail
                 ]}
@@ -165,6 +180,17 @@ const styles = StyleSheet.create({
     shadowOffset: {width:0, height:3},
     shadowOpacity: 0.3,
     shadowRadius: 5,
+  },
+  scan: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#d4c86e',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginTop: 12,
   },
   btnUnblock: { flex:2, padding: 8, backgroundColor: '#d4c86e', alignItems: 'center', borderRadius:20, ...shadow },
   btn: { flex:2, padding: 8, backgroundColor: '#1da877', alignItems: 'center', borderRadius:20, ...shadow },

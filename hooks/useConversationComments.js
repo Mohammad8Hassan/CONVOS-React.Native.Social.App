@@ -102,6 +102,13 @@ export default function useConversationComments({ id, allParticipants }) {
     }
   }
 
+  // ScrollView.onLayout: the visible height changes when the keyboard opens/closes (and while it animates).
+  // If the user was at the bottom, stay at the bottom so the newest messages stay above the message box.
+  const onLayout = () => {
+    if(commentsFlag.current != 'first render' && scrollAfter.current && scrollView.current)
+      scrollView.current.scrollToEnd({ animated: false });
+  }
+
   // ScrollView.onContentSizeChange: jump to the bottom the first time the comments are laid out
   const onContentSizeChange = () => {
     if(commentsFlag.current == 'first render') {
@@ -110,5 +117,5 @@ export default function useConversationComments({ id, allParticipants }) {
     }
   }
 
-  return { allComments, commentsIndicator, unreadMessages, scrollView, scrollNow, onScroll, onContentSizeChange };
+  return { allComments, commentsIndicator, unreadMessages, scrollView, scrollNow, onScroll, onLayout, onContentSizeChange };
 }

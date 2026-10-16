@@ -119,6 +119,8 @@ export default function Friends({ navigation }) {
       })
       .catch(err => {
         console.log(err);
+        setShowIndicator(false);
+        notify('Could not send the request. Check your connection and try again.');
       })
   }
 

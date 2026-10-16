@@ -22,9 +22,13 @@ import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads'
 import { getApp } from 'firebase/app';
 import { loadImage } from '../shared/imageCache';
 import { confirm } from '../shared/confirm';
+import { notify } from '../shared/notify';
 import { createNotificationsChannels, registerForPushNotificationsAsync } from '../services/notifications';
 import { getUserProfile } from '../shared/userProfile';
 import { joinConversation as joinConversationOnServer, joinErrorMessage } from '../services/conversations';
+import QRCodeModal from '../shared/QRCodeModal';
+import QRScannerModal from '../shared/QRScannerModal';
+import useAsyncAction from '../shared/useAsyncAction';
 
 
 
@@ -58,6 +62,8 @@ export default function Home({ route, navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [expoPushToken, setExpoPushToken] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [qrVisible, setQrVisible] = useState(false);
+  const [scanVisible, setScanVisible] = useState(false);
 
   const db = getFirestore();
 
@@ -235,24 +241,30 @@ export default function Home({ route, navigation }) {
   const deletePost = async (id) => {
     setDeleting(true);
 
-    const [allMessages, allPartis] = await Promise.all([
-      getDocs(collection(db, 'Conversations', id, 'Comments')),
-      getDocs(collection(db, 'Conversations', id, 'Participants'))
-    ])
-    
+    // the spinner modal blocks the screen, so it must always come down (it used to stay up forever if a
+    // read or delete failed)
+    try {
+      const [allMessages, allPartis] = await Promise.all([
+        getDocs(collection(db, 'Conversations', id, 'Comments')),
+        getDocs(collection(db, 'Conversations', id, 'Participants'))
+      ])
 
-    // REFACTOR NOTE: this was `Promise.all([array, array, promise])`, which does not wait for the deletes
-    // inside the arrays, and the conversation was deleted without waiting for its comments/participants.
-    // The rules decide "author" from the conversation document, so it must be deleted last.
-    await Promise.all([
-      ...allMessages.docs.map(message => deleteDoc(message.ref)),
-      ...allPartis.docs.map(person => deleteDoc(person.ref)),
-      deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id))
-    ])
+      // REFACTOR NOTE: this was `Promise.all([array, array, promise])`, which does not wait for the deletes
+      // inside the arrays, and the conversation was deleted without waiting for its comments/participants.
+      // The rules decide "author" from the conversation document, so it must be deleted last.
+      await Promise.all([
+        ...allMessages.docs.map(message => deleteDoc(message.ref)),
+        ...allPartis.docs.map(person => deleteDoc(person.ref)),
+        deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id))
+      ])
 
-    await deleteDoc(doc(db, 'Conversations', id))
-
-    setDeleting(false);
+      await deleteDoc(doc(db, 'Conversations', id))
+    } catch(err) {
+      console.log(err);
+      notify('Could not delete the conversation');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const showAlert = (id) => {
@@ -261,25 +273,36 @@ export default function Home({ route, navigation }) {
   }
 
   const leaveConversations = async (id) => {
-    const checkExist = await getDoc(doc(db, 'Conversations', id, 'Participants', user.uid));
+    setDeleting(true);
 
-    if(!checkExist.exists() || checkExist.data().removed == true) {
-      await deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
-    }
-    else {
-      updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
-        removed: true,
-      });
-  
-      addDoc(collection(db, 'Conversations', id, 'Comments'), {
-        comment: 'left',
-        author: user.displayName,
-        authorID: user.uid,
-        timeStamp: serverTimestamp(),
-        system: true,
-      })
-  
-      deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
+    try {
+      const checkExist = await getDoc(doc(db, 'Conversations', id, 'Participants', user.uid));
+
+      if(!checkExist.exists() || checkExist.data().removed == true) {
+        await deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id));
+      }
+      else {
+        await Promise.all([
+          updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), {
+            removed: true,
+          }),
+
+          addDoc(collection(db, 'Conversations', id, 'Comments'), {
+            comment: 'left',
+            author: user.displayName,
+            authorID: user.uid,
+            timeStamp: serverTimestamp(),
+            system: true,
+          }),
+
+          deleteDoc(doc(db, 'Users', user.uid, 'My Conversations', id)),
+        ])
+      }
+    } catch(err) {
+      console.log(err);
+      notify('Could not leave the conversation');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -303,6 +326,8 @@ export default function Home({ route, navigation }) {
   // The joinConversation Cloud Function now does all of it (existence check, "already joined",
   // password / invite check, the writes). If it answers "password-required" the password box is shown.
   // The app no longer reads conversations it is not a participant of (rules forbid it).
+  const [joinGuarded] = useAsyncAction((id) => joinConversation(id));
+
   const joinConversation = async (convID) => {
     setShowIndicator(true);
     setResponse(null);
@@ -356,9 +381,10 @@ export default function Home({ route, navigation }) {
     navigation.push('Details', { id });
   }, 2000, {'leading':true, 'trailing':false}), [])
 
-  const enter2 = (id) => {
+  // leading-edge debounce: a double tap on a card used to navigate twice
+  const enter2 = useCallback(_.debounce((id) => {
     navigation.navigate('Details', { id, photoUrl });
-  }
+  }, 1000, {'leading':true, 'trailing':false}), [photoUrl])
 
   return (
     <SafeAreaView style={{flex:1, backgroundColor:mainColor}}>
@@ -375,6 +401,12 @@ export default function Home({ route, navigation }) {
         </Modal>
 
 
+        <QRCodeModal visible={qrVisible} onClose={() => setQrVisible(false)} title='My ID' caption={user.displayName}
+          value={user.uid} onCopy={copyToClipboard} />
+
+        <QRScannerModal visible={scanVisible} onClose={() => setScanVisible(false)}
+          hint='Scan the conversation QR code' onScanned={(text) => setConvID(text)} />
+
         <Modal visible={modalVisible} animationType='fade' transparent={true}
           onRequestClose={clickOut}
         >
@@ -383,6 +415,13 @@ export default function Home({ route, navigation }) {
               <TouchableWithoutFeedback>
               <View style={styles.innerView}>
                 <TextInput placeholder='Conversation ID' value={convID} onChangeText={text => setConvID(text)} style={styles.inputP}/> 
+                <Pressable
+                  onPress={() => setScanVisible(true)}
+                  style={({ pressed }) => [{opacity: pressed ? 0.5: 1}, styles.scanButton]}
+                >
+                  <MaterialIcons name='qr-code-scanner' size={20} color='#613a5f' />
+                  <Text style={{color:'#613a5f', fontSize:15, marginLeft:6}}>Scan QR code</Text>
+                </Pressable>
                 {showPassword && 
                   <View>
                     <TextInput placeholder='Password' value={password} onChangeText={text => setPassword(text)} style={styles.inputP} secureTextEntry /> 
@@ -391,7 +430,7 @@ export default function Home({ route, navigation }) {
                 {response && <Text style={{color:'white', fontSize:17, marginHorizontal:15, alignSelf:'center'}}>{ response }</Text> }
                 {showIndicator==false? (
                     <Pressable
-                      onPress={() => joinConversation(convID)}
+                      onPress={() => joinGuarded(convID)}
                       style={({ pressed }) => [
                         {opacity: pressed ? 0.5: 1}, styles.changeEmail
                       ]}
@@ -426,6 +465,16 @@ export default function Home({ route, navigation }) {
               <Text style={{color:userNameColor, fontSize:18,}}>{ user.displayName }</Text>
               <Text style={{color: userIDColor, fontSize:Platform.OS=='android'?13:12}}>{ user.uid }</Text>
             </View>
+            <Pressable
+              onPress={() => setQrVisible(true)}
+              style={({ pressed }) => [
+                {opacity: pressed ? 0.5: 1}, styles.copyID, {backgroundColor:actionColor, marginRight:6}
+              ]}
+            >
+              <View style={{flexDirection:'row', alignItems:'center',}}>
+                <MaterialIcons name='qr-code' size={17} color={actionInsideColor} />
+              </View>
+            </Pressable>
             <Pressable
               onPress={copyToClipboard}
               style={({ pressed }) => [
@@ -739,5 +788,16 @@ const styles = StyleSheet.create({
   },
   indicator: {
     alignItems:'center'
-  }
+  },
+  scanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#d4c86e',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginTop: -8,
+  },
 });
