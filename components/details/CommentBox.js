@@ -8,9 +8,10 @@ import { MaterialIcons } from '@expo/vector-icons';
 // message goes up through onSend(text).
 export default function CommentBox({ onSend, unreadMessages, onScrollDown }) {
   const [comment, setComment] = useState('');
+  const canSend = comment.trim().length > 0;
 
   const send = () => {
-    if(comment.trim().length === 0) return;
+    if(!canSend) return;
 
     const text = comment.trim();
     setComment('');
@@ -23,23 +24,20 @@ export default function CommentBox({ onSend, unreadMessages, onScrollDown }) {
         <TextInput
           style={styles.comment}
           placeholder='Message...'
+          placeholderTextColor='#a79bb0'
           onChangeText={(value) => setComment(value)}
           value={comment}
           multiline
         />
 
-        <View style={styles.buttonGroup}>
-          <Pressable
-            onPress={send}
-            style={({ pressed }) => [
-              {opacity: pressed ? 0.5: 1}, styles.buttonPost,
-            ]}
-          >
-            <View style={{backgroundColor:'#613a5f', borderRadius:20, padding:6, paddingLeft:8}}>
-              <MaterialIcons name='arrow-forward-ios' size={25} color='white' />
-            </View>
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={send}
+          style={({ pressed }) => [
+            {opacity: pressed ? 0.6: 1}, styles.buttonPost, {backgroundColor: canSend ? '#613a5f' : '#b9a9c4'},
+          ]}
+        >
+          <MaterialIcons name='send' size={22} color='white' />
+        </Pressable>
       </View>
       {unreadMessages == 0? null : (
         <Pressable
@@ -49,9 +47,9 @@ export default function CommentBox({ onSend, unreadMessages, onScrollDown }) {
             {opacity: pressed ? 0.5: 1, alignItems:'flex-end', justifyContent:'flex-start'}
           ]}
         >
-          <View style={{elevation:10, position:'absolute', flexDirection:'row', backgroundColor:'#e374b5', padding:7, alignItems:'center', justifyContent:'center', borderRadius:25}}>
+          <View style={styles.unread}>
             <MaterialIcons name='keyboard-arrow-down' size={25} color='white' />
-            <Text style={{color:'white', fontSize:17}}> {unreadMessages} </Text>
+            <Text style={{color:'white', fontSize:16, fontWeight:'600'}}>{unreadMessages}</Text>
           </View>
         </Pressable>
       )}
@@ -61,32 +59,47 @@ export default function CommentBox({ onSend, unreadMessages, onScrollDown }) {
 
 const styles = StyleSheet.create({
   commentBox: {
-    marginTop:10,
-    backgroundColor: '#613a5f',
-    paddingVertical:3,
-    flexDirection:'row',
-    flex:1
+    backgroundColor: 'white',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    flex: 1,
+    elevation: 12,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   comment: {
-    backgroundColor: 'white',
-    color: 'black',
-    padding: 5,
-    paddingLeft: 15,
-    flex:2,
-    fontSize: 18,
-    borderColor: '#613a5f',
-    borderWidth: 1,
-    alignSelf:'flex-end',
-    borderRadius:20,
-    marginLeft:5
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    flex:1
+    backgroundColor: '#f3eef6',
+    color: '#222',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    flex: 1,
+    maxHeight: 120,
+    fontSize: 16,
+    borderRadius: 22,
   },
   buttonPost: {
-    flex:0.5,
-    justifyContent:'center',
-    alignItems:'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  unread: {
+    elevation: 10,
+    position: 'absolute',
+    right: 12,
+    bottom: '100%',
+    marginBottom: 10,
+    flexDirection: 'row',
+    backgroundColor: '#e374b5',
+    paddingVertical: 6,
+    paddingLeft: 6,
+    paddingRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 25,
   },
 });

@@ -110,7 +110,7 @@ export default function Details({ route, navigation }) {
   return (
     <SafeAreaView style={{flex:1, backgroundColor:'#613a5f'}}>
       { post &&
-        <>
+        <View style={{flex:1, backgroundColor:'#faf7fc'}}>
           <ParticipantsModal
             visible={modalOpen} onClose={() => setModalOpen(false)}
             num={num} user={user} photoUrl={photoUrl || user.photoURL}
@@ -140,7 +140,7 @@ export default function Details({ route, navigation }) {
               <CommentBox onSend={postComment} unreadMessages={unreadMessages} onScrollDown={scrollNow} />
             </View>
           </KeyboardAvoidingView>
-        </>
+        </View>
       }
     </SafeAreaView>
   );
@@ -149,6 +149,6 @@ export default function Details({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor:'white'
+    backgroundColor:'#faf7fc'
   },
 });

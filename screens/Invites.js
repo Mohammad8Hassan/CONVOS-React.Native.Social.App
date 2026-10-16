@@ -236,12 +236,12 @@ const AlertDeleteOther = (id) => {
  const renderList = (data, listTitle, listNum) => {
   return(
     <View style={{flex:1, marginBottom:20}}>
-      <View style={{flexDirection: 'row', backgroundColor:titleBackground, alignItems:'center', paddingLeft:8}}>
-        <Text style={{color:titleColor, fontSize:19, fontFamily:'Solway-Regular'}}>{ listTitle }</Text>
-        <Text style={{color:iconActiveColor, fontSize:19, marginLeft:5, fontFamily:'Solway-Regular'}}>{ listNum }</Text>
+      <View style={{flexDirection: 'row', alignItems:'center', paddingLeft:6, marginBottom:8}}>
+        <Text style={{color:titleColor, fontSize:15, fontWeight:'600'}}>{ listTitle.replace(/ - $/, '') }</Text>
+        <Text style={{color:iconActiveColor, fontSize:15, fontWeight:'700', marginLeft:8}}>{ listNum }</Text>
       </View>
 
-      <View style={{flex:1, marginTop:5, padding:4}}>
+      <View style={{flex:1}}>
         {(data.length == 0)? (
           <View style={[styles.newMid, {borderColor:topButtonsColors}]}>
           <Entypo name='inbox' size={80} color={topButtonsColors} style={{opacity:0.5, marginBottom:10}}/>
@@ -252,41 +252,37 @@ const AlertDeleteOther = (id) => {
         )
         : 
         (
-          <FlatList data={data} removeClippedSubviews={false} refreshControl={
+          <FlatList data={data} keyExtractor={(item) => item.ID || item.id} removeClippedSubviews={false} refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#613a5f']} />
           } renderItem={({ item }) => (
-            <View style={[styles.item, {backgroundColor:inviteBackground}]}>
+            <View style={styles.item}>
 
-              <View style={{margin:15}}>
-                <Text style={{color:'white', fontSize:20, padding:5, backgroundColor:inviteTitleBar}} numberOfLines={2} selectable>{ item.title }</Text>
+              <View style={[styles.band, {backgroundColor:inviteTitleBar}]}>
+                <Text style={{color:'white', fontSize:18, fontWeight:'700'}} numberOfLines={2} selectable>{ item.title }</Text>
               </View>
 
-              <View style={{flexDirection:'row', alignItems:'center', marginHorizontal:8}}>
-                <Image source={{uri: item.Photo}} style={{height:30, width:30, borderRadius:50}} />
-                <Text style={{flex:1, color:inviteAuthor, fontSize:15, marginLeft:10, marginRight:5}} selectable>{ item.Name }</Text>
-                <Text style={{color:inviteDate, fontSize:11, marginLeft:'auto'}} selectable>{ item.timeStamp.toDateString() }</Text>
+              <View style={styles.footer}>
+                <Image source={{uri: item.Photo}} style={styles.pic} />
+                <Text style={{flex:1, color:'#5f5368', fontSize:12, fontWeight:'500', marginLeft:8}} numberOfLines={1} selectable>{ item.Name }</Text>
+                <Text style={{color:'#8d8296', fontSize:11}} selectable>{ item.timeStamp.toDateString() }</Text>
               </View>
 
-              <View style={{flexDirection:'row', marginTop:5, padding:10, backgroundColor:inviteAuthBar, justifyContent:'flex-end', alignItems:'center'}}>
-                <Pressable
-                  onPress={() => joinResponse(item.ID, item.title, item.body, item.authorID, selector)}
-                  style={({ pressed }) => [
-                    {opacity: pressed ? 0.5: 1}, styles.join
-                  ]}
-                >
-                  <View style={{flexDirection:'row', alignItems:'center',}}>
-                    <Text style={{color:"white", fontSize: 16,}}>Join</Text>
-                  </View>
-                </Pressable>
+              <View style={styles.actions}>
                 <Pressable
                   onPress={() => deleteResponse(item.ID, selector)}
                   style={({ pressed }) => [
                     {opacity: pressed ? 0.5: 1}, styles.delete
                   ]}
                 >
-                  <View style={{flexDirection:'row', alignItems:'center',}}>
-                    <Text style={{color:"white", fontSize: 16,}}>Delete</Text>
-                  </View>
+                  <Text style={{color:"white", fontSize: 14, fontWeight:'600'}}>Delete</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => joinResponse(item.ID, item.title, item.body, item.authorID, selector)}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.join
+                  ]}
+                >
+                  <Text style={{color:"white", fontSize: 14, fontWeight:'600'}}>Join</Text>
                 </Pressable>
               </View>
             </View>
@@ -326,37 +322,29 @@ const AlertDeleteOther = (id) => {
       
       {/* Page Contents */}
       {listIndicator? ( <ActivityIndicator size={80} color='#613a5f' animating={listIndicator} style={{flex:1}} /> ) : (
-        <View style={{flex:1, padding:10, paddingBottom:20}}>
+        <View style={{flex:1, paddingHorizontal:12, paddingBottom:12}}>
         
         {/* selectors */}
-        <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, justifyContent:'space-between', paddingTop:10}}>
-          <View style={{flex:1, alignItems:'flex-end', paddingTop:12, paddingRight:3, marginRight:3}}>
-            <Pressable
-              onPress={selectFriends}
-              style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='friends')? selectorColor : 'grey'}
-              ]}
-            >
-              <View style={{flexDirection:'row', alignItems:'center',}}>
-                <Text style={{color:"white", fontSize: 16,}}>From Friends</Text>
-              </View>
-            </Pressable>
+        <View style={styles.track}>
+          <Pressable
+            onPress={selectFriends}
+            style={({ pressed }) => [
+              {opacity: pressed ? 0.7: 1}, styles.friendsOp, (selector=='friends') && {backgroundColor: selectorColor}
+            ]}
+          >
+            <Text style={styles.tabLabel}>From Friends</Text>
             { (FriendsInvitesNum > 0) && <Text style={styles.badge}>{ FriendsInvitesNum }</Text> }
-          </View>
+          </Pressable>
 
-          <View style={{flex:1, alignItems:'flex-end', paddingTop:12, paddingRight:3}}>
-            <Pressable
-              onPress={selectOthers}
-              style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: (selector=='others')? selectorColor : 'grey'}
-              ]}
-            >
-              <View style={{flexDirection:'row', alignItems:'center',}}>
-                <Text style={{color:"white", fontSize: 16,}}>From Others</Text>
-              </View>
-            </Pressable>
+          <Pressable
+            onPress={selectOthers}
+            style={({ pressed }) => [
+              {opacity: pressed ? 0.7: 1}, styles.friendsOp, (selector=='others') && {backgroundColor: selectorColor}
+            ]}
+          >
+            <Text style={styles.tabLabel}>From Others</Text>
             { (OthersInvitesNum > 0) && <Text style={styles.badge}>{ OthersInvitesNum }</Text> }
-          </View>
+          </Pressable>
         </View>
         
         {/* Lists */}
@@ -378,51 +366,91 @@ const AlertDeleteOther = (id) => {
 
 const styles = StyleSheet.create({
  homeHeader: {
-   flexDirection: 'row', 
+   flexDirection: 'row',
    alignItems:'center',
    backgroundColor: '#613a5f',
-   padding: 5,
-   elevation:15
+   paddingVertical: 10,
+   paddingBottom: 16,
+   borderBottomLeftRadius: 26,
+   borderBottomRightRadius: 26,
  },
- join: {
+ track: {
+   flexDirection: 'row',
+   backgroundColor: 'rgba(48,22,47,0.28)',
+   borderRadius: 24,
    padding: 4,
-   backgroundColor: '#1da877',
-   alignItems: 'center',
-   borderRadius:20,
-   elevation:3,
-   marginLeft:100,
-   marginRight:10,
-   flex:1
- },
- delete: {
-   backgroundColor: '#ad103c',
-   padding: 4,
-   alignItems: 'center',
-   borderRadius:20,
-   elevation:3,
-   flex:1
+   marginTop: 14,
+   marginBottom: 10,
  },
  friendsOp: {
-   padding: 8,
-   backgroundColor: 'grey',
+   flex: 1,
+   paddingVertical: 9,
+   borderRadius: 20,
    alignItems: 'center',
-   borderRadius:13,
-   alignSelf:'stretch'
+   justifyContent: 'center',
+   flexDirection: 'row',
+ },
+ tabLabel: {
+   color: 'white',
+   fontSize: 15,
+   fontWeight: '600',
  },
  item: {
-   flex:1, 
-   marginBottom:15,
-   backgroundColor:'#8d8299',
-   elevation:5,
-   borderColor:'#613a5f',
-   borderWidth:2
+   marginBottom: 12,
+   backgroundColor: 'white',
+   borderRadius: 18,
+   overflow: 'hidden',
+   elevation: 5,
+ },
+ band: {
+   paddingVertical: 10,
+   paddingHorizontal: 14,
+ },
+ footer: {
+   flexDirection: 'row',
+   alignItems: 'center',
+   marginTop: 10,
+   marginHorizontal: 14,
+ },
+ pic: {
+   width: 30,
+   height: 30,
+   borderRadius: 15,
+   borderWidth: 1.5,
+   borderColor: '#613a5f',
+   backgroundColor: '#d9cfe0',
+ },
+ actions: {
+   flexDirection: 'row',
+   justifyContent: 'flex-end',
+   alignItems: 'center',
+   padding: 10,
+   paddingTop: 8,
+ },
+ join: {
+   paddingVertical: 7,
+   paddingHorizontal: 22,
+   backgroundColor: '#1da877',
+   alignItems: 'center',
+   borderRadius: 18,
+   marginLeft: 10,
+ },
+ delete: {
+   paddingVertical: 7,
+   paddingHorizontal: 18,
+   backgroundColor: '#ad103c',
+   alignItems: 'center',
+   borderRadius: 18,
  },
  badge:{
-   backgroundColor:'#f55fd2', 
-   position:'absolute',
-   paddingVertical: 2,
-   paddingHorizontal: 5,
-   borderRadius:8,
+   backgroundColor:'#f55fd2',
+   color: 'white',
+   fontSize: 11,
+   fontWeight: '700',
+   marginLeft: 6,
+   paddingVertical: 1,
+   paddingHorizontal: 6,
+   borderRadius: 9,
    overflow:'hidden'
  },
  newMid: {

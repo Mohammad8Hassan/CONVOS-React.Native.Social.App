@@ -41,14 +41,13 @@ export default function CommentsList({
 const styles = StyleSheet.create({
   listContainer: {
     marginTop:14,
-    marginHorizontal:4
+    paddingBottom: 6,
   },
   listItem: {
     flex: 1,
-    backgroundColor: 'white',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
 });

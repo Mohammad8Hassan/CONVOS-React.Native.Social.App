@@ -131,6 +131,7 @@ const styles = StyleSheet.create({
   },
   innerView: {
     backgroundColor: '#806b96',
+    borderRadius: 24,
     alignItems:'stretch',
     flex: 1,
     justifyContent:'center',

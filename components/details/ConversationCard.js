@@ -52,7 +52,7 @@ export default function ConversationCard({
                 >
                 <Ionicons name='chevron-back-circle' size={29} color="#d4c86e" />
               </Pressable>
-              <Text style={{alignSelf:'center', flex:1, borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:Platform.OS==='android'?15:13, marginHorizontal:8, color:'grey', paddingBottom:3, marginLeft:3, marginRight:20}} selectable>{ post.title }</Text>
+              <Text style={{alignSelf:'center', flex:1, borderBottomColor:'#e6e6e6', borderBottomWidth:1, fontSize:Platform.OS==='android'?16:14, fontWeight:'600', marginHorizontal:8, color:'#613a5f', paddingBottom:3, marginLeft:3, marginRight:20}} selectable>{ post.title }</Text>
             </View>
 
             <ScrollView style={{maxHeight:200}}>
@@ -134,7 +134,11 @@ const styles = StyleSheet.create({
   card:{
     backgroundColor:'#fff',
     elevation: 8,
-    padding:3,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 6,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
     shadowOffset: {width:0, height:3},
     shadowOpacity: 0.3,
     shadowRadius: 5,

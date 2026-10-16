@@ -9,6 +9,8 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, se
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import _ from 'lodash';
+import AuthLayout from '../shared/AuthLayout';
+import AuthInput from '../shared/AuthInput';
 
 
 
@@ -141,11 +143,25 @@ export default function Login({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}>
-      <View style={{flex:1, backgroundColor:'#ebebeb'}}>
+    <AuthLayout title='Welcome back' subtitle='Sign in to pick up your conversations'>
+      <AuthInput icon='email' placeholder='Email' value={email} onChangeText={setEmail}
+        keyboardType='email-address' autoCapitalize='none' autoCorrect={false} />
+      <AuthInput icon='lock' placeholder='Password' value={password} onChangeText={setPassword} secureTextEntry autoCapitalize='none' />
 
-      <View style={styles.homeHeader}>
-        <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Login</Text>
+      <Pressable onPress={() => setModalVisible(true)} style={{alignSelf:'flex-end', marginTop:10}} hitSlop={8}>
+        <Text style={styles.link}>Forgot password?</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={() => handleLogin(email, password)}
+        style={({ pressed }) => [{opacity: pressed ? 0.7: 1}, styles.login]}
+      >
+        <Text style={styles.loginText}>Log in</Text>
+      </Pressable>
+
+      <View style={styles.footerRow}>
+        <Text style={styles.footerText}>New here? </Text>
+        <Text style={styles.link} onPress={() => navigation.navigate('Register')}>Create an account</Text>
       </View>
 
       <Modal visible={modalVisible} animationType='fade' transparent={true}
@@ -172,50 +188,7 @@ export default function Login({ navigation }) {
             </View>
         </KeyboardAvoidingView>
       </Modal>
-
-      <KeyboardAvoidingView style={styles.container}>
-          <ScrollView  contentContainerStyle={styles.scrollContainer}>
-          
-            <View style={styles.inputContainer}>
-              <MaterialIcons name='email' color='grey' size={30} style={styles.icons}/>
-              <TextInput placeholder='email' value={email} onChangeText={text => setEmail(text)} style={styles.input}/>
-            </View>
-            {/* <Text>{email}</Text> */}
-
-            <View style={styles.inputContainer}>
-              <MaterialIcons name='lock' color='grey' size={30} style={styles.icons}/>
-              <TextInput placeholder='password' value={password} onChangeText={text => setPassword(text)} secureTextEntry style={styles.input}/>
-            </View>
-            {/* <Text>{password}</Text> */}
-
-            <Pressable  
-              onPress={() => handleLogin(email, password)}
-              style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.login
-              ]}
-              >
-              <Text style={{fontFamily:'Solway-Regular', color:"white", fontSize: 18}}>Login</Text>
-            </Pressable>
-
-
-            <View style={{marginTop:20}}>
-              <Text style={{fontFamily:'Solway-Regular', color:"#613a5f", fontSize: 16, marginBottom: 10, marginRight: 5}}>
-                Forget you password?{' '}
-                <Text style={{fontFamily:'Solway-Bold', color: '#a8a628', fontSize:16}} onPress={() => setModalVisible(true)}>Click Here!</Text>
-                </Text>
-            </View>
-
-            <View style={{marginTop: 50, marginHorizontal:25, }}>
-              <Text style={styles.signUp}>
-                Don't have an account? {' '}
-                <Text style={{fontFamily:'Solway-Bold', color: '#a8a628', fontSize:18}} onPress={() => navigation.navigate('Register')}>Register Here!</Text>
-              </Text>
-            </View>
-
-          </ScrollView>
-        </KeyboardAvoidingView>
-        </View>
-    </SafeAreaView>
+    </AuthLayout>
   );
 }
 
@@ -232,8 +205,11 @@ const styles = StyleSheet.create({
     justifyContent:'space-between', 
     alignItems:'center',
     backgroundColor: '#613a5f',
-    padding: 10,
-    elevation: 15
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26
   },
   input:{
     backgroundColor: 'white',
@@ -259,14 +235,18 @@ const styles = StyleSheet.create({
     marginLeft: 10
   },
   login: {
-    padding: 10,
-    margin: 20,
-    backgroundColor: '#1da877',
-    width: 200,
+    paddingVertical: 14,
+    marginTop: 22,
+    backgroundColor: '#613a5f',
     alignItems: 'center',
-    borderRadius: 50,
-    elevation: 8
+    borderRadius: 28,
+    elevation: 4,
   },
+  loginText: { color: 'white', fontSize: 17, fontWeight: '700', letterSpacing: 0.5 },
+  link: { color: '#961570', fontSize: 14, fontWeight: '700' },
+  footerRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },
+  footerText: { color: '#8d8296', fontSize: 14 },
+
   signUp: {
     fontSize: 18,
     color:'#613a5f',
@@ -297,6 +277,7 @@ const styles = StyleSheet.create({
   },
   innerView: {
     backgroundColor: '#613a5f',
+    borderRadius: 24,
     alignItems:'stretch',
     paddingVertical: 10,
     elevation: 15,

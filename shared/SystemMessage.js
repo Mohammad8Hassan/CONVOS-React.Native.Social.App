@@ -51,10 +51,11 @@ export default function SystemMessage(props) {
 const styles = StyleSheet.create({
   container: {
     marginHorizontal: 20,
-    marginVertical:6,
-    padding:4,
-    borderRadius: 10,
+    marginVertical:4,
+    paddingVertical:4,
+    paddingHorizontal:8,
+    borderRadius: 20,
     borderWidth:1,
-    
+    backgroundColor:'rgba(255,255,255,0.8)',
   }
 })

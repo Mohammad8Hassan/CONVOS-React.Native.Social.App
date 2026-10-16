@@ -4,52 +4,65 @@ import { useSelector } from 'react-redux';
 // REFACTOR NOTE: the three "Friends List / Received Requests / Sent Requests" buttons used to be
 // three copy-pasted ~15 line blocks in the render of screens/Friends.js. Same layout, one Tab helper.
 // (The old onPress also set `title` and `num` states, which nothing ever read - dropped.)
-function Tab({ name, label, selector, onSelect, count, style }) {
+// Now drawn as one segmented control: a pill track with the active segment filled.
+function Tab({ name, label, selector, onSelect, count }) {
   const selectorColor = useSelector(state => state.theme.selectorColor);
   const active = selector == name;
 
   return (
-    <View style={[{paddingTop:12, flex: active ? 2 : 1}, style]}>
-      <Pressable
-        onPress={() => onSelect(name)}
-        style={({ pressed }) => [
-          {opacity: pressed ? 0.5: 1}, styles.friendsOp, {backgroundColor: active ? selectorColor: 'grey'}
-        ]}
-      >
-        <View style={{flexDirection:'row', alignItems:'center',}}>
-          <Text style={{color:"white", fontSize: 16,}} adjustsFontSizeToFit numberOfLines={2}>{label}</Text>
-        </View>
-      </Pressable>
+    <Pressable
+      onPress={() => onSelect(name)}
+      style={({ pressed }) => [
+        {opacity: pressed ? 0.7: 1}, styles.tab, active && {backgroundColor: selectorColor, flex: 1.5}
+      ]}
+    >
+      <Text style={[styles.label, {opacity: active ? 1 : 0.8}]} numberOfLines={1}>{label}</Text>
       { (count > 0) && <Text style={styles.badge}>{ count }</Text> }
-    </View>
+    </Pressable>
   )
 }
 
 export default function FriendsTabs({ selector, onSelect, receivedRequestsNum, sentRequestsNum }) {
   return (
-    <View style={{flexDirection:'row', alignItems:'center', marginBottom:20, justifyContent:'space-between', paddingTop:10,}}>
-      <Tab name='friends' label='Friends List' selector={selector} onSelect={onSelect} style={{marginRight:10}} />
-      <Tab name='received' label='Received Requests' selector={selector} onSelect={onSelect} count={receivedRequestsNum} />
-      <Tab name='sent' label='Sent Requests' selector={selector} onSelect={onSelect} count={sentRequestsNum} style={{marginLeft:10}} />
+    <View style={styles.track}>
+      <Tab name='friends' label='Friends' selector={selector} onSelect={onSelect} />
+      <Tab name='received' label='Received' selector={selector} onSelect={onSelect} count={receivedRequestsNum} />
+      <Tab name='sent' label='Sent' selector={selector} onSelect={onSelect} count={sentRequestsNum} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  friendsOp: {
-    padding: 8,
-    backgroundColor: 'grey',
-    alignItems: 'center',
-    borderRadius:15,
+  track: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(48,22,47,0.28)',
+    borderRadius: 24,
+    padding: 4,
+    marginTop: 14,
+    marginBottom: 10,
   },
-  badge:{
-    backgroundColor:'#f55fd2',
-    position:'absolute',
-    paddingVertical: 2,
-    paddingHorizontal: 5,
-    borderRadius:8,
-    elevation:20,
-    overflow:'hidden',
-    alignSelf:'flex-end'
+  tab: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  label: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  badge: {
+    backgroundColor: '#f55fd2',
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 6,
+    paddingVertical: 1,
+    paddingHorizontal: 6,
+    borderRadius: 9,
+    overflow: 'hidden',
   },
 });

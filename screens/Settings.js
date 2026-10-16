@@ -110,75 +110,61 @@ export default function Settings({ navigation }) {
 
   return (
     <SafeAreaView style={{flex:1, backgroundColor:mainColor}}>
-      <View style={[styles.homeHeader, {backgroundColor:mainColor}]}>
-        <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Settings</Text>
-      </View>
-      
       <View style={[styles.container, {backgroundColor:backgroundColor}]}>
 
-        <View style={{backgroundColor:mainColor}}>
-          <View style={[styles.header, {backgroundColor:mainColor}]}> 
-            <Image source={{uri: photoUrl}} style={{width:100, height:100, borderRadius:100, borderWidth:2, borderColor:'#bab806'}}/>
-            
+        <View style={[styles.top, {backgroundColor:mainColor}]}>
+          <View style={styles.homeHeader}>
+            <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Settings</Text>
+          </View>
+
+          <View style={styles.header}>
+            <Image source={{uri: photoUrl}} style={{width:84, height:84, borderRadius:42, borderWidth:2.5, borderColor:'#d4c86e'}}/>
+
             <View style={styles.userInfo}>
-              <Text style={{color:'#bab806', fontSize:20, marginBottom:10}} numberOfLines={1}>{user.displayName}</Text>
-              
-              
-              <Pressable  
+              <Text style={{color:'white', fontSize:20, fontWeight:'700', marginBottom:4}} numberOfLines={1}>{user.displayName}</Text>
+              <View style={{flexDirection:'row', alignItems:'center', marginBottom:10}}>
+                <Text style={{color:'#cfc6d6', fontSize:12, flex:1}} numberOfLines={1}>{user.uid}</Text>
+                <Pressable
+                  onPress={copyToClipboard}
+                  style={({ pressed }) => [
+                    {opacity: pressed ? 0.5: 1}, styles.copyID
+                  ]}
+                >
+                  <MaterialIcons name='file-copy' size={15} color='#613a5f' />
+                </Pressable>
+              </View>
+
+              <Pressable
                   onPress={() => navigation.navigate("Edit Profile")}
                   style={({ pressed }) => [
                   {opacity: pressed ? 0.5: 1}, styles.edit
                 ]}
               >
-                <View style={{flexDirection:'row', alignItems:'center'}}>
-                  <MaterialIcons name='edit' color='#806b96' size={25} />
-                  <Text style={{color:"#806b96", fontSize: 18, marginLeft:8}}>Edit Account</Text>
-                </View>
+                <MaterialIcons name='edit' color='#613a5f' size={18} />
+                <Text style={{color:"#613a5f", fontSize: 15, fontWeight:'600', marginLeft:6}}>Edit Account</Text>
               </Pressable>
             </View>
           </View>
-          <View style={{flexDirection:'row', alignItems:'center', marginBottom:10, paddingHorizontal:5}}>
-            <Text style={{color:'#bfbfb0', fontSize:Platform.OS==='android'?15:13, marginLeft:5, flex:5}} numberOfLines={1}>{user.uid}</Text>
-            <Pressable
-              onPress={copyToClipboard}
-              style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.copyID
-              ]}
-            >
-              <View style={{flexDirection:'row', alignItems:'center',}}>
-                {/* <Text style={{color:"#806b96", fontSize: 15, marginRight:3}}>Copy ID</Text> */}
-                <MaterialIcons name='file-copy' size={17} color='#806b96' />
-              </View>
-            </Pressable>
+        </View>
+
+        <View style={[styles.optionsCard, {backgroundColor:'white'}]}>
+          <Text style={{color:iconActiveColor, fontSize:13, fontWeight:'700', letterSpacing:0.5, marginBottom:8}}>THEME</Text>
+
+          <View style={{flexDirection:'row', alignItems:'center'}}>
+            <Text style={{color:'#5f5368', fontSize:16}}>Default</Text>
+            <Switch value={theme} onValueChange={toggleSwitch} trackColor={{true:'#613a5f'}} style={{ marginHorizontal:Platform.OS=='ios'?8:6}}/>
+            <Text style={{color:'#5f5368', fontSize:16}}>Light</Text>
           </View>
         </View>
 
-        {/* <View>
-          <Text style={{color:titleColor, fontSize: 20, marginTop:20, marginLeft: 10}}>Settings (work in progress)</Text>
-        </View> */}
-
-        <View style={{marginHorizontal:3, backgroundColor:optionsBackground, paddingVertical:5, marginVertical:20, flex:1, elevation:8}}>
-          <Text style={{color:optionsColor, fontSize:18, backgroundColor:optionsBar, padding:5,}}>Theme</Text>
-          
-          <View style={{flexDirection:'row', alignItems:'center', backgroundColor:optionsBar, paddingHorizontal:5, padding:Platform.OS=='ios'?5:null}}>
-            <Text style={{color:optionsColor, fontSize:16,}}>Default</Text>
-            <Switch value={theme} onValueChange={toggleSwitch} trackColor={{true:'#613a5f'}} style={{ marginHorizontal:Platform.OS=='ios'?8:null}}/>
-            <Text style={{color:optionsColor, fontSize:16,}}>Light</Text>
-          </View>
-        </View>
-        
-        
-
-        <Pressable  
+        <Pressable
           onPress={LogOut}
           style={({ pressed }) => [
             {opacity: pressed ? 0.5: 1}, styles.out
            ]}
         >
-          <View style={{flexDirection:'row', alignItems:'center'}}>
-            <MaterialIcons name='power-settings-new' color='white' size={25} />
-            <Text style={{color:"white", fontSize: 20, marginLeft:8,}}>Sign Out</Text>
-          </View>
+          <MaterialIcons name='power-settings-new' color='white' size={22} />
+          <Text style={{color:"white", fontSize: 17, fontWeight:'600', marginLeft:8,}}>Sign Out</Text>
         </Pressable>
       </View>
 
@@ -187,53 +173,64 @@ export default function Settings({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  top: {
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
+    overflow: 'hidden',
+    paddingBottom: 18,
+  },
   homeHeader: {
-    flexDirection: 'row', 
-    justifyContent:'space-between', 
+    flexDirection: 'row',
     alignItems:'center',
-    backgroundColor: '#613a5f',
-    padding: 5
+    paddingVertical: 10,
   },
   container: {
     flex: 1,
-    backgroundColor:'#806b96',
-    
   },
   header: {
     flexDirection: 'row',
-    backgroundColor: '#613a5f',
-    padding: 10,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 6,
   },
   userInfo: {
-    marginLeft: 20,
+    marginLeft: 16,
     flexShrink:1,
     flex:1,
   },
   edit: {
-    padding: 8,
+    flexDirection: 'row',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     backgroundColor: '#d4c86e',
     alignItems: 'center',
-    borderRadius:10
+    alignSelf: 'flex-start',
+    borderRadius: 20,
+  },
+  optionsCard: {
+    marginHorizontal: 12,
+    marginTop: 18,
+    padding: 16,
+    borderRadius: 18,
+    elevation: 3,
   },
   out: {
-    padding: 10,
+    flexDirection: 'row',
+    paddingVertical: 12,
+    paddingHorizontal: 28,
     backgroundColor: '#853259',
-    width: 150,
     alignItems: 'center',
     alignSelf:'center',
     marginTop:'auto',
     marginBottom:20,
     borderRadius: 25,
-    shadowOffset: {width:0, height:3},
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation:8
+    elevation:4
   },
   copyID: {
     padding: 5,
+    marginLeft: 8,
     backgroundColor: '#d4c86e',
     alignItems: 'center',
-    borderRadius:20,
-    flex:1
+    borderRadius:14,
   },
 })

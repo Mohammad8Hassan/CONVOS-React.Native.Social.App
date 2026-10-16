@@ -1,83 +1,81 @@
 import { StyleSheet, Text, View, Image, Linking} from 'react-native'
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
 import Hyperlink from 'react-native-hyperlink';
+import { formatCommentTime } from './formatTime';
 
+// My messages: round avatar on the left, bubble next to it, delete on the far right.
 export default function RenderComment(props) {
-
   return (
-    <View style={{flexDirection:'row', alignItems:'center', flex:1}}>
-      <View style={styles.commentView} >
-        <Hyperlink onPress={link => Linking.openURL(link)} linkStyle={{color:'#574d06', fontStyle:'italic'}}>
+    <View style={styles.row}>
+      <Image source={{uri: props.comment.uri}} style={styles.avatar} />
+
+      <View style={styles.bubble}>
+        <Hyperlink onPress={link => Linking.openURL(link)} linkStyle={{color:'#7a3f8f', textDecorationLine:'underline'}}>
           <Text style={styles.theComment} selectable>{props.comment.comment}</Text>
         </Hyperlink>
 
-        <View style={styles.commentDetails}>
+        <View style={styles.meta}>
           <Text style={styles.author} selectable numberOfLines={1}>{ props.comment.Name }</Text>
-          <Text style={styles.commentDate}>{props.comment.timeStamp.toDate().toDateString()}  -  {props.comment.timeStamp.toDate().getHours().toString()}:{props.comment.timeStamp.toDate().getMinutes().toString()}</Text>
+          <Text style={styles.commentDate}>{formatCommentTime(props.comment.timeStamp.toDate())}</Text>
         </View>
       </View>
 
-      <Image source={{uri: props.comment.uri}} style={{width:35, height:35, borderRadius:60, marginLeft:3, borderColor:'#613a5f', borderWidth:1, position:'absolute'}} />
-      
-      <View style={styles.delete} >
-        <MaterialIcons name='delete' color='grey' size={25} onPress={() => props.alert(props.comment.id)}/>
+      <View style={styles.delete}>
+        <MaterialIcons name='delete-outline' color='#9a8fa3' size={22} onPress={() => props.alert(props.comment.id)}/>
       </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  comment: {
-    backgroundColor: 'white',
-    color: 'black',
-    padding: 7,
-    paddingLeft: 15,
-    flex:4,
-    fontSize: 18,
-    borderColor: '#613a5f',
-    borderWidth: 1,
-    alignSelf:'flex-end',
-    borderRadius:20
-  },
-  listItem: {
-    flex: 1,
+  row: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
+    alignItems: 'flex-end',
+    flex: 1,
+    paddingHorizontal: 8,
   },
-  commentView: {
-    backgroundColor: 'rgba(255, 192, 203, 0.7)',
-    flex: 3,
-    padding: 5,
-    paddingRight:8,
-    paddingLeft:25,
-    marginRight: 50,
-    marginLeft: 18,
-    borderRadius: 17,
-    alignItems: 'flex-start'
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderColor: 'white',
+    borderWidth: 2,
+    backgroundColor: '#d9cfe0',
+    elevation: 3,
+    marginRight: 6,
   },
-  // commentViewInner: {
-  //   marginLeft: 15
-  // },
+  bubble: {
+    backgroundColor: '#f6e4f0',
+    maxWidth: '76%',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    alignItems: 'flex-start',
+  },
   delete: {
-    opacity: 0.5,
     marginLeft: 'auto',
+    paddingLeft: 6,
+    paddingBottom: 6,
   },
   theComment: {
     fontSize: 15,
-    fontFamily: 'Poppins-Light'
+    lineHeight: 21,
+    color: '#2b2230',
+    fontFamily: 'Poppins-Light',
   },
-  commentDetails: {
-    marginTop: 5,
-    alignItems: 'flex-start'
+  meta: {
+    marginTop: 4,
+    alignItems: 'flex-start',
   },
   author: {
-    color: '#3380a3',
-    fontSize: 12,
+    color: '#a0457f',
+    fontSize: 11.5,
+    fontWeight: '600',
   },
   commentDate: {
-    color: 'grey',
-    fontSize: 12,
+    color: '#8d8296',
+    fontSize: 11,
   },
 })

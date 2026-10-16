@@ -3,7 +3,6 @@ import { StyleSheet, Text, View, Button, FlatList, TouchableOpacity, ImageBackgr
   KeyboardAvoidingView, ScrollView, Alert, Image, TouchableWithoutFeedback, TextInput, Pressable, ToastAndroid,
   ActivityIndicator, Platform, RefreshControl} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Card from '../shared/Card';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
 import { Entypo } from '@expo/vector-icons';
@@ -363,7 +362,7 @@ export default function Home({ route, navigation }) {
 
   return (
     <SafeAreaView style={{flex:1, backgroundColor:mainColor}}>
-      <View style={{flex:1, backgroundColor:backgroundColor,}}>
+      <View style={{flex:1, backgroundColor:backgroundColor}}>
         
         <Modal visible={deleting} animationType='fade' transparent={true} onRequestClose={null}>
           <View style={styles.outerView}>
@@ -414,7 +413,7 @@ export default function Home({ route, navigation }) {
           </TouchableWithoutFeedback>
         </Modal>
 
-        <View style={{elevation:15, backgroundColor:mainColor}}>
+        <View style={{backgroundColor:mainColor, borderBottomLeftRadius:26, borderBottomRightRadius:26, paddingBottom:10, overflow:'hidden'}}>
           <View style={[styles.homeHeader, {backgroundColor:mainColor}]}>
             <Text style={{fontSize:19, color:headerTextColor, fontFamily:'Solway-Regular', marginLeft:10}}>Conversations</Text>
           </View>
@@ -440,7 +439,7 @@ export default function Home({ route, navigation }) {
           </View>
         </View>
 
-        <View style={{flexDirection:'row', padding:10, backgroundColor:backgroundColor}}>
+        <View style={{flexDirection:'row', padding:10, paddingTop:14}}>
           <TouchableOpacity onPress={() => {setShowIndicator(false); setModalVisible(true)}} style={[styles.joinConv, {borderColor:topButtonsColors}]}>
               <Text style={{color:topButtonsColors, fontSize:16, marginRight:5, fontFamily:'Solway-Regular'}}>Join</Text>
               <Ionicons name='arrow-redo-outline' size={20} color={topButtonsColors} />
@@ -473,61 +472,48 @@ export default function Home({ route, navigation }) {
               <ActivityIndicator size={80} color={mainColor} animating={conversationsIndicator} style={{flex:1}} />
             ) : (
               <>
-                <FlatList data={conversations} refreshControl={
+                <FlatList data={conversations} keyExtractor={(item) => item.id} contentContainerStyle={{paddingTop:6}} refreshControl={
                   <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#613a5f']} />
                 } renderItem={({ item }) => (
-                  <TouchableOpacity onPress={() => enter2(item.id)} style={styles.item}>
-                    <Card>
-                      <View style={styles.content}>
-                        <View style={styles.header}>
-                            <Text style={[styles.titleText, {color:homeConvTitleColor}]} numberOfLines={1}>{ item.title }</Text>
-                            {item.unread == 0 || item.unread == undefined? null : (
-                              <View style={{elevation:8, backgroundColor:'#e655aa', alignItems:'center', justifyContent:'center', borderRadius:50, padding:5, marginRight:5}}>
-                                <Text style={{color:'white', fontSize:17}}> {item.unread} </Text>
-                              </View>
-                            )}
-                            <Menu>
-                              <MenuTrigger>
-                                <MaterialIcons name='more-horiz' size={24} color="grey" style={{padding:3}}/>
-                              </MenuTrigger>
-                              <MenuOptions>
-                                {user.uid == item.authorID ? (
-                                  <MenuOption onSelect={() => showAlert(item.id)}>
-                                    <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Conversation</Text>
-                                  </MenuOption>
-                                ) : null
-                                }
-                                {item.authorID != user.uid ? (
-                                  <MenuOption onSelect={() => showAlertLeave(item.id)}>
-                                    <Text style={{color: "red", fontSize: 18, margin: 5}}>Leave Conversation</Text>
-                                  </MenuOption>
-                                ) : null
-                                }
-                              </MenuOptions>
-                            </Menu>
-                        </View>
-                        <Text style={[styles.body, {color:homeConvBodyColor}]} numberOfLines={2}>{ item.body }</Text>
+                  <TouchableOpacity onPress={() => enter2(item.id)} activeOpacity={0.8} style={styles.item}>
+                    <View style={styles.cardInner}>
+                      <View style={[styles.band, {backgroundColor:conAuthorBarColor}]}>
+                        <Text style={[styles.titleText, {color:convAuthorTextColor}]} numberOfLines={1}>{ item.title }</Text>
+                        {item.unread == 0 || item.unread == undefined? null : (
+                          <View style={styles.badge}>
+                            <Text style={{color:'white', fontSize:13, fontWeight:'700'}}>{item.unread}</Text>
+                          </View>
+                        )}
+                        <Menu>
+                          <MenuTrigger>
+                            <MaterialIcons name='more-horiz' size={24} color={convAuthorTextColor} style={{padding:3}}/>
+                          </MenuTrigger>
+                          <MenuOptions>
+                            {user.uid == item.authorID ? (
+                              <MenuOption onSelect={() => showAlert(item.id)}>
+                                <Text style={{color: "red", fontSize: 18, margin: 5}}>Delete Conversation</Text>
+                              </MenuOption>
+                            ) : null
+                            }
+                            {item.authorID != user.uid ? (
+                              <MenuOption onSelect={() => showAlertLeave(item.id)}>
+                                <Text style={{color: "red", fontSize: 18, margin: 5}}>Leave Conversation</Text>
+                              </MenuOption>
+                            ) : null
+                            }
+                          </MenuOptions>
+                        </Menu>
                       </View>
-                    
-                      <View style={styles.createdViewContainer}>
-                        <View style={[styles.createdView, {backgroundColor:conAuthorBarColor}]}>
-                          {item.authorID == user.uid? (
-                              <Text style={[styles.createdAuthor, {color:convAuthorTextColor}]} numberOfLines={1}>{ user.displayName }</Text>
-                            ) : (
-                              <Text style={[styles.createdAuthor, {color:convAuthorTextColor}]} numberOfLines={1}>{ item.author }</Text>
-                            )
-                          }
-                          {/* <Text style={styles.createdTime}>{ item.dateCreated.toDateString()}</Text> */}
-                        </View>
-                        {item.authorID == user.uid? (
-                            <Image source={{uri: photoUrl}} style={[styles.pic, {borderColor:null}]} />
-                          ) : (
-                            <Image source={{uri: item.uri}} style={[styles.pic, {borderColor:null}]} />
-                          )
-                        }
+
+                      <Text style={[styles.body, {color:homeConvBodyColor}]} numberOfLines={3}>{ item.body }</Text>
+
+                      <View style={styles.footer}>
+                        <Image source={{uri: item.authorID == user.uid ? photoUrl : item.uri}} style={styles.pic} />
+                        <Text style={styles.createdAuthor} numberOfLines={1}>
+                          { item.authorID == user.uid ? user.displayName : item.author }
+                        </Text>
                       </View>
-      
-                    </Card>
+                    </View>
                   </TouchableOpacity>
                 )}/>
 
@@ -555,44 +541,49 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     flex: 1,
-    alignItems: 'center',
     alignItems: 'stretch',
     margin: 20,
     paddingTop: 20,
   },
   content:{
-    marginHorizontal: 13,
-    marginTop: 10,
+    marginHorizontal: 12,
+    marginTop: 12,
   },
   createdView: {
     flexDirection: 'row',
     flex: 1,
     marginTop:'auto',
-    backgroundColor: '#cebce0',
-    padding: 10,
-    marginHorizontal: 0
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  titleBar: {
+    flex: 1,
+    marginRight: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 18,
   },
   joinConv: {
     marginRight:10,
     marginLeft:'auto',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#f2f2f2',
-    padding: 10,
-    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    borderRadius: 25,
     flexDirection: 'row',
-    borderStyle: 'dashed'
   },
   newConv: {
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#f2f2f2',
-    padding: 10,
-    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    borderRadius: 25,
     flexDirection: 'row',
-    borderStyle: 'dashed'
   },
   newMid: {
     alignItems: 'center',
@@ -614,24 +605,28 @@ const styles = StyleSheet.create({
     padding: 5
   },
   titleText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 18,
+    fontWeight: '700',
     flex: 1,
-    marginRight: 50
+    marginRight: 8,
   },
   createdAuthor: {
-    fontSize: 15,
-    color: '#545303',
-    marginLeft: 55,
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#7d7287',
+    marginLeft: 8,
+    flex: 1,
   },
   createdTime: {
     fontSize: 15,
     marginLeft: 'auto'
   },
   body: {
-    marginTop: 10,
-    fontSize: 17,
+    marginTop: 8,
+    marginHorizontal: 14,
+    fontSize: 14,
+    lineHeight: 19,
+    opacity: 0.8,
   },
   header: {
     flex: 1,
@@ -640,28 +635,54 @@ const styles = StyleSheet.create({
     alignItems:'center'
   },
   item: {
-    marginHorizontal: 10,
-    marginBottom: 20,
+    marginHorizontal: 12,
+    marginBottom: 12,
     backgroundColor:'white',
-    elevation: 8,
-    shadowOffset: {width:0, height:5},
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    borderRadius:5
+    elevation: 5,
+    shadowOffset: {width:0, height:3},
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    borderRadius: 18,
+  },
+  band: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingLeft: 14,
+    paddingRight: 8,
+  },
+  badge: {
+    backgroundColor:'#e655aa', alignItems:'center', justifyContent:'center',
+    borderRadius:12, minWidth:24, height:24, paddingHorizontal:7, marginRight:6,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginHorizontal: 14,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e3dce8',
+  },
+  cardInner: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: 'white',
+    paddingBottom: 8,
   },
   pic: {
-    width: 50,
-    height: 50,
-    borderRadius: 60,
-    position:'absolute',
-    marginLeft:3,
-    borderColor: '#51445e',
-    borderWidth:1.5
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderColor: '#613a5f',
+    borderWidth: 1.5,
+    backgroundColor: '#d9cfe0',
   },
   createdViewContainer: {
     flexDirection:'row', 
     alignItems:'center', 
-    marginTop: 15,
+    marginTop: 12,
+    marginHorizontal: 9,
   },
   outerView: {
     flex: 1,
@@ -670,6 +691,7 @@ const styles = StyleSheet.create({
   },
   innerView: {
     backgroundColor: '#806b96',
+    borderRadius: 24,
     alignItems:'stretch',
     flex: 1,
     justifyContent:'center',

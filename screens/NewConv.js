@@ -101,7 +101,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems:'center',
     backgroundColor: '#613a5f',
-    padding: 10,
-    elevation: 15
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
   },
 });

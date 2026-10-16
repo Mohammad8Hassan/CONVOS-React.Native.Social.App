@@ -11,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { getFirestore, addDoc, collection, serverTimestamp, onSnapshot, query, orderBy, doc, deleteDoc, setDoc } from 'firebase/firestore'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import _ from 'lodash';
+import AuthLayout from '../shared/AuthLayout';
+import AuthInput from '../shared/AuthInput';
 
 export default function Register({ navigation }) {
     const [email, setEmail] = useState('');
@@ -82,62 +84,25 @@ export default function Register({ navigation }) {
     
   
     return (
-      <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}>
-        <View style={{flex:1, backgroundColor:'#ebebeb'}}>
-        <View style={styles.homeHeader}>
-          <Pressable 
-            onPress={() => navigation.goBack()}
-            style={({ pressed }) => [
-              {opacity: pressed ? 0.5: 1},
-            ]}
-            >
-            <Ionicons name='chevron-back-circle' size={27} color="white" />
-          </Pressable>
-          <Text style={{flex:1, fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Create a new account</Text>
+      <AuthLayout compact title='Create your account' subtitle='It only takes a minute' onBack={() => navigation.goBack()}>
+        <AuthInput icon='person' placeholder='First name' value={firstName} onChangeText={setFirestName} />
+        <AuthInput icon='person-outline' placeholder='Last name' value={lasttName} onChangeText={setlastName} />
+        <AuthInput icon='email' placeholder='Email' value={email} onChangeText={setEmail}
+          keyboardType='email-address' autoCapitalize='none' autoCorrect={false} />
+        <AuthInput icon='lock' placeholder='Password' value={password} onChangeText={setPassword} secureTextEntry autoCapitalize='none' />
+
+        <Pressable
+          onPress={() => handleRegister(email, password)}
+          style={({ pressed }) => [{opacity: pressed ? 0.7: 1}, styles.login]}
+        >
+          <Text style={styles.loginText}>Sign up</Text>
+        </Pressable>
+
+        <View style={styles.footerRow}>
+          <Text style={styles.footerText}>Already have an account? </Text>
+          <Text style={styles.link} onPress={() => navigation.popToTop()}>Log in</Text>
         </View>
-        
-        <ScrollView style={{flex: 1,}} contentContainerStyle={{paddingTop:100}}>
-          <KeyboardAvoidingView style={styles.container}>
-            <View style={styles.inputContainer}>
-              <MaterialIcons name='email' color='grey' size={30} style={styles.icons}/>
-              <TextInput placeholder='email' value={email} onChangeText={text => setEmail(text)} style={styles.input}/>
-            </View>
-      
-            <View style={styles.inputContainer}>
-              <MaterialIcons name='lock' color='grey' size={30} style={styles.icons}/>
-              <TextInput placeholder='password' value={password} onChangeText={text => setPassword(text)} secureTextEntry style={styles.input}/>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <MaterialIcons name='person' color='grey' size={30} style={styles.icons}/>
-              <TextInput placeholder='first name' value={firstName} onChangeText={text => setFirestName(text)} style={styles.input}/>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <MaterialIcons name='person' color='grey' size={30} style={styles.icons}/>
-              <TextInput placeholder='last name' value={lasttName} onChangeText={text => setlastName(text)} style={styles.input}/>
-            </View>
-    
-      
-            <Pressable  
-              onPress={() => handleRegister(email, password)}
-              style={({ pressed }) => [
-                {opacity: pressed ? 0.5: 1}, styles.login
-              ]}
-              >
-              <Text style={{fontFamily:'Solway-Regular', color:"white", fontSize: 18}}>Register</Text>
-            </Pressable>
-      
-      
-            <View style={{flexDirection: 'row', marginTop:20}}>
-              <Text style={{fontFamily:'Solway-Regular', color:"#613a5f", fontSize: 18, marginBottom: 10, marginRight: 5}}>Already have an account?</Text>
-              <Text style={{fontFamily:'Solway-Bold', color: '#a8a628', fontSize:18}} onPress={() => navigation.popToTop()}>Login!</Text>
-            </View>
-
-          </KeyboardAvoidingView>
-        </ScrollView>
-        </View>
-      </SafeAreaView>
+      </AuthLayout>
     );
   }
   
@@ -151,8 +116,11 @@ export default function Register({ navigation }) {
       flexDirection: 'row',  
       alignItems:'center',
       backgroundColor: '#613a5f',
-      padding: 10,
-      elevation: 15
+      paddingVertical: 12,
+      paddingHorizontal: 10,
+      paddingBottom: 16,
+      borderBottomLeftRadius: 26,
+      borderBottomRightRadius: 26
     },
     input:{
       backgroundColor: 'white',
@@ -178,14 +146,18 @@ export default function Register({ navigation }) {
       marginLeft: 10
     },
     login: {
-      padding: 10,
-      margin: 20,
-      backgroundColor: '#45376e',
-      width: 200,
+      paddingVertical: 14,
+      marginTop: 22,
+      backgroundColor: '#613a5f',
       alignItems: 'center',
-      borderRadius: 50,
-      elevation: 8
+      borderRadius: 28,
+      elevation: 4,
     },
+    loginText: { color: 'white', fontSize: 17, fontWeight: '700', letterSpacing: 0.5 },
+    link: { color: '#961570', fontSize: 14, fontWeight: '700' },
+    footerRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },
+    footerText: { color: '#8d8296', fontSize: 14 },
+
     signUp: {
       fontSize: 18,
       marginTop: 100

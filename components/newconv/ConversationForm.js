@@ -46,7 +46,7 @@ export default function ConversationForm({ selected, submitting, onOpenParticipa
   }, []);
 
   return (
-    <View style={{flex: 1, padding:10,}}>
+    <View style={{flex: 1, paddingHorizontal:14, paddingTop:10}}>
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}
       progressBackgroundColor={'white'} />}
       >
@@ -57,7 +57,7 @@ export default function ConversationForm({ selected, submitting, onOpenParticipa
         >
           {props => (
             <View style={{alignItems:'flex-start', flex:1,}}>
-              <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginBottom:5, fontFamily:'Solway-Regular'}}>Title</Text>
+              <Text style={styles.label}>Title</Text>
               <TextInput
                 style={styles.input}
                 placeholder='Title'
@@ -67,7 +67,7 @@ export default function ConversationForm({ selected, submitting, onOpenParticipa
               />
               { (props.touched.title && props.errors.title) && <Text style={styles.errorText}>{props.errors.title}</Text> }
 
-              <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginBottom:5, marginTop:10, fontFamily:'Solway-Regular'}}>Body</Text>
+              <Text style={[styles.label, {marginTop:10}]}>Body</Text>
               <TextInput
                 style={styles.inputBody}
                 placeholder='Body'
@@ -82,13 +82,13 @@ export default function ConversationForm({ selected, submitting, onOpenParticipa
               {/* participants */}
               <TouchableOpacity style={styles.participants} onPress={onOpenParticipants}>
                 <View style={{flexDirection:'row', alignItems:'center'}}>
-                  <Text style={{fontSize:22, color:'#574866', marginRight:30, fontFamily:'Solway-Regular'}}>Participants</Text>
+                  <Text style={{fontSize:16, fontWeight:'700', color:'#574866', marginRight:20}}>Participants</Text>
                   {selected.length != 0 ? (
                     <View style={{flex:1,}} onStartShouldSetResponder={()=>true}>
                       <ScrollView horizontal>
                         {selected.map(item => (
                           <View key={item.ID}>
-                            <Image source={{uri: item.photo}} style={{height:40, width:40, borderRadius:50}} />
+                            <Image source={{uri: item.photo}} style={{height:36, width:36, borderRadius:18, marginRight:4, borderWidth:1.5, borderColor:'#613a5f'}} />
                           </View>
                         ))}
                       </ScrollView>
@@ -105,7 +105,7 @@ export default function ConversationForm({ selected, submitting, onOpenParticipa
               </TouchableOpacity>
 
               <View style={{flexDirection:'row', marginTop:20, alignItems:'center'}}>
-                <Text style={{fontSize:22, color:'#ede9f2', marginLeft:10, marginRight:5, fontFamily:'Solway-Regular'}}>Password</Text>
+                <Text style={[styles.label, {marginBottom:0, marginRight:8}]}>Password</Text>
                 <Switch
                   onValueChange={() => setHasPassword(prev => !prev)}
                   value={hasPassword}
@@ -153,58 +153,56 @@ export default function ConversationForm({ selected, submitting, onOpenParticipa
 }
 
 const styles = StyleSheet.create({
+  label: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#ede9f2',
+    marginLeft: 6,
+    marginBottom: 6,
+  },
   input: {
     marginBottom: 10,
-    borderWidth: 2,
-    fontSize: 18,
-    padding: 6,
-    paddingLeft:8,
-    borderColor:"#574866",
-    backgroundColor: '#ede9f2',
+    fontSize: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: 'white',
     alignSelf:'stretch',
-    marginRight: 50,
-    borderRadius:10,
+    borderRadius: 14,
+    elevation: 2,
   },
   hint: {
     color: '#ede9f2',
-    opacity: 0.8,
-    fontStyle: 'italic',
-    marginLeft: 10,
-    marginRight: 50,
+    opacity: 0.85,
+    fontSize: 13,
+    marginLeft: 6,
     marginBottom: 5,
   },
   errorText: {
-    color: '#ff9cc3',
+    color: '#ffd0e3',
     fontWeight: 'bold',
     marginBottom: 3,
-    marginLeft:10
+    marginLeft: 6
   },
   inputBody: {
-    height: 200,
+    height: 160,
     marginBottom: 10,
-    borderWidth: 2,
-    fontSize: 18,
-    padding: 8,
-    paddingLeft:8,
-    borderColor:"#574866",
-    backgroundColor: '#ede9f2',
+    fontSize: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: 'white',
     alignSelf:'stretch',
-    marginRight: 50,
-    borderRadius:10,
+    borderRadius: 14,
+    elevation: 2,
   },
   buttonSubmit: {
     backgroundColor: '#1da877',
-    padding: 10,
-    borderRadius: 20,
-    elevation: 8,
+    paddingVertical: 12,
+    borderRadius: 25,
+    elevation: 4,
     marginBottom: 20,
     marginTop: 20,
     alignSelf:'stretch',
     alignItems:'center',
-    marginHorizontal:30,
-    shadowOffset: {width:0, height:5},
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
   },
   buttonSubmitAI: {
     alignSelf:'center',
@@ -212,12 +210,10 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   participants: {
-    backgroundColor:'#cebce0',
+    backgroundColor:'#e7dcef',
     alignSelf:'stretch',
-    marginHorizontal:3,
-    padding:5,
-    marginTop:15,
-    borderRadius:5,
-    paddingLeft:10,
+    padding: 12,
+    marginTop: 12,
+    borderRadius: 14,
   },
 });

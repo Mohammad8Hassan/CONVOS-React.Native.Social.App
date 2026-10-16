@@ -337,7 +337,7 @@ export default function EditProfile({ navigation }) {
 
   return (
     <SafeAreaView style={{flex:1, backgroundColor:'#613a5f',}}>
-      <KeyboardAvoidingView style={{flex:1, backgroundColor:'#613a5f',}} behavior={Platform.OS==='ios'? 'height' : null}>
+      <KeyboardAvoidingView style={{flex:1, backgroundColor:'#806b96',}} behavior={Platform.OS==='ios'? 'height' : null}>
         <ScrollView contentContainerStyle={{ flexGrow: 1}}>
           
           <View style={styles.homeHeader}>
@@ -557,8 +557,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     alignItems:'center',
     backgroundColor: '#613a5f',
-    padding: 10,
-    elevation:15
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26
   },
   container: {
     flex: 1,
@@ -670,6 +673,7 @@ const styles = StyleSheet.create({
   },
   innerView: {
     backgroundColor: '#806b96',
+    borderRadius: 24,
     alignItems:'stretch',
     paddingVertical: 10,
     elevation: 15,

@@ -1,22 +1,19 @@
 import { StyleSheet, Text, View, Image, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Menu, MenuOptions, MenuOption, MenuTrigger } from 'react-native-popup-menu';
-import { useSelector } from 'react-redux';
 
 // REFACTOR NOTE: this was the `renderItem` of the FlatList inside `renderList` in screens/Friends.js
 // (~75 lines of JSX that closed over the screen's state). `selector` decides which actions the
 // row shows: 'friends' -> menu, 'received' -> approve/ignore, 'sent' -> cancel.
 export default function FriendRow({ item, selector, onCopyId, onRemove, onBlock, onApprove, onIgnore, onCancel }) {
-  const friendBackground = useSelector(state => state.theme.friendBackground);
-
   return (
-    <View style={[styles.item, {backgroundColor: (selector=='friends'? 'none': friendBackground)}]}>
+    <View style={styles.item}>
 
-      <View style={{flexDirection:'row', alignItems:'center', backgroundColor:friendBackground, padding:4, borderRadius:20}}>
-        <Image source={{uri: item.Photoo}} style={{height:40, width:40, borderRadius:40,}} />
-        <View style={{flex:1, marginLeft:10, marginRight:3, alignItems:'center', }}>
-          <Text style={{color:'white', fontSize:18,}} selectable>{ item.Namee }</Text>
-          <Text style={{color:'#d1d1d1', fontSize:13, fontStyle:'italic'}} numberOfLines={1} > {item.id} </Text>
+      <View style={{flexDirection:'row', alignItems:'center'}}>
+        <Image source={{uri: item.Photoo}} style={styles.avatar} />
+        <View style={{flex:1, marginLeft:12, marginRight:3}}>
+          <Text style={{color:'#2b2230', fontSize:16, fontWeight:'600'}} selectable numberOfLines={1}>{ item.Namee }</Text>
+          <Text style={{color:'#8d8296', fontSize:12}} numberOfLines={1}>{item.id}</Text>
         </View>
 
         {(selector == 'friends') &&
@@ -27,7 +24,7 @@ export default function FriendRow({ item, selector, onCopyId, onRemove, onBlock,
           >
             <Menu>
               <MenuTrigger>
-                <MaterialIcons name='more-horiz' size={20} color='white'  />
+                <MaterialIcons name='more-horiz' size={24} color='#7d7287' />
               </MenuTrigger>
               <MenuOptions>
                 <MenuOption onSelect={() => onCopyId(item.ID)}>
@@ -46,7 +43,7 @@ export default function FriendRow({ item, selector, onCopyId, onRemove, onBlock,
       </View>
 
       {(selector == 'received') &&
-        <View style={{flexDirection:'row', marginBottom:5, marginTop:5, marginRight:5, justifyContent:'flex-end', alignItems:'center'}}>
+        <View style={styles.actions}>
           <Pressable
             onPress={() => onApprove(item.ID)}
             style={({ pressed }) => [
@@ -54,7 +51,7 @@ export default function FriendRow({ item, selector, onCopyId, onRemove, onBlock,
             ]}
           >
             <View style={{flexDirection:'row', alignItems:'center',}}>
-              <Text style={{color:"white", fontSize: 16,}}>approve</Text>
+              <Text style={{color:"white", fontSize: 14, fontWeight:'600'}}>approve</Text>
             </View>
           </Pressable>
 
@@ -65,22 +62,22 @@ export default function FriendRow({ item, selector, onCopyId, onRemove, onBlock,
             ]}
           >
             <View style={{flexDirection:'row', alignItems:'center',}}>
-              <Text style={{color:"white", fontSize: 16,}}>ignore</Text>
+              <Text style={{color:"white", fontSize: 14, fontWeight:'600'}}>ignore</Text>
             </View>
           </Pressable>
         </View>
       }
       {(selector=='sent') &&
-        <Pressable
+        <View style={styles.actions}><Pressable
           onPress={() => onCancel(item.ID)}
           style={({ pressed }) => [
             {opacity: pressed ? 0.5: 1}, styles.cancel
           ]}
         >
           <View style={{flexDirection:'row', alignItems:'center',}}>
-            <Text style={{color:"white", fontSize: 16,}}>cancel</Text>
+            <Text style={{color:"white", fontSize: 14, fontWeight:'600'}}>cancel</Text>
           </View>
-        </Pressable>
+        </Pressable></View>
       }
     </View>
   )
@@ -88,50 +85,52 @@ export default function FriendRow({ item, selector, onCopyId, onRemove, onBlock,
 
 const styles = StyleSheet.create({
   item: {
-    flex:1,
-    marginBottom:10,
-    padding: 4,
-    elevation:8
+    marginBottom: 10,
+    padding: 10,
+    borderRadius: 16,
+    backgroundColor: 'white',
+    elevation: 3,
+  },
+  avatar: {
+    height: 46,
+    width: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: '#613a5f',
+    backgroundColor: '#d9cfe0',
   },
   menu: {
     alignItems: 'center',
-    marginRight:10,
-    marginLeft:'auto'
+    marginLeft: 'auto',
+    padding: 4,
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 10,
   },
   approve: {
-    padding: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
     backgroundColor: '#1da877',
     alignItems: 'center',
-    borderRadius:20,
-    elevation:10,
-    marginLeft:10,
-    shadowOffset: {width:0, height:3},
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    borderRadius: 18,
+    marginLeft: 10,
   },
   delete: {
-    padding: 8,
-    backgroundColor: '#c7aa52',
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    backgroundColor: '#b79b45',
     alignItems: 'center',
-    borderRadius:20,
-    elevation:10,
-    marginLeft:10,
-    shadowOffset: {width:0, height:3},
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    borderRadius: 18,
+    marginLeft: 10,
   },
   cancel: {
-    padding: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
     backgroundColor: '#853259',
     alignItems: 'center',
-    borderRadius:20,
-    elevation:10,
-    marginRight:5,
-    marginLeft:'auto',
-    marginBottom:5,
-    marginTop:5,
-    shadowOffset: {width:0, height:3},
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    borderRadius: 18,
   },
 });

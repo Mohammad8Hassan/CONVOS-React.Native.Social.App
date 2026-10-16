@@ -7,16 +7,16 @@ import FriendRow from './FriendRow';
 // called three times from the render. It is a component now; row actions are passed through
 // to FriendRow instead of being closed over.
 export default function FriendList({ data, listTitle, listNum, selector, refreshing, onRefresh, onAddFriend, ...rowActions }) {
-  const { titleBackground, titleColor, iconActiveColor, topButtonsColors } = useSelector(state => state.theme);
+  const { titleColor, iconActiveColor, topButtonsColors } = useSelector(state => state.theme);
 
   return (
     <View style={{flex:1, marginBottom:20}}>
-      <View style={{flexDirection: 'row', backgroundColor:titleBackground, alignItems:'center', paddingLeft:8}}>
-        <Text style={{color:titleColor, fontSize:19, fontFamily:'Solway-Regular'}}>{ listTitle }</Text>
-        <Text style={{color:iconActiveColor, fontSize:19, marginLeft:5}}>{ listNum }</Text>
+      <View style={{flexDirection: 'row', alignItems:'center', paddingLeft:6, marginBottom:8}}>
+        <Text style={{color:titleColor, fontSize:15, fontWeight:'600'}}>{ listTitle.replace(/ - $/, '') }</Text>
+        <Text style={{color:iconActiveColor, fontSize:15, fontWeight:'700', marginLeft:8}}>{ listNum }</Text>
       </View>
 
-      <View style={{flex:1, marginTop:5, padding:4}}>
+      <View style={{flex:1}}>
         {(data.length == 0 && selector=='friends')? (
           <TouchableOpacity onPress={onAddFriend} style={[styles.newMid, {borderColor:topButtonsColors}]}>
             <Text style={{color:topButtonsColors, fontSize:20, fontFamily:'Solway-Regular', opacity:0.5}}>
@@ -28,7 +28,7 @@ export default function FriendList({ data, listTitle, listNum, selector, refresh
             </Text>
           </TouchableOpacity>
         ) : (
-          <FlatList data={data} removeClippedSubviews={false} refreshControl={
+          <FlatList data={data} keyExtractor={(item) => item.id} contentContainerStyle={{paddingBottom:80}} removeClippedSubviews={false} refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#613a5f']} />
           } renderItem={({ item }) => (
             <FriendRow item={item} selector={selector} {...rowActions} />
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderStyle: 'dashed',
     alignSelf:'center',
-    marginTop:100,
+    marginTop:60,
     opacity:0.5
   },
 });

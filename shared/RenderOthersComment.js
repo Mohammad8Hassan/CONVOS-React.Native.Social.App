@@ -2,86 +2,83 @@ import { StyleSheet, Text, View, Image, Linking} from 'react-native'
 import React from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
 import Hyperlink from 'react-native-hyperlink';
+import { formatCommentTime } from './formatTime';
 
 // REFACTOR NOTE: the delete icon called an undefined `showAlert(...)` (ReferenceError on tap). It now calls
 // the `alert` callback the parent passes in, like RenderComment does. (It only shows for your own comments,
 // which Details renders with RenderComment, so this icon is effectively never visible.)
+// Other people's messages: bubble on the left, round avatar on the right.
 export default function RenderOthersComment(props) {
   return (
-    <View style={{flexDirection:'row', flex:1, opacity: (props.comment.removed == true)? 0.5 : 1}}>
-      <View style={styles.delete} >
-        {(props.userID == props.comment.authorID) && <MaterialIcons name='delete' color='grey' size={25} onPress={() => props.alert(props.comment.id)}/>}
+    <View style={[styles.row, {opacity: (props.comment.removed == true)? 0.5 : 1}]}>
+      <View style={styles.delete}>
+        {(props.userID == props.comment.authorID) && <MaterialIcons name='delete-outline' color='#9a8fa3' size={22} onPress={() => props.alert(props.comment.id)}/>}
       </View>
 
-      <View style={styles.commentView} >
-        <Hyperlink onPress={link => Linking.openURL(link)} linkStyle={{color:'#574d06', fontStyle:'italic'}}>
+      <View style={styles.bubble}>
+        <Hyperlink onPress={link => Linking.openURL(link)} linkStyle={{color:'#2a6f94', textDecorationLine:'underline'}}>
           <Text style={styles.theComment} selectable>{props.comment.comment}</Text>
         </Hyperlink>
 
-        <View style={styles.commentDetails}>
+        <View style={styles.meta}>
           <Text style={styles.author} selectable>{ props.comment.Name }</Text>
-          <Text style={styles.commentDate}>{props.comment.timeStamp.toDate().toDateString()}  -  {props.comment.timeStamp.toDate().getHours().toString()}:{props.comment.timeStamp.toDate().getMinutes().toString()}</Text>
+          <Text style={styles.commentDate}>{formatCommentTime(props.comment.timeStamp.toDate())}</Text>
         </View>
       </View>
 
-      <View style={{justifyContent:'center', alignItems:'center', marginRight:3}}>
-        <Image source={{uri: props.comment.uri}} style={{width:35, height:35, borderRadius:60, marginRight:3, borderColor:'#613a5f', borderWidth:1, position:'absolute', alignSelf:'flex-end'}} />
-      </View>
+      <Image source={{uri: props.comment.uri}} style={styles.avatar} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  comment: {
-    backgroundColor: 'white',
-    color: 'black',
-    padding: 7,
-    paddingLeft: 15,
-    flex:4,
-    fontSize: 18,
-    borderColor: '#613a5f',
-    borderWidth: 1,
-    alignSelf:'flex-end',
-    borderRadius:20
-  },
-  listItem: {
-    flex: 1,
+  row: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
+    alignItems: 'flex-end',
+    flex: 1,
+    paddingHorizontal: 8,
   },
-  commentView: {
-    backgroundColor: 'rgba(192, 240, 255, 0.7)',
-    padding: 5,
-    paddingLeft:8,
-    paddingRight: 25,
-    marginRight: 20,
-    marginLeft: 50,
-    borderRadius: 17,
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderColor: 'white',
+    borderWidth: 2,
+    backgroundColor: '#d9cfe0',
+    elevation: 3,
+    marginLeft: 6,
+  },
+  bubble: {
+    backgroundColor: '#dcedf7',
+    maxWidth: '76%',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    borderBottomRightRadius: 4,
     alignItems: 'flex-start',
+    marginLeft: 'auto',
   },
-  // commentViewInner: {
-  //   marginRight: 15
-  // },
   delete: {
-    opacity: 0.5,
-    marginRight: 'auto',
+    paddingRight: 6,
+    paddingBottom: 6,
   },
   theComment: {
     fontSize: 15,
-    fontFamily: 'Poppins-Light'
+    lineHeight: 21,
+    color: '#1f2a33',
+    fontFamily: 'Poppins-Light',
   },
-  commentDetails: {
-    marginTop: 5,
-    alignItems: 'flex-end',
-    alignSelf:'flex-end'
+  meta: {
+    marginTop: 4,
+    alignItems: 'flex-start',
   },
   author: {
-    color: '#3380a3',
-    fontSize: 12
+    color: '#2a6f94',
+    fontSize: 11.5,
+    fontWeight: '600',
   },
   commentDate: {
-    color: 'grey',
-    fontSize: 12
+    color: '#7f8f99',
+    fontSize: 11,
   },
-})
+})

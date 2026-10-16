@@ -216,7 +216,7 @@ export default function Friends({ navigation }) {
 
       {listIndicator? ( <ActivityIndicator size={80} color='#613a5f' animating={listIndicator} style={{flex:1}} /> ) : (
         <>
-          <View style={{flex:1, padding:10, paddingBottom:20}}>
+          <View style={{flex:1, paddingHorizontal:12, paddingBottom:12}}>
 
             <FriendsTabs selector={selector} onSelect={setSelector}
               receivedRequestsNum={receivedRequestsNum} sentRequestsNum={sentRequestsNum} />
@@ -229,9 +229,9 @@ export default function Friends({ navigation }) {
 
             {selector == 'sent' && renderList(sentRequests, 'Sent Friend Requests - ', sentRequestsNum)}
 
-            <View style={{alignItems:'flex-end', }}>
+            <View style={styles.fabWrap} pointerEvents='box-none'>
               <TouchableOpacity onPress={openModal} style={[styles.addbtn, {backgroundColor:addButton}]}>
-                <MaterialIcons name='person-add' size={33} color={addButtonInside}/>
+                <MaterialIcons name='person-add' size={26} color={addButtonInside}/>
               </TouchableOpacity>
             </View>
           </View>
@@ -250,20 +250,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems:'center',
     backgroundColor: '#613a5f',
-    padding: 5,
-    elevation:15
+    paddingVertical: 10,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
   },
   addbtn: {
     backgroundColor:'white',
-    paddingHorizontal:20,
-    paddingVertical:5,
-    borderRadius:17,
+    width:56,
+    height:56,
+    borderRadius:28,
     alignItems:'center',
     justifyContent:'center',
-    flexDirection:'row',
-    shadowOffset: {width:0, height:3},
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation:8
+    elevation:6
+  },
+  fabWrap: {
+    position:'absolute',
+    right:6,
+    bottom:6,
   },
 });
