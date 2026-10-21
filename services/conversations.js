@@ -1,6 +1,7 @@
 import { doc, collection, addDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, increment } from 'firebase/firestore';
 import { getApp } from 'firebase/app';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { wantsPush } from './notifications';
 
 // Must be the region the functions are deployed to (REGION in functions/index.js).
 const FUNCTIONS_REGION = 'europe-west1';
@@ -56,6 +57,11 @@ export const addComment = (db, user, id, text) =>
     timeStamp: Timestamp.now(),
     system: false
   });
+
+// mute / unmute pushes of one conversation for me (stored on my participant document, which is what the
+// other participants' phones read when they decide who gets a push)
+export const setMuted = (db, user, id, muted) =>
+  updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), { muted });
 
 export const deleteComment = (db, id, commentId) =>
   deleteDoc(doc(db, 'Conversations', id, 'Comments', commentId));
@@ -136,7 +142,7 @@ export const createConversation = async (db, user, values, hasPassword, friends,
       });
 
       if(person.ExpoPushToken !== undefined) {
-        tokens.push(person.ExpoPushToken);
+        if(wantsPush(person, 'notifyInvites')) tokens.push(person.ExpoPushToken);
       } else {
         console.log("no token found");
       }

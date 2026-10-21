@@ -62,9 +62,14 @@ export async function registerForPushNotificationsAsync() {
   return token;
 }
 
+// Does this user (a Users document, or null when unknown) want pushes of this kind? `key` is one of the
+// notify* settings of hooks/useUserSettings.js. No settings saved yet means yes.
+export const wantsPush = (userData, key) =>
+  !userData || !userData.settings || userData.settings[key] !== false;
+
 // Can use this function OR use Expo's Push Notification Tool from: https://expo.dev/notifications
 export async function sendPush(message) {
-  await fetch('https://exp.host/--/api/v2/push/send', {
+  const response = await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -73,4 +78,21 @@ export async function sendPush(message) {
     },
     body: JSON.stringify(message),
   });
+
+  // Expo answers 200 even when a push fails; the reason is in the tickets (e.g. InvalidCredentials when
+  // the FCM v1 key is missing in EAS, DeviceNotRegistered for a stale token). Only logged in dev.
+  if (__DEV__) {
+    try {
+      const body = await response.json();
+      const tickets = Array.isArray(body.data) ? body.data : [body.data];
+      tickets.forEach(ticket => {
+        if (ticket && ticket.status === 'error') {
+          console.warn('Push failed:', ticket.message, JSON.stringify(ticket.details));
+        }
+      });
+      if (body.errors) console.warn('Push request rejected:', JSON.stringify(body.errors));
+    } catch (e) {
+      console.warn('Push response not readable:', e);
+    }
+  }
 }

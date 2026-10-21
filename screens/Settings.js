@@ -169,6 +169,20 @@ export default function Settings({ navigation }) {
           </View>
         </View>
 
+        <View style={[styles.optionsCard, {backgroundColor:'white', paddingVertical: 6}]}>
+          {[['Notifications', 'notifications', 'Notifications'], ['Privacy', 'lock', 'Privacy & blocking']].map(([route, icon, label]) => (
+            <Pressable
+              key={route}
+              onPress={() => navigation.navigate(route)}
+              style={({ pressed }) => [{opacity: pressed ? 0.5: 1, flexDirection:'row', alignItems:'center', paddingVertical: 12}]}
+            >
+              <MaterialIcons name={icon} size={22} color={iconActiveColor} />
+              <Text style={{flex:1, color:'#5f5368', fontSize:16, marginLeft:12}}>{ label }</Text>
+              <MaterialIcons name='chevron-right' size={22} color='#b9a9c4' />
+            </Pressable>
+          ))}
+        </View>
+
         <Pressable
           onPress={LogOut}
           style={({ pressed }) => [

@@ -81,6 +81,9 @@ export default function useFriendSearch() {
       if (await existsOrFalse(doc(db, 'Users', user.uid, 'Received Requests', res.id)))
         return show({ name, photo, caption: name + ' sent you a friend request!', connection: 'received' });
 
+      if (res.data().settings && res.data().settings.friendRequests === 'nobody')
+        return show({ name, photo, caption: name + ' is not accepting friend requests', connection: 'closed' });
+
       show({ name, photo, connection: 'new' });
     } catch (err) {
       console.log('search catch', err);

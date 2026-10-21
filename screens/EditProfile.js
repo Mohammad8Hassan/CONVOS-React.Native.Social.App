@@ -16,6 +16,7 @@ import { useDispatch } from 'react-redux';
 import { setRefresh } from '../features/themeSlice';
 import { loadImage } from '../shared/imageCache';
 import { confirm } from '../shared/confirm';
+import { friendlyAuthError } from '../shared/authError';
 
 
 export default function EditProfile({ navigation }) {
@@ -202,11 +203,11 @@ export default function EditProfile({ navigation }) {
             console.log(error);
             setEmailIndicator(false);
             if(Platform.OS === 'android')
-              ToastAndroid.show(error.message, ToastAndroid.SHORT);
+              ToastAndroid.show(friendlyAuthError(error), ToastAndroid.SHORT);
             else {
               Alert.alert(
                 'Error',
-                error.message,
+                friendlyAuthError(error),
                 [
                   {
                     text: 'Ok',
@@ -224,11 +225,11 @@ export default function EditProfile({ navigation }) {
         console.log(error);
         setEmailIndicator(false);
         if(Platform.OS === 'android')
-          ToastAndroid.show(error.message, ToastAndroid.SHORT);
+          ToastAndroid.show(friendlyAuthError(error), ToastAndroid.SHORT);
         else {
           Alert.alert(
             'Error',
-            error.message,
+            friendlyAuthError(error),
             [
               {
                 text: 'Ok',
@@ -291,11 +292,11 @@ export default function EditProfile({ navigation }) {
             console.log(error);
             setPasswordIndicator(false);
             if(Platform.OS === 'android')
-              ToastAndroid.show(error.message, ToastAndroid.SHORT);
+              ToastAndroid.show(friendlyAuthError(error), ToastAndroid.SHORT);
             else {
               Alert.alert(
                 'Error',
-                error.message,
+                friendlyAuthError(error),
                 [
                   {
                     text: 'Ok',
@@ -313,11 +314,11 @@ export default function EditProfile({ navigation }) {
         console.log(error);
         setPasswordIndicator(false);
         if(Platform.OS === 'android')
-          ToastAndroid.show(error.message, ToastAndroid.SHORT);
+          ToastAndroid.show(friendlyAuthError(error), ToastAndroid.SHORT);
         else {
           Alert.alert(
             'Error',
-            error.message,
+            friendlyAuthError(error),
             [
               {
                 text: 'Ok',

@@ -89,7 +89,9 @@ service cloud.firestore {
           && docId == request.auth.uid
           && request.resource.data.ID == request.auth.uid
           && request.resource.data.ignored == false
-          && !exists(/databases/$(database)/documents/Users/$(uid)/Blocked/$(request.auth.uid));
+          && !exists(/databases/$(database)/documents/Users/$(uid)/Blocked/$(request.auth.uid))
+          // ...and not when I turned friend requests off (Settings > Privacy; missing means everyone)
+          && get(/databases/$(database)/documents/Users/$(uid)).data.get('settings', {}).get('friendRequests', 'everyone') != 'nobody';
 
         // the other person cancels their request, approves / removes the friendship: they delete the entry
         // that is about themselves in my lists
@@ -150,9 +152,9 @@ service cloud.firestore {
           && request.resource.data.removed == false;
 
         allow update: if signedIn() && (
-          // me: lastEnter / lastExit, or leaving (never un-remove myself)
+          // me: lastEnter / lastExit / muted, or leaving (never un-remove myself)
           (pid == request.auth.uid
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastEnter', 'lastExit', 'removed'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastEnter', 'lastExit', 'removed', 'muted'])
             && (request.resource.data.removed == true || request.resource.data.removed == resource.data.removed))
           ||
           // the author removes somebody

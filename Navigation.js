@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, StatusBar } from 'react-native'
 import React, { useEffect, useRef, useState } from 'react'
-import { DrawerActions, NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { DrawerActions, NavigationContainer, createNavigationContainerRef, getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
 import Home from './screens/Home'
 import Details from './screens/Details'
 import Login from './screens/Login'
@@ -8,6 +9,8 @@ import Register from './screens/Register'
 import Settings from './screens/Settings';
 import NewConv from './screens/NewConv';
 import EditProfile from './screens/EditProfile';
+import NotificationSettings from './screens/NotificationSettings';
+import PrivacySettings from './screens/PrivacySettings';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SimpleLineIcons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -28,6 +31,7 @@ const Tabs = createBottomTabNavigator()
 const HomeStack = createNativeStackNavigator();
 const ByMeStack = createNativeStackNavigator();
 const MainStack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef();
 
 function SettingsScreens() {
   return(
@@ -36,6 +40,8 @@ function SettingsScreens() {
       })}>
       <ByMeStack.Screen name="Overview" component={Settings} />
       <ByMeStack.Screen name="Edit Profile" component={EditProfile} />
+      <ByMeStack.Screen name="Notifications" component={NotificationSettings} />
+      <ByMeStack.Screen name="Privacy" component={PrivacySettings} />
     </ByMeStack.Navigator>
   );
 }
@@ -46,7 +52,7 @@ function HomeStackScreens() {
       headerShown: false,
       })}>
       <HomeStack.Screen name="My Conversations" component={Home} />
-      <HomeStack.Screen name="Details" component={Details} />
+      <HomeStack.Screen name="Details" component={Details} getId={({ params }) => params.id} />
       <HomeStack.Screen name="New Conversation" component={NewConv} />
       <HomeStack.Screen name="Error" component={ErrorScreen} />
     </HomeStack.Navigator>
@@ -114,6 +120,39 @@ export default function Navigation(props) {
   const refresh = useSelector(state => state.theme.refresh);
 
   const [networkStatus, setNetworkStatus] = useState(true);
+  const [navReady, setNavReady] = useState(false);
+  const [pending, setPending] = useState(null); // where a tapped push wants to go, waiting for the Tab screens
+
+  // a tap on a conversation push (also the one that cold-started the app) -> remember which conversation
+  const lastResponse = Notifications.useLastNotificationResponse();
+  const handledResponse = useRef(null);
+
+  useEffect(() => {
+    if(!lastResponse || lastResponse.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+
+    const key = lastResponse.notification.request.identifier;
+    if(handledResponse.current === key) return;
+    handledResponse.current = key;
+
+    const data = lastResponse.notification.request.content.data;
+    if(data?.convID) setPending({ type: 'conversation', id: data.convID });
+    else if(data?.type === 'friendRequest') setPending({ type: 'friendRequest' });
+  }, [lastResponse])
+
+  // ...and open the conversation / the received friend requests once the user is signed in, verified and the navigator exists
+  useEffect(() => {
+    if(!pending || !navReady || !networkStatus || !props.isSignedin || !props.isVerified) return;
+
+    if(pending.type === 'conversation') {
+      navigationRef.navigate('Tab', {
+        screen: 'Home',
+        params: { screen: 'Details', params: { id: pending.id } },
+      });
+    } else {
+      navigationRef.navigate('Tab', { screen: 'Friends', params: { section: 'received' } });
+    }
+    setPending(null);
+  }, [pending, navReady, networkStatus, props.isSignedin, props.isVerified])
 
   useEffect(() => {
     if(refresh != null){
@@ -142,7 +181,7 @@ export default function Navigation(props) {
         barStyle= {statusBarContent}
       />
 
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef} onReady={() => setNavReady(true)}>
         <MainStack.Navigator screenOptions={() => ({ headerShown: false,})}>
           {networkStatus? (
             <>

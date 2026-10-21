@@ -56,7 +56,7 @@ export default function Details({ route, navigation }) {
   const [working, setWorking] = useState(false);
   const [qr, setQr] = useState(null); // { title, caption, value } of the QR code being shown
 
-  const { post, allParticipants, participantsIDs, data, num, convAuthor, tokensArray } =
+  const { post, allParticipants, participantsIDs, data, num, convAuthor, myMuted } =
     useConversationParticipants({ id, navigation });
 
   const { allComments, commentsIndicator, unreadMessages, scrollView, scrollNow, onScroll, onLayout, onContentSizeChange } =
@@ -72,19 +72,37 @@ export default function Details({ route, navigation }) {
 
   // everyone who is not in the conversation right now gets +1 unread and a push notification
   const updateUnread = (theComment) => {
+    const bump = (person) => conversations.incrementUnread(db, person.ID, id)
+      .catch(err => console.warn('unread +1 failed for', person.ID, err.code, err.message));
+
     (participantsIDs || []).forEach(person => {
       if(person.lastEnter && person.lastExit)
       {
         if(person.lastEnter < person.lastExit){
-          conversations.incrementUnread(db, person.ID, id);
+          bump(person);
         }
       }
       else if(!person.lastEnter && !person.lastExit) {
-        conversations.incrementUnread(db, person.ID, id);
+        bump(person);
       }
     })
 
-    sendPushNotification(tokensArray.current, post.title, theComment);
+    // push only to active participants who didn't turn message notifications off or mute this conversation
+    const tokens = [...new Set((participantsIDs || [])
+      .filter(p => p.token && !p.removed && p.notify !== false && p.muted !== true)
+      .map(p => p.token))];
+
+    if(tokens.length > 0) sendPushNotification(tokens, post.title, theComment);
+  }
+
+  const toggleMute = async () => {
+    try {
+      await conversations.setMuted(db, user, id, !myMuted);
+      notify(myMuted ? 'Notifications on for this conversation' : 'Conversation muted');
+    } catch(err) {
+      console.log(err);
+      notify('Could not change the setting');
+    }
   }
 
   async function sendPushNotification(expoPushToken, title, body) {
@@ -166,6 +184,7 @@ export default function Details({ route, navigation }) {
             onBack={() => { Keyboard.dismiss(); navigation.goBack(); }}
             onCopyId={() => copyToClipboard(id, 'conversation ID copied')}
             onShowQr={() => setQr({ title: 'Conversation ID', caption: post.title, value: id })}
+            muted={myMuted} onToggleMute={toggleMute}
             onViewInfo={() => setModalOpen(true)}
             onDelete={confirmDeleteConversation}
           />

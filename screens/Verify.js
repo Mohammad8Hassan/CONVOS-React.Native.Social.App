@@ -10,6 +10,7 @@ import { useDispatch } from 'react-redux';
 import { setRefresh } from '../features/themeSlice';
 import { getDoc, getFirestore, doc, updateDoc} from 'firebase/firestore';
 import { useRef } from 'react';
+import { friendlyAuthError } from '../shared/authError';
 
 export default function Verify({ navigation }) {
 
@@ -29,9 +30,12 @@ export default function Verify({ navigation }) {
 
     getDoc(doc(db, 'Users', getAuth().currentUser.uid))
       .then(res => {
+        // right after registering, this screen opens before Register has finished writing the user document
+        // (or the cold-start cache is empty), so data() can be undefined
         if(mounted.current == true)
-          setUserInfo(res.data())
+          setUserInfo(res.data() || {})
       })
+      .catch(err => console.log(err))
     
     return () => {
       mounted.current = false;
@@ -62,10 +66,10 @@ export default function Verify({ navigation }) {
     })
     .catch(error => {
       if(Platform.OS === 'android')
-        ToastAndroid.show(error.message, ToastAndroid.LONG);
+        ToastAndroid.show(friendlyAuthError(error), ToastAndroid.LONG);
       else {
         Alert.alert(
-          error.message,
+          friendlyAuthError(error),
           '',
           [
             {
@@ -127,11 +131,11 @@ export default function Verify({ navigation }) {
             console.log(error);
             setEmailIndicator(false);
             if(Platform.OS === 'android')
-              ToastAndroid.show(error.message, ToastAndroid.SHORT);
+              ToastAndroid.show(friendlyAuthError(error), ToastAndroid.SHORT);
             else {
               Alert.alert(
                 'Error',
-                error.message,
+                friendlyAuthError(error),
                 [
                   {
                     text: 'Ok',
@@ -149,11 +153,11 @@ export default function Verify({ navigation }) {
         console.log(error);
         setEmailIndicator(false);
         if(Platform.OS === 'android')
-          ToastAndroid.show(error.message, ToastAndroid.SHORT);
+          ToastAndroid.show(friendlyAuthError(error), ToastAndroid.SHORT);
         else {
           Alert.alert(
             'Error',
-            error.message,
+            friendlyAuthError(error),
             [
               {
                 text: 'Ok',

@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AuthLayout from '../shared/AuthLayout';
 import AuthInput from '../shared/AuthInput';
 import BusyButton from '../shared/BusyButton';
+import { friendlyAuthError } from '../shared/authError';
 
 export default function Register({ navigation }) {
     const [email, setEmail] = useState('');
@@ -47,7 +48,7 @@ export default function Register({ navigation }) {
 
         console.log(credentials.user);
 
-        setDoc(doc(db, 'Users', getAuth().currentUser.uid), {
+        await setDoc(doc(db, 'Users', getAuth().currentUser.uid), {
           Name: name,
           ID: getAuth().currentUser.uid,
           email: credentials.user.email,
@@ -63,11 +64,11 @@ export default function Register({ navigation }) {
         console.log(errorCode, errorMessage);
 
         if(Platform.OS === 'android')
-          ToastAndroid.show(error.message, ToastAndroid.LONG);
+          ToastAndroid.show(friendlyAuthError(error), ToastAndroid.LONG);
         else {
           Alert.alert(
             'Error',
-            error.message,
+            friendlyAuthError(error),
             [
               {
                 text: 'Ok',

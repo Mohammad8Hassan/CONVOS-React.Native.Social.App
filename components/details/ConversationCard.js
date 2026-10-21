@@ -10,7 +10,7 @@ import { Menu, MenuOptions, MenuOption, MenuTrigger } from 'react-native-popup-m
 //    exactly like the expanded menu.
 //  - the caret icon name is derived from `expanded` (it was a separate state kept in sync by an effect).
 export default function ConversationCard({
-  post, id, user, convAuthor, expanded, onToggleExpanded, onBack, onCopyId, onShowQr, onViewInfo, onDelete,
+  post, id, user, convAuthor, expanded, onToggleExpanded, onBack, onCopyId, onShowQr, onViewInfo, onDelete, muted, onToggleMute,
 }) {
   const isAuthor = post.authorID == user.uid;
 
@@ -28,6 +28,9 @@ export default function ConversationCard({
       <MenuOptions>
         <MenuOption onSelect={onViewInfo}>
           <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>{collapsed ? 'View Participants' : 'View Info'}</Text>
+        </MenuOption>
+        <MenuOption onSelect={onToggleMute}>
+          <Text style={{color: "#613a5f", fontSize: 18, margin: 5}}>{muted ? 'Unmute notifications' : 'Mute notifications'}</Text>
         </MenuOption>
         { isAuthor &&
           <MenuOption onSelect={onDelete}>

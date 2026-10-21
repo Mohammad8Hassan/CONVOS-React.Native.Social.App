@@ -12,7 +12,7 @@ import * as Device from 'expo-device';
 import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 import { confirm } from '../shared/confirm';
 import { notify } from '../shared/notify';
-import { sendPush } from '../services/notifications';
+import { sendPush, wantsPush } from '../services/notifications';
 import * as friendsService from '../services/friends';
 import useFriendsData from '../hooks/useFriendsData';
 import useFriendSearch from '../hooks/useFriendSearch';
@@ -29,7 +29,7 @@ import AddFriendModal from '../components/friends/AddFriendModal';
 //   shared/notify.js                the Android toast / iOS alert helper
 // Dropped as dead: state `email`, `Data`, `title`, `num`, `expoPushToken`, `*Num` (now list lengths),
 // refs `recFlag` / `senFlag`, the unused `Cli` import and ~100 lines of commented-out old code.
-export default function Friends({ navigation }) {
+export default function Friends({ navigation, route }) {
 
   const AdID = (!Device.isDevice || __DEV__)? TestIds.BANNER : "ca-app-pub-4623463929646643/6113738748";
 
@@ -47,9 +47,17 @@ export default function Friends({ navigation }) {
 
   const {
     friends, friendsNum, receivedRequests, receivedRequestsNum, sentRequests, sentRequestsNum, listIndicator
-  } = useFriendsData(() => setSelector('friends'));
+  } = useFriendsData(() => setSelector(prev => prev || 'friends'));
 
   const search = useFriendSearch();
+
+  // a tapped friend-request push asks for the received list (see Navigation.js)
+  const requestedSection = route.params?.section;
+  useEffect(() => {
+    if(!requestedSection) return;
+    setSelector(requestedSection);
+    navigation.setParams({ section: undefined });
+  }, [requestedSection])
 
   // tab badge = pending received + sent requests
   useEffect(() => {
@@ -65,7 +73,7 @@ export default function Friends({ navigation }) {
       sound: 'default',
       title: 'Friend Request',
       body: user.displayName + ' sent you a friend request.',
-      data: { someData: 'goes here' },
+      data: { type: 'friendRequest' },
       channelId: 'Friends'
     };
 
@@ -107,7 +115,7 @@ export default function Friends({ navigation }) {
       .then(res => {
         friendsService.writeFriendRequest(db, user, searchedID, res.data())
           .then(() => {
-            if(res.data().ExpoPushToken !== undefined)
+            if(res.data().ExpoPushToken !== undefined && wantsPush(res.data(), 'notifyFriends'))
               sendFriendNotification(res.data().ExpoPushToken)
           })
 

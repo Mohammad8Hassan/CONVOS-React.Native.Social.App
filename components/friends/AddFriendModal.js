@@ -51,6 +51,8 @@ function ConnectionButtons({ connection, searchedID, showIndicator, onUnblock, o
           <ActionButton label='Block' style={styles.btnBlock} onPress={() => onBlock(searchedID)} />
         </View>
       )
+    case 'closed':
+      return <ActionButton label='Block' style={styles.btnBlock} onPress={() => onBlock(searchedID)} />;
     case 'new':
       return (
         <View style={{flexDirection:'row', flex:2, justifyContent:'space-between'}}>

@@ -7,10 +7,11 @@ import { TextInput } from 'react-native-gesture-handler'
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
   setPersistence } from 'firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthLayout from '../shared/AuthLayout';
 import AuthInput from '../shared/AuthInput';
 import BusyButton from '../shared/BusyButton';
+import { friendlyAuthError } from '../shared/authError';
 
 
 
@@ -18,6 +19,7 @@ export default function Login({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
+  const insets = useSafeAreaInsets(); // the reset sheet sits at the bottom of a Modal, which draws under the Android nav bar
   const [showIndicator, setShowIndicator] = useState(false);
 
   const emailToReset = useRef('');
@@ -57,11 +59,11 @@ export default function Login({ navigation }) {
         console.log(errorCode, errorMessage);
         
         if(Platform.OS === 'android')
-          ToastAndroid.show(error.message, ToastAndroid.LONG);
+          ToastAndroid.show(friendlyAuthError(error), ToastAndroid.LONG);
         else {
           Alert.alert(
             'Error',
-            error.message,
+            friendlyAuthError(error),
             [
               {
                 text: 'Ok',
@@ -124,11 +126,11 @@ export default function Login({ navigation }) {
         setShowIndicator(false);
         
         if(Platform.OS === 'android')
-          ToastAndroid.show(error.message, ToastAndroid.LONG);
+          ToastAndroid.show(friendlyAuthError(error), ToastAndroid.LONG);
         else {
           Alert.alert(
             'Error',
-            error.message,
+            friendlyAuthError(error),
             [
               {
                 text: 'Ok',
@@ -168,8 +170,8 @@ export default function Login({ navigation }) {
       <Modal visible={modalVisible} animationType='fade' transparent={true}
         onRequestClose={() => {setModalVisible(false)}}
       >
-        <KeyboardAvoidingView style={styles.outerView} behavior={Platform.OS==='ios'? 'height' : null}>
-            <View style={styles.innerView}>
+        <KeyboardAvoidingView style={styles.outerView} behavior={Platform.OS==='ios'? 'height' : 'padding'}>
+            <View style={[styles.innerView, {paddingBottom: 10 + insets.bottom}]}>
               <TextInput placeholder='enter your email' onChangeText={text => emailToReset.current = text} style={styles.inputP}/> 
               {showIndicator? (
                 <ActivityIndicator size={50} color='#1da877' animating={showIndicator} style={styles.buttonSubmitAI}/>

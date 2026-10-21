@@ -3,6 +3,7 @@ import { getFirestore, collection, onSnapshot, doc, getDoc } from 'firebase/fire
 import { getAuth } from 'firebase/auth';
 import { getUserProfile } from '../shared/userProfile';
 import { markConversationOpened, markParticipantEnter, markParticipantExit } from '../services/conversations';
+import { wantsPush } from '../services/notifications';
 
 // REFACTOR NOTE: this is the first `useEffect` of screens/Details.js, which was a ~170 line
 // onSnapshot -> getDoc -> updateDoc -> onSnapshot pyramid with the "participant added /
@@ -33,6 +34,7 @@ export default function useConversationParticipants({ id, navigation }) {
   const [participantsIDs, setParticipantsIDs] = useState(null);
   const [data, setData] = useState(null);
   const [num, setNum] = useState(0);
+  const [myMuted, setMyMuted] = useState(false); // I muted this conversation's pushes
 
   const mount = useRef(false);
   const unsubscribeParticipants = useRef();
@@ -129,7 +131,8 @@ export default function useConversationParticipants({ id, navigation }) {
         }
 
         if (change.doc.id != user.uid && !participant.removed)
-          upsert({...participant, id: change.doc.id, photo: photo, name: name, removed: participant.removed, token: token});
+          upsert({...participant, id: change.doc.id, photo: photo, name: name, removed: participant.removed, token: token,
+            notify: wantsPush(profile, 'notifyConversations')});
 
         participants[change.doc.id + 'Name'] = name;
         participants[change.doc.id + 'Photo'] = photo;
@@ -167,7 +170,7 @@ export default function useConversationParticipants({ id, navigation }) {
         if (change.doc.id != user.uid && !change.doc.data().removed) {
           upsert({...change.doc.data(), id: change.doc.id,
             photo: participants[change.doc.id + 'Photo'], name: participants[change.doc.id + 'Name'],
-            removed: change.doc.data().removed, token: token});
+            removed: change.doc.data().removed, token: token, notify: wantsPush(profile, 'notifyConversations')});
         }
 
         participants[change.doc.id + 'REM'] = false;
@@ -178,6 +181,7 @@ export default function useConversationParticipants({ id, navigation }) {
         const index = participantsID.map(e => e.id).indexOf(change.doc.id);
         if(index == -1) return;
 
+        participantsID[index].muted = change.doc.data().muted === true;
         participantsID[index].lastEnter = change.doc.data().lastEnter;
         participantsID[index].lastExit = change.doc.data().lastExit;
 
@@ -191,6 +195,9 @@ export default function useConversationParticipants({ id, navigation }) {
       }
 
       const unsubscribe = onSnapshot(collection(db, 'Conversations', id, 'Participants'), async snapShot => {
+        const me = snapShot.docs.find(d => d.id == user.uid);
+        if(me && mount.current) setMyMuted(me.data().muted === true);
+
         await Promise.all(snapShot.docChanges().map(async change => {
           if(change.type === 'added') {
             await handleAdded(change);
@@ -258,5 +265,5 @@ export default function useConversationParticipants({ id, navigation }) {
     }
   }, [])
 
-  return { post, allParticipants, participantsIDs, data, num, convAuthor, tokensArray };
+  return { post, allParticipants, participantsIDs, data, num, convAuthor, tokensArray, myMuted };
 }
