@@ -4,15 +4,8 @@ import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, TextInput,
 import { Formik, useFormikContext } from 'formik';
 import * as yup from 'yup';
 
-// REFACTOR NOTE: this is the title / body / participants preview / password / Create part of
-// screens/NewConv.js (the Formik form inside a ScrollView), together with its yup schema and styles.
-// It owns `hasPassword` and the (cosmetic) pull-to-refresh state; the screen only gets
-// onSubmit(values, hasPassword). Toggling the password switch used to *mutate* Formik's
-// `props.values.password = '123456'`; there is no default password any more (see schemas below).
-// REFACTOR NOTE: there was one schema where `password` was always required, which is why the field was
-// pre-filled with '123456' even when the conversation had no password (and that default became the real
-// password if the author just flipped the switch). The password is only validated when the switch is
-// on, there is no default, and the author has to choose it.
+// Title / body / password form of the new-conversation screen. It owns `hasPassword`; the screen only gets
+// onSubmit(values, hasPassword). The password is only validated when its switch is on and has no default.
 const baseShape = {
   title: yup.string()
     .required()

@@ -1,18 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getFirestore, collection, onSnapshot, query, orderBy, Timestamp } from 'firebase/firestore';
 
-// REFACTOR NOTE: this is `loadComments`, the scroll helpers and the 4 related useStates/useRefs
-// (allComments, commentsIndicator, unreadMessages, scrollView, scrollAfter, commentsFlag, unsubscribe2)
-// that used to be scattered through screens/Details.js.
-//
-// Changes in behaviour while moving it:
-//  - the listener is attached once, when the participants are known (before, the effect could attach
-//    several listeners in a row, each one re-adding every comment).
-//  - author name/photo are looked up in the *current* participants (ref), not the ones captured when
-//    the listener was created, so people who join later show their name and photo.
-//  - `removed` is no longer written into each comment when someone is removed/re-enters; the screen
-//    derives it from participants[<uid>REM] (see Details.js), so the list always matches.
-//
+// Comments listener for a conversation. It is attached once, when the participants are known, and author
+// name/photo are looked up in the current participants. `removed` is derived from participants[<uid>REM].
 // Returns the comments, whether they are still loading, the unread counter and the scroll handlers.
 export default function useConversationComments({ id, allParticipants }) {
   const db = getFirestore();

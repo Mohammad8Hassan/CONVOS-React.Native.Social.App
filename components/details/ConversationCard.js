@@ -2,13 +2,6 @@ import { StyleSheet, Text, View, Image, ScrollView, Pressable, Platform } from '
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Menu, MenuOptions, MenuOption, MenuTrigger } from 'react-native-popup-menu';
 
-// REFACTOR NOTE: this was the "topic card" block of screens/Details.js: an expanded card (title, body,
-// author, id, menu) or a collapsed one (one line of the body + id + menu), plus the caret button.
-// The two menus are the same thing now. Differences from the old code:
-//  - collapsed menu: "View Participants" and "Delete Post" called `showAlert(item.id)` where `item`
-//    didn't exist (ReferenceError when tapped). They now open the participants / delete the conversation,
-//    exactly like the expanded menu.
-//  - the caret icon name is derived from `expanded` (it was a separate state kept in sync by an effect).
 export default function ConversationCard({
   post, id, user, convAuthor, expanded, onToggleExpanded, onBack, onCopyId, onShowQr, onViewInfo, onDelete, muted, onToggleMute,
 }) {

@@ -4,10 +4,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Hyperlink from 'react-native-hyperlink';
 import { formatCommentTime } from './formatTime';
 
-// REFACTOR NOTE: the delete icon called an undefined `showAlert(...)` (ReferenceError on tap). It now calls
-// the `alert` callback the parent passes in, like RenderComment does. (It only shows for your own comments,
-// which Details renders with RenderComment, so this icon is effectively never visible.)
-// Other people's messages: bubble on the left, round avatar on the right.
 export default function RenderOthersComment(props) {
   return (
     <View style={[styles.row, {opacity: (props.comment.removed == true)? 0.5 : 1}]}>

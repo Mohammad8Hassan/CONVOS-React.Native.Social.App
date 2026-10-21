@@ -52,7 +52,6 @@ export default function Conversations({ navigation }) {
   }
 
   const showAlert = (id) => {
-    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
     confirm('Delete Post?', 'Are you sure you want to delete this post?', () => deletePost(id))
   }
 

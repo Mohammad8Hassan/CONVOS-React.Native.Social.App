@@ -2,12 +2,6 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 
-// REFACTOR NOTE: this file collects push-notification code that used to live inside screens:
-//  - createNotificationsChannels / registerForPushNotificationsAsync were at the top of Home.js
-//  - the `fetch('https://exp.host/--/api/v2/push/send', ...)` call was copy-pasted in
-//    Details (sendPushNotification), Friends (sendFriendNotification) and NewConv (sendInviteNotification).
-// Those screen functions still exist but now only build the message and call sendPush().
-
 export const createNotificationsChannels = async () => {
   if (Platform.OS === 'android') {
     Notifications.setNotificationChannelAsync('Conversations', {

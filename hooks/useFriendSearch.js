@@ -5,12 +5,6 @@ import { getAuth } from 'firebase/auth';
 import { loadImage } from '../shared/imageCache';
 import { isBlockedBy } from '../services/friends';
 
-// REFACTOR NOTE: this is the "search a user by ID" flow that used to be `searchEmail` in
-// screens/Friends.js: a 4-level nested getDoc().then().catch() chain that repeated the same
-// five state setters in every branch (+ 7 separate useStates in the screen). It is now a flat
-// async function that works out the result first and sets state once.
-// A failed read in one of the "is friend / sent / received" checks is still treated as
-// "no" and falls through to the next check, as the old `.catch` chain did.
 const existsOrFalse = async (ref) => {
   try { return (await getDoc(ref)).exists(); } catch (err) { console.log('search check failed', err); return false; }
 }

@@ -23,3 +23,20 @@ functions/*.log
 *-firebase-adminsdk-*.json
 serviceAccount*.json
 .firebase/
+
+# Firebase client config for the native app (copy google-services.example.json and fill it in)
+google-services.json
+GoogleService-Info.plist
+
+# env files (keep the *.example ones)
+.env
+.env.*
+!.env.example
+*.keystore
+*.pem
+
+# logs
+yarn-error.log
+
+# local assistant notes (not for the public repo)
+CLAUDE.md

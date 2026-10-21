@@ -1,9 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
-// REFACTOR NOTE: checkCache / cacheImage / loadImage used to be copy-pasted inside
-// Details, EditProfile, Friends, Home, Invites, NewConv and Settings (7 identical copies).
-// They now live here once; screens just `import { loadImage } from '../shared/imageCache'`.
-
 const checkCache = async (uri) => {
   try {
     let info = await FileSystem.getInfoAsync(uri);

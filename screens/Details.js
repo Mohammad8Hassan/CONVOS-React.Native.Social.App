@@ -19,16 +19,6 @@ import CommentsList from '../components/details/CommentsList';
 import CommentBox from '../components/details/CommentBox';
 import QRCodeModal from '../shared/QRCodeModal';
 
-// REFACTOR NOTE: this screen used to be 1209 lines with 22 useStates, the participants/comments
-// listeners and the whole UI in one function. It now only wires things together; the pieces moved to:
-//   hooks/useConversationParticipants.js   conversation + participants listeners, push tokens
-//   hooks/useConversationComments.js       comments listener, scroll + unread counter
-//   services/conversations.js              the Firestore writes (comment, remove user, delete, unread)
-//   components/details/*                   ConversationCard, ParticipantsModal, CommentsList, CommentBox
-//   shared/notify.js                       the Android toast / iOS alert helper
-// Dropped as dead: states friends, uri, data(selector), areFriends, notFriends, caretName, isAvailable
-// (always true; its "Conversation not available" view could never show), `defaultImg`, `storage`,
-// the unused firebase/storage imports, and the old commented-out code.
 export default function Details({ route, navigation }) {
 
   const { id, photoUrl } = route.params;

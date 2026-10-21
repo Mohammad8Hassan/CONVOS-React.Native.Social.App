@@ -5,19 +5,7 @@ import { getUserProfile } from '../shared/userProfile';
 import { markConversationOpened, markParticipantEnter, markParticipantExit } from '../services/conversations';
 import { wantsPush } from '../services/notifications';
 
-// REFACTOR NOTE: this is the first `useEffect` of screens/Details.js, which was a ~170 line
-// onSnapshot -> getDoc -> updateDoc -> onSnapshot pyramid with the "participant added /
-// removed / re-entered / just modified" cases inline. It is now split into four named handlers
-// below; the behaviour of each case is the same except for the fixes listed at the bottom.
-//
-// Fixes made while moving it (all were latent bugs):
-//  - every change to the conversation doc used to attach ANOTHER participants listener without
-//    detaching the previous one; the previous one is now unsubscribed first.
-//  - `info.data()` was read unguarded (crashed on a cold start / offline); uses getUserProfile.
-//  - the "just modified" case indexed `participantsID[-1]` for people not in the list (e.g. yourself).
-//  - `participantsID[index].token` was a statement with no assignment; it now stores the token.
-//
-// Returns:
+// Conversation + participants listeners for the Details screen. Returns:
 //  post              the conversation doc data (null until loaded)
 //  allParticipants   map like { <uid>Name, <uid>Photo, <uid>ID, <uid>REM } (null until loaded)
 //  participantsIDs   array of the other participants { id, name, photo, token, removed, lastEnter, lastExit, ... }
@@ -112,10 +100,6 @@ export default function useConversationParticipants({ id, navigation }) {
       const handleAdded = async (change) => {
         const participant = change.doc.data();
 
-        // REFACTOR NOTE: REM used to be set only after the awaits below. A "modified" change for the same
-        // person (e.g. they entered the conversation) arriving while the photo was still downloading saw
-        // REM undefined, took the "re-entered" path and pushed them a second time -> duplicate key + a
-        // participant listed twice. It is now set before awaiting, and pushes go through upsert().
         participants[change.doc.id + 'REM'] = participant.removed;
 
         const profile = await getUserProfile(db, change.doc.id);
@@ -230,7 +214,6 @@ export default function useConversationParticipants({ id, navigation }) {
         return;
       }
 
-      // REFACTOR NOTE: this getDoc could throw ("client is offline" on a cold start) and nothing caught it.
       let checkExist;
       try {
         checkExist = await getDoc(doc(db, 'Conversations', id, 'Participants', user.uid))
@@ -250,7 +233,6 @@ export default function useConversationParticipants({ id, navigation }) {
       markParticipantEnter(db, user, id)
         .then(() => {
           if(!mount.current) return; // unmounted while the update was in flight: don't attach a listener nobody detaches
-          // REFACTOR NOTE: previous listener is detached first (it used to leak, see top of file)
           if(unsubscribeParticipants.current) unsubscribeParticipants.current();
           unsubscribeParticipants.current = listenToParticipants();
         })

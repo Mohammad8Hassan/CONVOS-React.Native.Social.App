@@ -3,10 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider } from 'react-native-popup-menu';
 
-// REFACTOR NOTE: this was the `<Modal>` block (~130 lines) at the top of the render in screens/Details.js,
-// together with the styles only it used. It used to end with a "Password" row (show/hide the conversation
-// password to every member); removed: passwords are hashed on the server now and can't be shown.
-// `convAuthorId` is the uid of the conversation author: they see "remove" on other participants.
+// Participants list. `convAuthorId` is the uid of the conversation author, who sees "remove" on other participants.
 export default function ParticipantsModal({
   visible, onClose, num, user, photoUrl, data, extraData, convAuthorId,
   onRemoveUser, onCopyUserId, onCopyMyId, onShowUserQr, onShowMyQr,

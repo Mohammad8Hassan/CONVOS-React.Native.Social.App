@@ -4,16 +4,9 @@ import { getFirestore, collection, doc, getDoc, getDocs } from 'firebase/firesto
 import { getAuth } from 'firebase/auth';
 import { getUserProfile } from '../shared/userProfile';
 
-// REFACTOR NOTE: this is the "who do I invite" logic of screens/NewConv.js. Before, it was spread over
-// 5 parallel states (selectedFriends, selectedOthers, displaySelected, selectedFriendsNum,
-// selectedOthersNum) kept in sync by hand and by useEffects, with `splice(index)` calls that removed the
-// wrong person when the index was -1. Now there is one ordered list, `selected`, where every entry has
-// `kind: 'friend' | 'other'`; the friends/others lists and the counts are derived from it.
-// Also fixed: the friends list used to be pushed into an array *after* setFriends() had been called,
-// so the list only showed up when something else happened to re-render. It is set once, when loaded,
-// and a friend whose profile can't be read (offline) is skipped instead of throwing.
-//
-// Entries look like { ...userDoc, name, photo, kind }.
+// "Who do I invite" logic of the new-conversation screen. There is one ordered list, `selected`, where every
+// entry looks like { ...userDoc, name, photo, kind: 'friend' | 'other' }; the friends/others lists and the
+// counts are derived from it.
 export default function useInvitees() {
   const db = getFirestore();
   const user = getAuth().currentUser;
@@ -98,9 +91,6 @@ export default function useInvitees() {
       if(already)
         return finish(' is already added!', already.Name);
 
-      // REFACTOR NOTE: this used to be getDocs(query(collection(db,'Users'), where('ID','==',searchID))),
-      // which needs permission to *list* the Users collection. A user's document id is their uid (= the ID
-      // field), so a plain getDoc is the same lookup and rules can forbid listing all users.
       const res = await getDoc(doc(db, 'Users', searchID));
       if(!res.exists())
         return finish('No users found!');

@@ -3,9 +3,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import FriendRow from './FriendRow';
 
-// REFACTOR NOTE: this was the `renderList(data, listTitle, listNum)` function in screens/Friends.js,
-// called three times from the render. It is a component now; row actions are passed through
-// to FriendRow instead of being closed over.
 export default function FriendList({ data, listTitle, listNum, selector, refreshing, onRefresh, onAddFriend, ...rowActions }) {
   const { titleColor, iconActiveColor, topButtonsColors } = useSelector(state => state.theme);
 

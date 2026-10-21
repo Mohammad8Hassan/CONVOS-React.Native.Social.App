@@ -3,11 +3,8 @@ import RenderComment from '../../shared/RenderComment';
 import RenderOthersComment from '../../shared/RenderOthersComment';
 import SystemMessage from '../../shared/SystemMessage';
 
-// REFACTOR NOTE: this is the scrolling comments list (loading spinner / system messages / my comments /
-// other people's comments) that sat inline in screens/Details.js.
+// Scrolling list of a conversation's comments (system messages, mine, other people's).
 // `participants` is the { <uid>REM, ... } map: a comment is dimmed when its author is currently removed.
-// This used to be written into every comment object by the participants listener
-// (setAllComments(prev => prev.forEach(c => c.removed = true))); it is derived at render time now.
 export default function CommentsList({
   comments, loading, participants, userID, onDeleteComment, scrollRef, onScroll, onLayout, onContentSizeChange,
 }) {

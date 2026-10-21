@@ -42,8 +42,6 @@ export default function EditProfile({ navigation }) {
 
   useEffect(() => {
     const unsubscribeUser = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
-      // REFACTOR NOTE: no guard here before - on a cold start with no network the first snapshot comes
-      // from an empty cache, data() is undefined and `.Photo` threw "Cannot read property 'Photo' of undefined".
       if(!snapShot.exists()) return;
       const photo = await loadImage(snapShot.data().Photo, snapShot.data().photoExtension);
       setPhotoUrl(photo);
@@ -246,17 +244,12 @@ export default function EditProfile({ navigation }) {
   }
   
   const showAlertEmail = () => {
-    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "proceed" buttons (~16 lines); now uses confirm().
     confirm('Change Email?', 'You will not be able to access your account until you verify the new email address', () => setModalVisible(true), 'proceed')
   }
 
   const showAlertRemove = () => {
-    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
     confirm('Remove your profile picture?', '', () => removePhoto())
   }
-
-  // REFACTOR NOTE: checkCache / cacheImage / loadImage used to be defined right here (~54 lines,
-  // identical copy in 7 screens). They are now imported from ../shared/imageCache.
 
   const changePassword = () => {
     setPasswordIndicator(true);

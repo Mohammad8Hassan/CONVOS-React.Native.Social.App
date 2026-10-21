@@ -71,7 +71,6 @@ export default function Friends({ navigation }) {
     .then(res => {
       myData.current = res.data();
     })
-    // REFACTOR NOTE: had no .catch, so "client is offline" on a cold start was an uncaught promise rejection.
     .catch(err => {
       console.log(err);
     })
@@ -85,8 +84,6 @@ export default function Friends({ navigation }) {
 
      for (const dok of snapShot.docs) {
       const empty = dok.data().timeStamp === null ? Timestamp.now() : dok.data().timeStamp;
-      // REFACTOR NOTE: the old try/catch swallowed the read error but then used `info.data().Name`
-      // outside it, so a failed/missing user doc still crashed. getUserProfile returns null instead.
       const profile = await getUserProfile(db, dok.data().authorID);
 
       result.unshift({...dok.data(), ID: dok.id, timeStamp: empty.toDate(), Name: profile ? profile.Name : '', Photo: profile ? profile.photo : null});
@@ -111,7 +108,6 @@ export default function Friends({ navigation }) {
     
      for (const dok of snapShot.docs) {
        const empty = dok.data().timeStamp === null ? Timestamp.now() : dok.data().timeStamp;
-       // REFACTOR NOTE: same unguarded getDoc + info.data() as above, now via getUserProfile.
        const profile = await getUserProfile(db, dok.data().authorID);
 
        result.unshift({...dok.data(), ID: dok.id,  timeStamp: empty.toDate(), Name: profile ? profile.Name : '', Photo: profile ? profile.photo : null});
@@ -166,10 +162,6 @@ export default function Friends({ navigation }) {
   setNum(OthersInvitesNum)
  }
 
-// REFACTOR NOTE: joinFriendConversation and joinOtherConversation used to write the participant, "My
- // Conversations" and "joined" comment documents from the phone (~55 lines each, almost identical).
- // Both are now one call to the joinConversation Cloud Function, which accepts the invite (instead of
- // the conversation password) and removes it.
  const joinFromInvite = async (id, inviteCollection) => {
   try {
     await joinConversationOnServer(id);
@@ -177,10 +169,6 @@ export default function Friends({ navigation }) {
     if(Platform.OS === 'android')
       ToastAndroid.show('Joined Conversation', ToastAndroid.SHORT);
 
-    // REFACTOR NOTE: was navigation.navigate('Details', { id }). Details lives in the Home tab's stack and this
-    // screen is a sibling tab; React Navigation 7 (the Expo upgrade moved from 6) no longer finds screens
-    // inside another tab's navigator, so the join worked but opening the conversation threw "NAVIGATE ...
-    // was not handled by any navigator". The parent tab is named explicitly now.
     navigation.navigate('Home', { screen: 'Details', params: { id } });
   }
   catch(err) {
@@ -206,14 +194,12 @@ export default function Friends({ navigation }) {
  const AlertDeleteFriend = (id) => {
   console.log(id);
   const ID = id;
-  // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
   confirm('Delete Invite?', '', () => deleteFriendInvite(ID))
 }
 
 const AlertDeleteOther = (id) => {
   console.log(id);
   const ID = id;
-  // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
   confirm('Delete Invite?', '', () => deleteOtherInvite(ID))
 }
 
@@ -222,14 +208,9 @@ const AlertDeleteOther = (id) => {
   deleteDoc(doc(db, 'Users', user.uid, 'Friends Invites', id));
  }
 
-  // REFACTOR NOTE: checkCache / cacheImage / loadImage used to be defined right here (~54 lines,
-  // identical copy in 7 screens). They are now imported from ../shared/imageCache.
-
  const joinOtherConversation = (id) => joinFromInvite(id, 'Other Invites');
 
  const deleteOtherInvite = (id) => {
-  // REFACTOR NOTE: this used the collection name 'Others Invites' (typo); the real one is 'Other Invites',
-  // so dismissing an "others" invite never deleted anything.
   deleteDoc(doc(db, 'Users', user.uid, 'Other Invites', id));
  }
 

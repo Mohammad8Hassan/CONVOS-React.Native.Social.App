@@ -1,5 +1,3 @@
-// REFACTOR NOTE: new file. The project had no ESLint config; undefined-variable bugs
-// (prepareImg, showAlert, item) were only found by an ad hoc run. `yarn lint` now catches them.
 const js = require('@eslint/js');
 const globals = require('globals');
 const react = require('eslint-plugin-react');

@@ -32,9 +32,6 @@ import useAsyncAction from '../shared/useAsyncAction';
 
 
 
-// REFACTOR NOTE: createNotificationsChannels and registerForPushNotificationsAsync used to be defined here;
-// they now live in ../services/notifications.
-
 
 // component
 export default function Home({ route, navigation }) {
@@ -150,10 +147,6 @@ export default function Home({ route, navigation }) {
         if(change.type === 'added') {
           // console.log("triggered added: ", change.doc.data());
           if(authors.current[change.doc.data().authorID+'ID'] == undefined) {
-            // REFACTOR NOTE: used to be getDoc + `if(!info.exists()) continue;`. getDoc itself can throw
-            // ("client is offline" on a cold start), which rejected the whole listener callback and
-            // dropped every conversation after it. getUserProfile returns null for both cases; the
-            // conversation is now still listed (author blank, not cached so it is retried later).
             const authorID = change.doc.data().authorID;
             const profile = await getUserProfile(db, authorID);
 
@@ -189,8 +182,6 @@ export default function Home({ route, navigation }) {
           result.splice(index,1);
 
           if(authors.current[change.doc.data().authorID+'ID'] == undefined) {
-            // REFACTOR NOTE: this used to call `prepareImg`, which was never defined (ReferenceError when an
-            // uncached author appeared), and then read info.data() unguarded. Now getUserProfile (-> loadImage).
             const authorID = change.doc.data().authorID;
             const profile = await getUserProfile(db, authorID);
 
@@ -235,9 +226,6 @@ export default function Home({ route, navigation }) {
   }, [conversations])
 
 
-  // REFACTOR NOTE: checkCache / cacheImage / loadImage used to be defined right here (~54 lines,
-  // identical copy in 7 screens). They are now imported from ../shared/imageCache.
-
   const deletePost = async (id) => {
     setDeleting(true);
 
@@ -249,9 +237,6 @@ export default function Home({ route, navigation }) {
         getDocs(collection(db, 'Conversations', id, 'Participants'))
       ])
 
-      // REFACTOR NOTE: this was `Promise.all([array, array, promise])`, which does not wait for the deletes
-      // inside the arrays, and the conversation was deleted without waiting for its comments/participants.
-      // The rules decide "author" from the conversation document, so it must be deleted last.
       await Promise.all([
         ...allMessages.docs.map(message => deleteDoc(message.ref)),
         ...allPartis.docs.map(person => deleteDoc(person.ref)),
@@ -268,7 +253,6 @@ export default function Home({ route, navigation }) {
   }
 
   const showAlert = (id) => {
-    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
     confirm('Delete Conversation?', 'Are you sure you want to delete this conversation?', () => deletePost(id))
   }
 
@@ -307,7 +291,6 @@ export default function Home({ route, navigation }) {
   }
 
   const showAlertLeave = (id) => {
-    // REFACTOR NOTE: this used to be an inline Alert.alert(...) with Cancel + "confirm" buttons (~16 lines); now uses confirm().
     confirm('Leave Conversation?', 'Are you sure you want to leave this conversation?', () => leaveConversations(id))
   }
 
@@ -319,13 +302,6 @@ export default function Home({ route, navigation }) {
     setPassword('');
   }
 
-  // REFACTOR NOTE: this used to read the conversation document and compare the typed password with
-  // `convRef.data().password` right here, then write the participant, "joined" comment and
-  // "My Conversations" documents from the phone (~120 lines, two near-identical branches for "no
-  // password" and "password ok"). Anyone who could read the document could read the password.
-  // The joinConversation Cloud Function now does all of it (existence check, "already joined",
-  // password / invite check, the writes). If it answers "password-required" the password box is shown.
-  // The app no longer reads conversations it is not a participant of (rules forbid it).
   const [joinGuarded] = useAsyncAction((id) => joinConversation(id));
 
   const joinConversation = async (convID) => {

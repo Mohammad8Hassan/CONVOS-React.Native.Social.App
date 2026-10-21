@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// PHASE 3 rules (see CLAUDE.md "Backend").
+// 
 //
 // Before: any signed-in user could read, write and delete everything. Now every collection the app uses
 // has its own rules, written from an inventory of what the app actually does:

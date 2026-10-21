@@ -8,13 +8,11 @@ const FUNCTIONS_REGION = 'europe-west1';
 
 const callable = (name) => httpsCallable(getFunctions(getApp(), FUNCTIONS_REGION), name);
 
-// REFACTOR NOTE (conversation passwords): the password used to be stored in plaintext in the conversation
-// document and compared on the phone (Home.js), which sent it to everybody who could read the document.
-// It is now hashed by a Cloud Function and checked there; the app never gets it back.
+// Conversation passwords are hashed by Cloud Functions; the app never gets them back.
 //  - setConversationPassword: the author sets it, right after creating the conversation.
-//  - joinConversation: joins by id (+ password, or a valid invite). Does the participant doc, the
-//    "joined" comment, removing the invite and the "My Conversations" entry on the server.
-export const setConversationPassword = (conversationId, password) =>
+//  - joinConversation: joins by id (+ password, or a valid invite). Writes the participant doc, the
+//    "joined" comment and the "My Conversations" entry, and removes the invite, on the server.
+export const setConversationPassword =(conversationId, password) =>
   callable('setConversationPassword')({ conversationId, password });
 
 export const joinConversation = (conversationId, password) =>
@@ -29,9 +27,6 @@ export const joinErrorMessage = (err) => {
   if(code == 'failed-precondition') return err.message;
   return 'Could not join the conversation. Check your connection and try again.';
 }
-
-// REFACTOR NOTE: these writes used to be inline in screens/Details.js, next to the UI code that
-// triggers them. Same documents and fields as before; the screen only decides *when* to call them.
 
 export const markConversationOpened = (db, user, id) =>
   updateDoc(doc(db, 'Users', user.uid, 'My Conversations', id), {
@@ -92,14 +87,7 @@ export const incrementUnread = (db, personID, id) =>
     unread: increment(1)
   });
 
-// REFACTOR NOTE: this was `addConversation` inside screens/NewConv.js. It creates the conversation, my
-// entry in "My Conversations", an invite for every invited friend / other person, the admin participant
-// and the "joined" system comment. It returns the new id and the push tokens of the invited people
-// (the screen sends the notification). Same documents and fields as before.
-// `friends` / `others` are arrays of user objects with at least `ID` (and optionally `ExpoPushToken`).
 export const createConversation = async (db, user, values, hasPassword, friends, others) => {
-  // REFACTOR NOTE: used to include `password: values.password` here (plaintext). Now only `hasPassword`
-  // is stored; the password goes to setConversationPassword below and is hashed on the server.
   const ref = await addDoc(collection(db, 'Conversations'), {
     title: values.title,
     body: values.body,

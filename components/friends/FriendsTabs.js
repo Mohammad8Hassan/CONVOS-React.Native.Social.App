@@ -1,10 +1,6 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { useSelector } from 'react-redux';
 
-// REFACTOR NOTE: the three "Friends List / Received Requests / Sent Requests" buttons used to be
-// three copy-pasted ~15 line blocks in the render of screens/Friends.js. Same layout, one Tab helper.
-// (The old onPress also set `title` and `num` states, which nothing ever read - dropped.)
-// Now drawn as one segmented control: a pill track with the active segment filled.
 function Tab({ name, label, selector, onSelect, count }) {
   const selectorColor = useSelector(state => state.theme.selectorColor);
   const active = selector == name;

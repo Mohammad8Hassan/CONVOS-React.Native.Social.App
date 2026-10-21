@@ -4,9 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import QRScannerModal from '../../shared/QRScannerModal';
 
-// REFACTOR NOTE: this was the "Invite Participants" `<Modal>` in screens/NewConv.js (~125 lines), plus
-// the states that only it used: `selector`, `title`, `num`, `Data` (kept in sync by effects and by
-// selectFriends/selectOthers). They are derived from `selector` now:
+// "Invite Participants" modal. The list and count shown are derived from the selected tab:
 //   friends tab -> list = my friends,      count = selected friends
 //   others tab  -> list = selected others, count = selected others (+ an ID search box to add more)
 // `search` = { status, name, searching, onAdd(id), onClear() }.

@@ -3,10 +3,6 @@ import { StyleSheet, Text, View, TextInput, Pressable, Keyboard } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
-// REFACTOR NOTE: the message input, the send button and the "N new messages" bubble used to be
-// inline in screens/Details.js, with the typed text (`comment`) living in the screen's state - every
-// keystroke re-rendered the whole conversation screen. The text now lives here and only the finished
-// message goes up through onSend(text).
 export default function CommentBox({ onSend, unreadMessages, onScrollDown }) {
   const [comment, setComment] = useState('');
   const canSend = comment.trim().length > 0;

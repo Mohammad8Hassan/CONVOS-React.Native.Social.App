@@ -3,13 +3,8 @@ import { getFirestore, collection, onSnapshot, query, orderBy, Timestamp } from 
 import { getAuth } from 'firebase/auth';
 import { getUserProfile } from '../shared/userProfile';
 
-// REFACTOR NOTE: this replaces three ~35 line onSnapshot blocks that sat in the body of
-// screens/Friends.js (Sent Requests, Received Requests, Friends). They were identical apart from
-// the collection, the sort field, the timestamp field and a filter, so there is one `listen`
-// helper now. Also removed ~40 lines of commented-out older versions of the same loops.
-// The "num" states (sentRequestsNum, ...) are no longer separate useStates; they are list.length.
-//
-// Each list item is { id, Namee, Photoo, ...docData, <dateField>: Date }, same as before.
+// Listens to one of the friends collections (friends / received / sent requests).
+// Each list item is { id, Namee, Photoo, ...docData, <dateField>: Date }.
 const listen = (db, uid, { collectionName, orderField, timeField, dateField, filter }, onResult) => {
   const q = query(collection(db, 'Users', uid, collectionName), orderBy(orderField));
 
@@ -20,9 +15,6 @@ const listen = (db, uid, { collectionName, orderField, timeField, dateField, fil
       if (filter && !filter(change.data())) return;
 
       const date = change.data()[timeField] === null ? Timestamp.now() : change.data()[timeField];
-      // REFACTOR NOTE: used to read info.data().Photo / .Name straight from getDoc, which crashed
-      // (or rejected) when the user doc was not readable yet (offline on cold start). Falls back
-      // to the name stored on the request/friend doc itself and no photo.
       const profile = await getUserProfile(db, change.id);
 
       result.push({ id: change.id, Namee: profile ? profile.Name : change.data().Name, Photoo: profile ? profile.photo : null, ...change.data(), [dateField]: date.toDate() });

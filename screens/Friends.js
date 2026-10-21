@@ -20,15 +20,6 @@ import FriendsTabs from '../components/friends/FriendsTabs';
 import FriendList from '../components/friends/FriendList';
 import AddFriendModal from '../components/friends/AddFriendModal';
 
-// REFACTOR NOTE: this screen used to be 1388 lines with 24 useStates. It now only wires things
-// together; the pieces moved to:
-//   hooks/useFriendsData.js         the three Firestore listeners (friends / received / sent)
-//   hooks/useFriendSearch.js        the "search by ID" flow and its state
-//   services/friends.js             the Firestore writes (request / approve / block / ...)
-//   components/friends/*            FriendsTabs, FriendList, FriendRow, AddFriendModal
-//   shared/notify.js                the Android toast / iOS alert helper
-// Dropped as dead: state `email`, `Data`, `title`, `num`, `expoPushToken`, `*Num` (now list lengths),
-// refs `recFlag` / `senFlag`, the unused `Cli` import and ~100 lines of commented-out old code.
 export default function Friends({ navigation, route }) {
 
   const AdID = (!Device.isDevice || __DEV__)? TestIds.BANNER : "ca-app-pub-4623463929646643/6113738748";

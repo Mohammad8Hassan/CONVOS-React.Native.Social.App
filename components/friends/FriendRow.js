@@ -2,9 +2,8 @@ import { StyleSheet, Text, View, Image, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Menu, MenuOptions, MenuOption, MenuTrigger } from 'react-native-popup-menu';
 
-// REFACTOR NOTE: this was the `renderItem` of the FlatList inside `renderList` in screens/Friends.js
-// (~75 lines of JSX that closed over the screen's state). `selector` decides which actions the
-// row shows: 'friends' -> menu, 'received' -> approve/ignore, 'sent' -> cancel.
+// One row of the friends screen. `selector` decides which actions it shows:
+// 'friends' -> menu, 'received' -> approve/ignore, 'sent' -> cancel.
 export default function FriendRow({ item, selector, onCopyId, onRemove, onBlock, onApprove, onIgnore, onCancel }) {
   return (
     <View style={styles.item}>

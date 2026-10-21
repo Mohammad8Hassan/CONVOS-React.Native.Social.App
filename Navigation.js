@@ -23,10 +23,6 @@ import { useSelector } from 'react-redux';
 import { MenuProvider } from 'react-native-popup-menu';
 import NetInfo from '@react-native-community/netinfo';
 
-// REFACTOR NOTE: Tabs / HomeStack / ByMeStack / MainStack used to be created inside the Navigation
-// component, and TabScreens / SettingsScreens / HomeStackScreens were declared inside it too.
-// That made React see brand-new navigator and component types on every render (theme change,
-// network change...), remounting the whole tab tree and its screens. They are now module-level.
 const Tabs = createBottomTabNavigator()
 const HomeStack = createNativeStackNavigator();
 const ByMeStack = createNativeStackNavigator();
@@ -59,7 +55,6 @@ function HomeStackScreens() {
   );
 }
 
-// REFACTOR NOTE: reads its own theme colors now (they used to come from Navigation's closure).
 function TabScreens() {
   const tabColor = useSelector(state => state.theme.tabColor);
   const iconDefaultColor = useSelector(state => state.theme.iconColor);
@@ -161,8 +156,6 @@ export default function Navigation(props) {
       
   }, [refresh])
 
-  // REFACTOR NOTE: the three console.log calls here (and the one in the `refresh` effect above) printed on every
-  // network/theme change; removed. Also dropped the unused `keyValue` / `iconColor` selectors from this component.
   useEffect(() => {
     const networkListener = NetInfo.addEventListener(state => {
       setNetworkStatus(state.isInternetReachable);

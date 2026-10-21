@@ -13,19 +13,6 @@ import useInvitees from '../hooks/useInvitees';
 import InviteModal from '../components/newconv/InviteModal';
 import ConversationForm from '../components/newconv/ConversationForm';
 
-// REFACTOR NOTE: this screen used to be 857 lines with 21 useStates (5 of them parallel copies of the
-// selected people). It now only wires things together:
-//   hooks/useInvitees.js                    friends list, selected people, search-by-ID
-//   services/conversations.js               createConversation (all the Firestore writes)
-//   components/newconv/InviteModal.js       the "Invite Participants" modal
-//   components/newconv/ConversationForm.js  title / body / password form
-// Dropped as dead: states `email`, `Others`, `Data`, `title`, `num`, `selector`, the counters, the refs
-// `searchName` / `passwordValue`, and ~40 lines of commented-out code. Creating now also handles a
-// failure (before, a failed write left the spinner on forever).
-//
-// Unsaved work: what is typed (title, body, password switch; never the password) is saved as a draft in
-// AsyncStorage while typing and restored next time the screen opens. Leaving with something typed or people
-// selected asks first (back button, hardware back and swipe all go through `beforeRemove`).
 const draftKey = (uid) => 'draft:newConversation:' + uid;
 
 export default function NewConv({ navigation }) {

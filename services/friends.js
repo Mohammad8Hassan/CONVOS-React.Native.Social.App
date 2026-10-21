@@ -1,17 +1,13 @@
 import { doc, getDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 
-// REFACTOR NOTE: these Firestore reads/writes used to be written inline in screens/Friends.js,
-// mixed with UI calls (setShowIndicator, toasts, modal state). The screen now only calls these
-// and handles the UI part. Behaviour and document shapes are unchanged (including the
-// `res.data().email` lower-case field, which looks like a typo for `Email` but was already that way).
-// NOTE: the setDoc/deleteDoc promises are intentionally not awaited by most callers - they only
-// resolve once the server acknowledges, which would hang the UI while offline.
-
 // does `ownerId` have `userId` on their block list?
 export const isBlockedBy = async (db, ownerId, userId) => {
   const snap = await getDoc(doc(db, 'Users', ownerId, 'Blocked', userId));
   return snap.exists();
 }
+
+// Firestore reads/writes of the friends screen. Most callers intentionally don't await the setDoc/deleteDoc
+// promises: they only resolve once the server acknowledges, which would hang the UI while offline.
 
 // writes both sides of a friend request; returns the promise of the receiver-side write
 // (used to trigger the push notification once the receiver's doc exists).
@@ -48,10 +44,6 @@ export const ignoreFriendRequest = (db, user, id) => {
 }
 
 // returns false when the request no longer exists, true when the approval was started
-// REFACTOR NOTE: these four writes used to be separate setDoc/deleteDoc calls fired one after another.
-// They are one batch now: the rules only let you add yourself to somebody's friends list while their "Sent
-// Requests" entry for you exists, and inside a batch that is checked before any of the writes apply (so
-// the request is still there). It also makes the friendship all-or-nothing.
 export const approveFriendRequest = async (db, user, id) => {
   const requestCheck = await getDoc(doc(db, 'Users', user.uid, 'Received Requests', id));
   if (!requestCheck.exists()) return false;

@@ -40,8 +40,6 @@ export default function Settings({ navigation }) {
 
   useEffect(() => {
     const unsubscribeUser = onSnapshot(doc(db, 'Users', user.uid), async snapShot => {
-      // REFACTOR NOTE: no guard here before - on a cold start with no network the first snapshot comes
-      // from an empty cache, data() is undefined and `.Photo` threw "Cannot read property 'Photo' of undefined".
       if(!snapShot.exists()) return;
       const photo = await loadImage(snapShot.data().Photo, snapShot.data().photoExtension);
       setPhotoUrl(photo);
@@ -77,9 +75,6 @@ export default function Settings({ navigation }) {
       )
     }
   }
-
-  // REFACTOR NOTE: checkCache / cacheImage / loadImage used to be defined right here (~54 lines,
-  // identical copy in 7 screens). They are now imported from ../shared/imageCache.
 
   const toggleSwitch = () => {
     if(theme) {
