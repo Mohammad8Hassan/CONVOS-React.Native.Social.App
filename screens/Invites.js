@@ -51,6 +51,7 @@ export default function Friends({ navigation }) {
  const [num, setNum] = useState(0);
  const [listIndicator, setListIndicator] = useState(true);
  const [refreshing, setRefreshing] = useState(false);
+ const [joining, setJoining] = useState(false);
 
  //redux store
  const dispatch = useDispatch();
@@ -163,6 +164,7 @@ export default function Friends({ navigation }) {
  }
 
  const joinFromInvite = async (id, inviteCollection) => {
+  setJoining(true);
   try {
     await joinConversationOnServer(id);
 
@@ -186,6 +188,9 @@ export default function Friends({ navigation }) {
     }
 
     Alert.alert('Error', message, [{ text: 'Close', style: 'cancel' }], { cancelable: true });
+  }
+  finally {
+    setJoining(false);
   }
  }
 
@@ -295,7 +300,14 @@ const AlertDeleteOther = (id) => {
  return (
    <SafeAreaView style={{flex: 1, backgroundColor:'#613a5f'}}> 
     <View style={{flex:1, backgroundColor: backgroundColor}} >
-     
+
+     {/* blocks taps while the server joins us to the conversation */}
+     <Modal visible={joining} transparent animationType='none' statusBarTranslucent onRequestClose={() => {}}>
+       <View style={{flex:1, backgroundColor:'rgba(0,0,0,0.35)', justifyContent:'center', alignItems:'center'}}>
+         <ActivityIndicator size={60} color='white' />
+       </View>
+     </Modal>
+
      <View style={styles.homeHeader}>
        <Text style={{fontSize:19, color:'white', fontFamily:'Solway-Regular', marginLeft:10}}>Invites</Text>
      </View>

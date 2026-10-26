@@ -16,6 +16,7 @@ import { useDispatch } from 'react-redux';
 import { setRefresh } from '../features/themeSlice';
 import { loadImage } from '../shared/imageCache';
 import { confirm } from '../shared/confirm';
+import { notify } from '../shared/notify';
 import { friendlyAuthError } from '../shared/authError';
 
 
@@ -70,31 +71,40 @@ export default function EditProfile({ navigation }) {
       quality: 1
     });
 
-    if(!result.cancelled) {
+    if(!result.canceled && result.assets?.length) {
+      const asset = result.assets[0];
+      const previousPhoto = photoUrl;
       setIndicator(true);
       setPhotoUrl(null);
-      const refc = ref(storage, 'Profile Photos/' + user.uid)
-      const img = await fetch(result.uri);
-      const bytes = await img.blob();
-      
-      await uploadBytes(refc, bytes);
-      
-      const [url_Temp, meta] = await Promise.all([
-         getDownloadURL(refc),
-         getMetadata(refc)
-      ])
+      try {
+        const refc = ref(storage, 'Profile Photos/' + user.uid)
+        // The "Response.blob() is using React Native's Blob" warning is expected. uploadString/ArrayBuffer
+        // uploads don't work with RN's Blob; the fix would be the expo-blob package (needs a native rebuild).
+        const img = await fetch(asset.uri);
+        const bytes = await img.blob();
+        await uploadBytes(refc, bytes);
 
-      await Promise.all([
-        updateProfile(user, {
-          photoURL: url_Temp,
-        }),
-        updateDoc(doc(db, 'Users', user.uid), {
-          Photo: url_Temp,
-          photoExtension: meta.contentType.split('/')[1],
-        })
-      ])
-      
-      setIndicator(false);
+        const [url_Temp, meta] = await Promise.all([
+           getDownloadURL(refc),
+           getMetadata(refc)
+        ])
+
+        await Promise.all([
+          updateProfile(user, {
+            photoURL: url_Temp,
+          }),
+          updateDoc(doc(db, 'Users', user.uid), {
+            Photo: url_Temp,
+            photoExtension: meta.contentType.split('/')[1],
+          })
+        ])
+      } catch (error) {
+        console.log('changePhoto failed', error);
+        setPhotoUrl(previousPhoto);
+        notify('Could not change the profile picture');
+      } finally {
+        setIndicator(false);
+      }
     };
   }
 

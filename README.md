@@ -8,7 +8,13 @@ It started in 2022 as a learning project, was released in 2023, and was brought 
 Expo SDK 45 to 57 (React Native 0.68 to 0.86, React 17 to 19), its screens refactored into hooks, services and
 components, and its backend security rewritten.
 
-<!-- Add screenshots here, e.g. a row of 3-4 images: login, conversations list, a conversation, friends. -->
+<p align="center">
+  <img src="assets/Imgs/screenshots/screenshot1.jpeg" width="18%" alt="Screenshot 1" />
+  <img src="assets/Imgs/screenshots/screenshot2.jpeg" width="18%" alt="Screenshot 2" />
+  <img src="assets/Imgs/screenshots/screenshot3.jpeg" width="18%" alt="Screenshot 3" />
+  <img src="assets/Imgs/screenshots/screenshot4.jpeg" width="18%" alt="Screenshot 4" />
+  <img src="assets/Imgs/screenshots/screenshot5.jpeg" width="18%" alt="Screenshot 5" />
+</p>
 
 ## Features
 
