@@ -25,7 +25,6 @@ export default function Register({ navigation }) {
     const storage = getStorage();
     const downloadUrl = 'https://firebasestorage.googleapis.com/v0/b/convos-app-1.appspot.com/o/avatar.png?alt=media&token=b4652957-e5dc-43b1-8c92-ff6f317611de';
     
-    // BusyButton ignores taps while this is pending and shows a spinner (it used to be a 3s lodash debounce with no feedback)
     const handleRegister = async (email, password) => {
       email = email.replace(/\s/g,'');
       const name = firstName.trimEnd().trimStart() + ' ' + lasttName.trimEnd().trimStart();

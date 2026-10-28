@@ -103,7 +103,6 @@ export default function NewConv({ navigation }) {
     }
   }
 
-  // ref-guarded: a fast double tap on Create used to start two creations before the spinner showed
   const [submit] = useAsyncAction(addConversation);
 
   async function sendInviteNotification(expoPushToken, title) {

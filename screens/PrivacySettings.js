@@ -7,8 +7,6 @@ import { notify } from '../shared/notify';
 import useUserSettings from '../hooks/useUserSettings';
 import useBlockedUsers from '../hooks/useBlockedUsers';
 
-// Who can send me friend requests (enforced by firestore.rules, and checked by the sender's search), and the
-// list of people I blocked, with unblock.
 export default function PrivacySettings({ navigation }) {
   const { settings, loaded, update } = useUserSettings();
   const { blocked, loading, unblock } = useBlockedUsers();

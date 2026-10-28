@@ -1,15 +1,3 @@
-// One-off migration: hash the plaintext conversation passwords.
-//
-//   node scripts/migrate-passwords.js              dry run: only prints what it would do
-//   node scripts/migrate-passwords.js --apply      writes ConversationSecrets/{id}; plaintext is KEPT
-//   node scripts/migrate-passwords.js --apply --scrub
-//                                                  also deletes the plaintext `password` field.
-//                                                  ONLY after the app version that uses joinConversation
-//                                                  is live for (almost) everyone: older app versions read
-//                                                  that field to join and will stop being able to.
-//
-// Credentials: run `gcloud auth application-default login` once, or point GOOGLE_APPLICATION_CREDENTIALS
-// at a service account key (do not commit it; delete it afterwards).
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 
@@ -58,7 +46,6 @@ async function main() {
     }
 
     if (scrub && typeof plain === 'string') {
-      // only scrub once the hash exists (or was just written)
       if (apply) await conv.ref.update({ password: FieldValue.delete() });
       scrubbed++;
     }

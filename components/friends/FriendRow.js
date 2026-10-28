@@ -2,8 +2,6 @@ import { StyleSheet, Text, View, Image, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Menu, MenuOptions, MenuOption, MenuTrigger } from 'react-native-popup-menu';
 
-// One row of the friends screen. `selector` decides which actions it shows:
-// 'friends' -> menu, 'received' -> approve/ignore, 'sent' -> cancel.
 export default function FriendRow({ item, selector, onCopyId, onRemove, onBlock, onApprove, onIgnore, onCancel }) {
   return (
     <View style={styles.item}>

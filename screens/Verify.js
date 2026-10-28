@@ -30,8 +30,6 @@ export default function Verify({ navigation }) {
 
     getDoc(doc(db, 'Users', getAuth().currentUser.uid))
       .then(res => {
-        // right after registering, this screen opens before Register has finished writing the user document
-        // (or the cold-start cache is empty), so data() can be undefined
         if(mounted.current == true)
           setUserInfo(res.data() || {})
       })

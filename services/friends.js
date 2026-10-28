@@ -6,11 +6,7 @@ export const isBlockedBy = async (db, ownerId, userId) => {
   return snap.exists();
 }
 
-// Firestore reads/writes of the friends screen. Most callers intentionally don't await the setDoc/deleteDoc
-// promises: they only resolve once the server acknowledges, which would hang the UI while offline.
 
-// writes both sides of a friend request; returns the promise of the receiver-side write
-// (used to trigger the push notification once the receiver's doc exists).
 export const writeFriendRequest = (db, user, targetId, target) => {
   const received = setDoc(doc(db, 'Users', targetId, 'Received Requests', user.uid), {
     ID: user.uid,

@@ -1,7 +1,6 @@
 import { StyleSheet, Text, View, Switch, Pressable } from 'react-native';
 import { useSelector } from 'react-redux';
 
-// White card with a small upper-case title, like the THEME card in Settings.
 export function SettingsCard({ title, children }) {
   const iconActiveColor = useSelector(state => state.theme.iconActiveColor);
 
@@ -25,7 +24,6 @@ export function SwitchRow({ label, hint, value, onChange, disabled }) {
   );
 }
 
-// one choice of a "pick one" list
 export function ChoiceRow({ label, hint, selected, onPress }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, {opacity: pressed ? 0.5 : 1}]}>

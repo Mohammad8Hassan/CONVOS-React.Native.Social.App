@@ -60,8 +60,6 @@ function ConnectionButtons({ connection, searchedID, showIndicator, onUnblock, o
   }
 }
 
-// "Add a friend by ID" modal. The search state lives in hooks/useFriendSearch and is passed in as `search`.
-// `connection` says what the searched user is to me: 'blocked' | 'friend' | 'sent' | 'received' | 'new'.
 export default function AddFriendModal({ visible, onClose, search, showIndicator, ...actions }) {
   const { searchedID, setSearchedID, found, caption, url, emailResult, searchIndicator } = search;
   const [scanning, setScanning] = useState(false);

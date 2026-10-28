@@ -78,8 +78,6 @@ export default function EditProfile({ navigation }) {
       setPhotoUrl(null);
       try {
         const refc = ref(storage, 'Profile Photos/' + user.uid)
-        // The "Response.blob() is using React Native's Blob" warning is expected. uploadString/ArrayBuffer
-        // uploads don't work with RN's Blob; the fix would be the expo-blob package (needs a native rebuild).
         const img = await fetch(asset.uri);
         const bytes = await img.blob();
         await uploadBytes(refc, bytes);

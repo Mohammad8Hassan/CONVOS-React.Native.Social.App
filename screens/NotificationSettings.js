@@ -5,9 +5,6 @@ import SettingsScreenLayout from '../components/settings/SettingsScreenLayout';
 import { SettingsCard, SwitchRow } from '../components/settings/SettingsCard';
 import useUserSettings from '../hooks/useUserSettings';
 
-// Which kinds of push notifications I get. Senders read these from my user document and skip me when a
-// category is off (the push is sent from their phone), so a change applies to pushes sent after it.
-// Muting a single conversation is in that conversation's menu.
 export default function NotificationSettings({ navigation }) {
   const { settings, loaded, update } = useUserSettings();
   const [systemAllowed, setSystemAllowed] = useState(true);

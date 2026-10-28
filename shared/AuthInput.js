@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { StyleSheet, View, TextInput, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
-// Filled, rounded input with a leading icon; `secureTextEntry` gets a show/hide eye.
 export default function AuthInput({ icon, secureTextEntry, style, ...props }) {
   const [hidden, setHidden] = useState(true);
   const [focused, setFocused] = useState(false);

@@ -4,7 +4,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Hyperlink from 'react-native-hyperlink';
 import { formatCommentTime } from './formatTime';
 
-// My messages: round avatar on the left, bubble next to it, delete on the far right.
 export default function RenderComment(props) {
   return (
     <View style={styles.row}>

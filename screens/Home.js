@@ -229,8 +229,6 @@ export default function Home({ route, navigation }) {
   const deletePost = async (id) => {
     setDeleting(true);
 
-    // the spinner modal blocks the screen, so it must always come down (it used to stay up forever if a
-    // read or delete failed)
     try {
       const [allMessages, allPartis] = await Promise.all([
         getDocs(collection(db, 'Conversations', id, 'Comments')),
@@ -357,7 +355,6 @@ export default function Home({ route, navigation }) {
     navigation.push('Details', { id });
   }, 2000, {'leading':true, 'trailing':false}), [])
 
-  // leading-edge debounce: a double tap on a card used to navigate twice
   const enter2 = useCallback(_.debounce((id) => {
     navigation.navigate('Details', { id, photoUrl });
   }, 1000, {'leading':true, 'trailing':false}), [photoUrl])

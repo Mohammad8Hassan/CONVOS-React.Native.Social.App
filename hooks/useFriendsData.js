@@ -3,8 +3,6 @@ import { getFirestore, collection, onSnapshot, query, orderBy, Timestamp } from 
 import { getAuth } from 'firebase/auth';
 import { getUserProfile } from '../shared/userProfile';
 
-// Listens to one of the friends collections (friends / received / sent requests).
-// Each list item is { id, Namee, Photoo, ...docData, <dateField>: Date }.
 const listen = (db, uid, { collectionName, orderField, timeField, dateField, filter }, onResult) => {
   const q = query(collection(db, 'Users', uid, collectionName), orderBy(orderField));
 
@@ -24,8 +22,6 @@ const listen = (db, uid, { collectionName, orderField, timeField, dateField, fil
   }, error => { console.log(error) })
 }
 
-// `onFirstFriendsLoad` runs once, the first time the friends list arrives (the screen uses it
-// to select the "friends" tab).
 export default function useFriendsData(onFirstFriendsLoad) {
   const db = getFirestore();
   const user = getAuth().currentUser;

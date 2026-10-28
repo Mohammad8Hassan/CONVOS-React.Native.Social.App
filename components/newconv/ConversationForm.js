@@ -4,8 +4,6 @@ import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, TextInput,
 import { Formik, useFormikContext } from 'formik';
 import * as yup from 'yup';
 
-// Title / body / password form of the new-conversation screen. It owns `hasPassword`; the screen only gets
-// onSubmit(values, hasPassword). The password is only validated when its switch is on and has no default.
 const baseShape = {
   title: yup.string()
     .required()
@@ -29,7 +27,6 @@ const wait = (timeout) => {
   return new Promise(resolve => setTimeout(resolve, timeout));
 }
 
-// Reports what is typed so the screen can keep a draft and warn before leaving. Renders nothing.
 function DraftObserver({ hasPassword, onChange }) {
   const { values } = useFormikContext();
 
@@ -40,8 +37,6 @@ function DraftObserver({ hasPassword, onChange }) {
   return null;
 }
 
-// `initialDraft` = { title, body, hasPassword } restored from the last session (the password itself is
-// never stored). `onDraftChange` gets { title, body, password, hasPassword } on every edit.
 export default function ConversationForm({ selected, submitting, onOpenParticipants, onSubmit, initialDraft = {}, onDraftChange }) {
   const [hasPassword, setHasPassword] = useState(!!initialDraft.hasPassword);
   const [refreshing, setRefreshing] = useState(false);

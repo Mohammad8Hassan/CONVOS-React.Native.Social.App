@@ -40,7 +40,6 @@ export default function Details({ route, navigation }) {
 
   const insets = useSafeAreaInsets();
 
-  // leaving by any route (back arrow, hardware back, being removed) must not leave the keyboard up
   useEffect(() => () => Keyboard.dismiss(), []);
   const [modalOpen, setModalOpen] = useState(false);
   const [working, setWorking] = useState(false);
@@ -108,7 +107,6 @@ export default function Details({ route, navigation }) {
     await sendPush(message);
   }
 
-  // runs a slow write behind a blocking spinner; always lowers it, and reports a failure
   const withSpinner = async (action, errorMessage) => {
     setWorking(true);
     try {
@@ -179,9 +177,6 @@ export default function Details({ route, navigation }) {
             onDelete={confirmDeleteConversation}
           />
 
-          {/* react-native-keyboard-controller's version, because RN's own left the box under the keyboard with
-              Android's edge-to-edge drawing. It still pads by the keyboard height without the navigation bar
-              (measured: height 330, bar 48, keyboard really 377 from the bottom), hence the offset. */}
           <KeyboardAvoidingView style={styles.container} behavior='padding' keyboardVerticalOffset={insets.bottom}>
             <View style={{flex:1}}>
               <CommentsList

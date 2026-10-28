@@ -1,9 +1,6 @@
 import { Pressable, ActivityIndicator } from 'react-native';
 import useAsyncAction from './useAsyncAction';
 
-// A Pressable for actions that take time: while onPress's promise is pending it ignores further
-// presses and shows a spinner instead of its children. `busy` forces the same state from outside
-// (for flows whose loading flag lives in the parent). `style` can be a function like Pressable's.
 export default function BusyButton({ onPress, busy: busyProp = false, style, spinnerColor = 'white', children, ...rest }) {
   const [run, busyInternal] = useAsyncAction(async (e) => { if(onPress) await onPress(e); });
   const busy = busyInternal || busyProp;

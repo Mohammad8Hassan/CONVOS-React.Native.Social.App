@@ -3,7 +3,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import logo from '../assets/Imgs/icon.png';
 
-// Shared shell of Login / Register: purple hero (app logo + wordmark, plus two ghost chat bubbles) with the form on a rounded sheet that rises over it.
 export default function AuthLayout({ title, subtitle, onBack, compact, children }) {
   return (
     <SafeAreaView style={styles.root}>

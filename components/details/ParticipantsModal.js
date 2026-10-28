@@ -3,7 +3,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider } from 'react-native-popup-menu';
 
-// Participants list. `convAuthorId` is the uid of the conversation author, who sees "remove" on other participants.
 export default function ParticipantsModal({
   visible, onClose, num, user, photoUrl, data, extraData, convAuthorId,
   onRemoveUser, onCopyUserId, onCopyMyId, onShowUserQr, onShowMyQr,

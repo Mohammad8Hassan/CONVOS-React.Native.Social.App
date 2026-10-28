@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getFirestore, collection, onSnapshot, query, orderBy, Timestamp } from 'firebase/firestore';
 
-// Comments listener for a conversation. It is attached once, when the participants are known, and author
-// name/photo are looked up in the current participants. `removed` is derived from participants[<uid>REM].
-// Returns the comments, whether they are still loading, the unread counter and the scroll handlers.
 export default function useConversationComments({ id, allParticipants }) {
   const db = getFirestore();
 
@@ -92,14 +89,13 @@ export default function useConversationComments({ id, allParticipants }) {
     }
   }
 
-  // ScrollView.onLayout: the visible height changes when the keyboard opens/closes (and while it animates).
-  // If the user was at the bottom, stay at the bottom so the newest messages stay above the message box.
+  // ScrollView.onLayout
   const onLayout = () => {
     if(commentsFlag.current != 'first render' && scrollAfter.current && scrollView.current)
       scrollView.current.scrollToEnd({ animated: false });
   }
 
-  // ScrollView.onContentSizeChange: jump to the bottom the first time the comments are laid out
+  // ScrollView.onContentSizeChange
   const onContentSizeChange = () => {
     if(commentsFlag.current == 'first render') {
       scrollNow();

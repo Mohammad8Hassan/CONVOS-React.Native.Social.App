@@ -5,14 +5,6 @@ import { getUserProfile } from '../shared/userProfile';
 import { markConversationOpened, markParticipantEnter, markParticipantExit } from '../services/conversations';
 import { wantsPush } from '../services/notifications';
 
-// Conversation + participants listeners for the Details screen. Returns:
-//  post              the conversation doc data (null until loaded)
-//  allParticipants   map like { <uid>Name, <uid>Photo, <uid>ID, <uid>REM } (null until loaded)
-//  participantsIDs   array of the other participants { id, name, photo, token, removed, lastEnter, lastExit, ... }
-//  data              copy of participantsIDs, used as FlatList data
-//  num               participants count (others + me)
-//  convAuthor        ref: { id, uri, name } of the conversation author (the Admin participant)
-//  tokensArray       ref: push tokens of the other active participants
 export default function useConversationParticipants({ id, navigation }) {
   const db = getFirestore();
   const user = getAuth().currentUser;
@@ -34,17 +26,12 @@ export default function useConversationParticipants({ id, navigation }) {
 
     markConversationOpened(db, user, id);
 
-    // The rules stop non-participants and removed participants from reading the conversation. When that
-    // happens while listening (you were removed, or the conversation was deleted) Firestore ends the
-    // listener with permission-denied; show the same "not available" screen as before.
     const onListenError = (error) => {
       console.log(error);
       if(error && error.code == 'permission-denied' && mount.current)
         navigation.replace('Error');
     }
 
-    // listens to the participants of the conversation. `participants` / `participantsID` are
-    // mutated in place across snapshots (as before) and published to state at the end of each one.
     const listenToParticipants = () => {
       let participants = {};
       let participantsID = [];
@@ -57,9 +44,6 @@ export default function useConversationParticipants({ id, navigation }) {
         setNum(participantsID.length + 1);
       }
 
-      // getUserProfile already retries a few times, but a cold start can outlast that. When a participant is
-      // still without name or photo, try again later (up to 4 times, 3s apart more each time) instead of
-      // leaving them blank until the screen is reopened.
       const retryTimers = new Set();
       const retryProfile = (uid, attempt = 1) => {
         if(attempt > 4) return;
@@ -160,7 +144,6 @@ export default function useConversationParticipants({ id, navigation }) {
         participants[change.doc.id + 'REM'] = false;
       }
 
-      // someone entered/exited: keep their lastEnter/lastExit in sync (used to decide who gets "unread")
       const handleUpdated = async (change) => {
         const index = participantsID.map(e => e.id).indexOf(change.doc.id);
         if(index == -1) return;
@@ -232,7 +215,7 @@ export default function useConversationParticipants({ id, navigation }) {
 
       markParticipantEnter(db, user, id)
         .then(() => {
-          if(!mount.current) return; // unmounted while the update was in flight: don't attach a listener nobody detaches
+          if(!mount.current) return;
           if(unsubscribeParticipants.current) unsubscribeParticipants.current();
           unsubscribeParticipants.current = listenToParticipants();
         })

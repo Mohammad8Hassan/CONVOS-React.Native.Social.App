@@ -4,8 +4,6 @@ import { getAuth } from 'firebase/auth';
 import { getUserProfile } from '../shared/userProfile';
 import { unblockUser } from '../services/friends';
 
-// People on my block list ( Users/{me}/Blocked ) with their name and photo. A blocked person whose profile
-// can't be read is still listed (by ID) so they can be unblocked.
 export default function useBlockedUsers() {
   const db = getFirestore();
   const user = getAuth().currentUser;

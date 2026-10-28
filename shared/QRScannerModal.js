@@ -4,8 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 
-// Full-screen camera that reads one QR code and hands its text to onScanned(text), then closes.
-// Asks for the camera permission the first time it opens.
 export default function QRScannerModal({ visible, onClose, onScanned, hint = 'Point the camera at a QR code' }) {
   const [permission, requestPermission] = useCameraPermissions();
   const handled = useRef(false);

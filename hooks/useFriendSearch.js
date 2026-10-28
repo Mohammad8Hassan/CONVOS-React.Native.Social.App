@@ -39,7 +39,6 @@ export default function useFriendSearch() {
     setSearchIndicator(false);
   }
 
-  // `scannedID` is passed when the ID comes from a QR scan: the state set by the scan has not been applied yet
   const search = async (scannedID) => {
     Keyboard.dismiss();
     setSearchIndicator(true);
@@ -48,7 +47,6 @@ export default function useFriendSearch() {
     setEmailResult('');
     setCaption('');
 
-    // like before, only the lookup uses the whitespace-stripped ID; `searchedID` state keeps what was typed
     const id = (typeof scannedID === 'string' ? scannedID : searchedID).replace(/\s/g, '');
 
     if (id.trim().length === 0) return show({ name: 'no users found!' });

@@ -1,25 +1,8 @@
 rules_version = '2';
 
-// 
-//
-// Before: any signed-in user could read, write and delete everything. Now every collection the app uses
-// has its own rules, written from an inventory of what the app actually does:
-//
-//   Users/{uid}                     any signed-in user can read ONE user (names, photos, push token for
-//                                   friend requests); nobody can list users; only the owner writes it.
-//   Users/{uid}/<anything>          only the owner, plus the narrow cross-user writes listed below.
-//   Conversations/{id}              only the author and participants can read it; only the author deletes it.
-//   Conversations/{id}/Participants only the Cloud Functions add people (joinConversation); the author adds
-//                                   themselves when creating; people may update their own lastEnter /
-//                                   lastExit and leave (removed: true), never un-remove themselves.
-//   Conversations/{id}/Comments     active participants read; participants write comments as themselves.
-//   ConversationSecrets, JoinAttempts  server only (Admin SDK bypasses rules).
-//
-// Rules can only allow; separate `allow` statements are OR-ed.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ---- helpers
 
     function signedIn() {
       return request.auth != null;
@@ -41,14 +24,12 @@ service cloud.firestore {
       return signedIn() && get(conversationPath(convId)).data.authorID == request.auth.uid;
     }
 
-    // in the conversation and not removed from it
     function isActiveParticipant(convId) {
       return signedIn()
         && exists(participantPath(convId, request.auth.uid))
         && get(participantPath(convId, request.auth.uid)).data.removed == false;
     }
 
-    // ---- server only
 
     match /ConversationSecrets/{id} {
       allow read, write: if false;
@@ -58,64 +39,47 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // legacy collection, only used by screens/Conversations.js which is not part of the navigation
     match /Posts/{id} {
       allow read, write: if false;
     }
 
-    // ---- users
 
     match /Users/{uid} {
-      // one user at a time, never the whole collection
       allow get: if signedIn();
       allow create, update, delete: if isOwner(uid);
 
-      // everything under a user belongs to that user...
       match /{sub}/{docId} {
         allow read, delete: if isOwner(uid);
 
-        // Invites are the exception: the invitee reads and deletes them but can never create or edit
-        // one (that would let anybody forge an invite and skip a conversation's password). They are
-        // created by the conversation author only, see below.
         allow create, update: if isOwner(uid)
           && sub != 'Friends Invites'
           && sub != 'Other Invites';
 
-        // ...except these narrow things other users may do:
 
-        // somebody asks me to be friends (I can still block them: a blocked user cannot send requests)
         allow create: if sub == 'Received Requests'
           && signedIn()
           && docId == request.auth.uid
           && request.resource.data.ID == request.auth.uid
           && request.resource.data.ignored == false
           && !exists(/databases/$(database)/documents/Users/$(uid)/Blocked/$(request.auth.uid))
-          // ...and not when I turned friend requests off (Settings > Privacy; missing means everyone)
           && get(/databases/$(database)/documents/Users/$(uid)).data.get('settings', {}).get('friendRequests', 'everyone') != 'nobody';
 
-        // the other person cancels their request, approves / removes the friendship: they delete the entry
-        // that is about themselves in my lists
         allow delete: if signedIn()
           && docId == request.auth.uid
           && (sub == 'Received Requests' || sub == 'Sent Requests' || sub == 'Friends');
 
-        // approving my request: the approver adds themselves to my friends list, but only while I have a
-        // pending request to them (inside a batch this is checked before the batch applies)
         allow create: if sub == 'Friends'
           && signedIn()
           && docId == request.auth.uid
           && request.resource.data.ID == request.auth.uid
           && exists(/databases/$(database)/documents/Users/$(uid)/$('Sent Requests')/$(request.auth.uid));
 
-        // checking whether somebody blocked me (a single document, no listing)
         allow get: if sub == 'Blocked' && signedIn() && docId == request.auth.uid;
 
-        // the author of a conversation invites me
         allow create: if (sub == 'Friends Invites' || sub == 'Other Invites')
           && isConversationAuthor(docId)
           && request.resource.data.authorID == request.auth.uid;
 
-        // a participant adds one unread message to my entry for a conversation we are both in
         allow update: if sub == 'My Conversations'
           && isActiveParticipant(docId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unread'])
@@ -123,10 +87,8 @@ service cloud.firestore {
       }
     }
 
-    // ---- conversations
 
     match /Conversations/{convId} {
-      // joining goes through the joinConversation function, so non-participants never need to read this
       allow get: if signedIn()
         && (resource.data.authorID == request.auth.uid
             || exists(participantPath(convId, request.auth.uid)));
@@ -135,7 +97,6 @@ service cloud.firestore {
 
       allow delete: if signedIn() && resource.data.authorID == request.auth.uid;
 
-      // no list, no update (nothing in the app edits a conversation after creating it)
 
       match /Participants/{pid} {
         allow get: if signedIn()
@@ -143,8 +104,6 @@ service cloud.firestore {
 
         allow list: if isConversationAuthor(convId) || isActiveParticipant(convId);
 
-        // the author adds themselves as admin when creating the conversation (everyone else is added by
-        // the joinConversation function)
         allow create: if signedIn()
           && pid == request.auth.uid
           && isConversationAuthor(convId)
@@ -152,33 +111,27 @@ service cloud.firestore {
           && request.resource.data.removed == false;
 
         allow update: if signedIn() && (
-          // me: lastEnter / lastExit / muted, or leaving (never un-remove myself)
           (pid == request.auth.uid
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastEnter', 'lastExit', 'removed', 'muted'])
             && (request.resource.data.removed == true || request.resource.data.removed == resource.data.removed))
           ||
-          // the author removes somebody
           (isConversationAuthor(convId)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['removed'])
             && request.resource.data.removed == true)
         );
 
-        // only when the author deletes the whole conversation
         allow delete: if isConversationAuthor(convId);
       }
 
       match /Comments/{commentId} {
         allow get, list: if isConversationAuthor(convId) || isActiveParticipant(convId);
 
-        // participants write as themselves (a person who just left may still post their "left" message);
-        // the author may also write system messages about others ("removed")
         allow create: if signedIn() && (
           isConversationAuthor(convId)
           || (exists(participantPath(convId, request.auth.uid))
               && request.resource.data.authorID == request.auth.uid)
         );
 
-        // my own comments, or everything when the author deletes the conversation
         allow delete: if signedIn()
           && (resource.data.authorID == request.auth.uid || isConversationAuthor(convId));
       }

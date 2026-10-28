@@ -177,8 +177,6 @@ export default function Friends({ navigation }) {
     console.log(err);
 
     let message = joinErrorMessage(err);
-    // only delete the invite when the server says the *conversation* is gone: a plain "not-found" can
-    // also mean the function itself could not be reached (wrong region / not deployed)
     if(err.code == 'functions/not-found' && err.details && err.details.reason == 'conversation-not-found') {
       message = 'Conversation no longer exist';
       deleteDoc(doc(db, 'Users', user.uid, inviteCollection, id));

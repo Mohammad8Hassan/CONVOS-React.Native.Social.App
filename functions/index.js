@@ -6,24 +6,17 @@ const crypto = require('crypto');
 
 admin.initializeApp();
 const db = admin.firestore();
-// Old conversations (and invites) were written by earlier versions of the app and may lack fields such as
-// title / body / authorID. Writing `undefined` to Firestore throws, which made joining them fail with an
-// internal error; undefined properties are simply skipped now.
 db.settings({ ignoreUndefinedProperties: true });
 const { FieldValue, Timestamp } = admin.firestore;
 
-// Keep this in the same region as the Firestore database (Firebase console > Firestore > Data: "Location").
-// The app must call the functions in this same region: getFunctions(getApp(), '<this region>').
-// Changing it later means redeploying and deleting the functions left in the old region.
 const REGION = 'europe-west1';
 setGlobalOptions({ region: REGION, maxInstances: 10 });
 
-const MIN_PASSWORD = 6;   // same limits as the form in components/newconv/ConversationForm.js
+const MIN_PASSWORD = 6;
 const MAX_PASSWORD = 16;
-const MAX_ATTEMPTS = 5;               // wrong passwords before a temporary lock
+const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 
-// ---- password hashing (scrypt + random salt; stored only in ConversationSecrets, which clients can't read)
 
 const scrypt = (password, salt) => new Promise((resolve, reject) => {
   crypto.scrypt(password, salt, 64, (err, key) => err ? reject(err) : resolve(key));
@@ -41,10 +34,7 @@ const verifyPassword = async (password, record) => {
   return key.length === expected.length && crypto.timingSafeEqual(key, expected);
 };
 
-// ---- helpers
 
-// Every deliberate refusal is logged (never the password), so "why was I refused" can be read in the logs:
-// npx firebase-tools functions:log --only joinConversation
 const reject = (code, message, details) => {
   logger.warn('refused', { code, message, details });
   return new HttpsError(code, message, details);
@@ -61,7 +51,6 @@ const requireString = (value, name) => {
   return value;
 };
 
-// Conversation ids are Firestore auto ids; refuse anything that could be a path.
 const requireConversationId = (value) => {
   const id = requireString(value, 'conversationId');
   if (id.includes('/') || id.length > 100)
@@ -76,8 +65,6 @@ const requirePasswordFormat = (password) => {
   return password;
 };
 
-// Get the stored secret. Conversations created before this change only have a plaintext `password`
-// field on the conversation document: hash it now (lazy migration) so they keep working.
 const getSecret = async (conversationId, conversation) => {
   const ref = db.doc(`ConversationSecrets/${conversationId}`);
   const snap = await ref.get();
@@ -91,7 +78,6 @@ const getSecret = async (conversationId, conversation) => {
   return null;
 };
 
-// Allows MAX_ATTEMPTS wrong passwords per (conversation, user), then locks that pair for LOCK_MINUTES.
 const checkPassword = async (conversationId, uid, password, secret) => {
   const attemptRef = db.doc(`JoinAttempts/${conversationId}_${uid}`);
 
@@ -116,10 +102,6 @@ const checkPassword = async (conversationId, uid, password, secret) => {
   throw reject('permission-denied', 'Incorrect Password!');
 };
 
-// Being invited is a way in without the password (that is how the app worked: the invites screen joins
-// directly). Only the conversation AUTHOR can invite people (the app has no other invite feature, and the
-// Firestore rules only let the author create invite documents), so an invite only counts when it names
-// the author as its sender. A made-up invite from anybody else does not open a protected conversation.
 const hasValidInvite = async (conversationId, uid, conversation) => {
   const snaps = await Promise.all([
     db.doc(`Users/${uid}/Friends Invites/${conversationId}`).get(),
@@ -129,10 +111,7 @@ const hasValidInvite = async (conversationId, uid, conversation) => {
   return snaps.some(snap => snap.exists && snap.get('authorID') === conversation.authorID);
 };
 
-// ---- callable functions
 
-// Author sets (or changes) the password of their conversation. The app calls this right after creating a
-// conversation with hasPassword: true (and without sending the password in the document).
 exports.setConversationPassword = onCall(async (request) => {
   const uid = requireAuth(request);
   const conversationId = requireConversationId(request.data && request.data.conversationId);
@@ -151,8 +130,6 @@ exports.setConversationPassword = onCall(async (request) => {
   return { ok: true };
 });
 
-// Join a conversation by id (+ password when it has one). Does what Home.js used to do on the client:
-// participant doc, "joined" comment, removing the invites, "My Conversations" entry.
 exports.joinConversation = onCall(async (request) => {
   const uid = requireAuth(request);
   const conversationId = requireConversationId(request.data && request.data.conversationId);

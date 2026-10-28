@@ -3,15 +3,10 @@ import { getApp } from 'firebase/app';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { wantsPush } from './notifications';
 
-// Must be the region the functions are deployed to (REGION in functions/index.js).
 const FUNCTIONS_REGION = 'europe-west1';
 
 const callable = (name) => httpsCallable(getFunctions(getApp(), FUNCTIONS_REGION), name);
 
-// Conversation passwords are hashed by Cloud Functions; the app never gets them back.
-//  - setConversationPassword: the author sets it, right after creating the conversation.
-//  - joinConversation: joins by id (+ password, or a valid invite). Writes the participant doc, the
-//    "joined" comment and the "My Conversations" entry, and removes the invite, on the server.
 export const setConversationPassword =(conversationId, password) =>
   callable('setConversationPassword')({ conversationId, password });
 
@@ -53,16 +48,12 @@ export const addComment = (db, user, id, text) =>
     system: false
   });
 
-// mute / unmute pushes of one conversation for me (stored on my participant document, which is what the
-// other participants' phones read when they decide who gets a push)
 export const setMuted = (db, user, id, muted) =>
   updateDoc(doc(db, 'Conversations', id, 'Participants', user.uid), { muted });
 
 export const deleteComment = (db, id, commentId) =>
   deleteDoc(doc(db, 'Conversations', id, 'Comments', commentId));
 
-// marks the participant as removed and leaves a "removed" system message in the conversation
-// (both writes are returned as one promise now so the screen can show a spinner until they finish)
 export const removeParticipant = (db, id, userID, name) => Promise.all([
   addDoc(collection(db, 'Conversations', id, 'Comments'), {
     comment: 'removed',

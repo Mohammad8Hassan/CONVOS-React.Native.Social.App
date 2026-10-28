@@ -42,7 +42,6 @@ export default function Friends({ navigation, route }) {
 
   const search = useFriendSearch();
 
-  // a tapped friend-request push asks for the received list (see Navigation.js)
   const requestedSection = route.params?.section;
   useEffect(() => {
     if(!requestedSection) return;
@@ -123,7 +122,6 @@ export default function Friends({ navigation, route }) {
       })
   }
 
-  // debounced (leading edge only) so a double tap doesn't fire the action twice
   const debounced = (fn) => _.debounce(fn, 800, {'leading':true, 'trailing':false});
 
   const cancelRequest = useMemo(() => debounced((id) => {

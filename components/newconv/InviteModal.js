@@ -4,10 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import QRScannerModal from '../../shared/QRScannerModal';
 
-// "Invite Participants" modal. The list and count shown are derived from the selected tab:
-//   friends tab -> list = my friends,      count = selected friends
-//   others tab  -> list = selected others, count = selected others (+ an ID search box to add more)
-// `search` = { status, name, searching, onAdd(id), onClear() }.
 export default function InviteModal({
   visible, onClose, friends, selected, onAddFriend, onRemove, search,
 }) {

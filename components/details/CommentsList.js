@@ -3,8 +3,6 @@ import RenderComment from '../../shared/RenderComment';
 import RenderOthersComment from '../../shared/RenderOthersComment';
 import SystemMessage from '../../shared/SystemMessage';
 
-// Scrolling list of a conversation's comments (system messages, mine, other people's).
-// `participants` is the { <uid>REM, ... } map: a comment is dimmed when its author is currently removed.
 export default function CommentsList({
   comments, loading, participants, userID, onDeleteComment, scrollRef, onScroll, onLayout, onContentSizeChange,
 }) {
@@ -16,9 +14,6 @@ export default function CommentsList({
     return rem === undefined ? comment.removed : rem;
   }
 
-  // Name and photo are read from the current participants, not from the copy made when the comment arrived:
-  // if a profile was still loading at that moment (first open, cold network) the copy stays blank for good,
-  // while the participants map is filled in later by the retries in useConversationParticipants.
   const withAuthor = (comment) => {
     if(!participants) return comment;
     const name = participants[comment.authorID + 'Name'];

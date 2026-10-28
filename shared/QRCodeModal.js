@@ -2,8 +2,6 @@ import { StyleSheet, Text, View, Modal, Pressable, TouchableWithoutFeedback } fr
 import QRCode from 'react-native-qrcode-svg';
 import { MaterialIcons } from '@expo/vector-icons';
 
-// Shows an ID (user or conversation) as a QR code on a white card, with the text under it.
-// The QR holds just the raw ID, so ScanButton / QRScannerModal can drop it straight into an ID field.
 export default function QRCodeModal({ visible, onClose, title, value, caption, onCopy }) {
   return (
     <Modal visible={visible} animationType='fade' transparent onRequestClose={onClose}>

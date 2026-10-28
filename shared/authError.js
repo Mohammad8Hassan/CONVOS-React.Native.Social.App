@@ -1,5 +1,3 @@
-// Firebase Auth errors come with messages like "Firebase: Error (auth/email-already-in-use)." which mean
-// nothing to a user. This maps the error code to a sentence people can act on.
 const MESSAGES = {
   'auth/email-already-in-use': 'This email is already registered. Try logging in instead.',
   'auth/invalid-email': 'That email address is not valid.',

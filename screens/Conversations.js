@@ -169,7 +169,6 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     flex: 1,
-    alignItems: 'center',
     alignItems: 'stretch',
     margin: 20,
     paddingTop: 20,

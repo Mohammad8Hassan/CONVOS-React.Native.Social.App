@@ -19,12 +19,11 @@ export default function Login({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
-  const insets = useSafeAreaInsets(); // the reset sheet sits at the bottom of a Modal, which draws under the Android nav bar
+  const insets = useSafeAreaInsets();
   const [showIndicator, setShowIndicator] = useState(false);
 
   const emailToReset = useRef('');
 
-  // BusyButton ignores taps while this is pending and shows a spinner (it used to be a 3s lodash debounce with no feedback)
   const handleLogin = async (email, password) => {
 
     email = email.replace(/\s/g,'');

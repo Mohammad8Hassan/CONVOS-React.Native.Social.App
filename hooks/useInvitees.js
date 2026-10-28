@@ -4,9 +4,6 @@ import { getFirestore, collection, doc, getDoc, getDocs } from 'firebase/firesto
 import { getAuth } from 'firebase/auth';
 import { getUserProfile } from '../shared/userProfile';
 
-// "Who do I invite" logic of the new-conversation screen. There is one ordered list, `selected`, where every
-// entry looks like { ...userDoc, name, photo, kind: 'friend' | 'other' }; the friends/others lists and the
-// counts are derived from it.
 export default function useInvitees() {
   const db = getFirestore();
   const user = getAuth().currentUser;

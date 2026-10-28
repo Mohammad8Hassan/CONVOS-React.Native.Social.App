@@ -3,7 +3,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 
-// Header (back arrow + title) and scrolling body shared by the settings sub-screens.
 export default function SettingsScreenLayout({ title, onBack, children }) {
   const { mainColor, backgroundColor, headerTextColor } = useSelector(state => state.theme);
 

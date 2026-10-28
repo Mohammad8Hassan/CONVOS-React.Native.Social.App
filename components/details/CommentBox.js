@@ -7,8 +7,6 @@ export default function CommentBox({ onSend, unreadMessages, onScrollDown }) {
   const [comment, setComment] = useState('');
   const canSend = comment.trim().length > 0;
 
-  // Details no longer pads the bottom system inset (it would be stacked on top of the keyboard), so the box
-  // adds it itself, but only while the keyboard is down.
   const insets = useSafeAreaInsets();
   const [keyboardUp, setKeyboardUp] = useState(false);
 

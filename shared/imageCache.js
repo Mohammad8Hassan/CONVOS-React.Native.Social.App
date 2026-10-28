@@ -13,8 +13,6 @@ const checkCache = async (uri) => {
   }
 }
 
-// Downloads to a temporary file and moves it into place only when the download finished with a 200, so
-// an interrupted or failed download can't leave a partial/HTML file that later counts as "cached".
 const cacheImage = async (uri, cacheUri) => {
   const tmpUri = cacheUri + '.tmp';
   try {
@@ -42,9 +40,6 @@ const cacheImage = async (uri, cacheUri) => {
   }
 }
 
-// Downloads in flight, by cache path. Several people in one conversation often share a photo (everybody
-// starts with the same default avatar), and parallel downloads of the same file into the same path
-// corrupted each other: some of them failed and the avatar/name never showed. Now they share one download.
 const inFlight = new Map();
 
 const fetchToCache = async (photo, cacheFileUri) => {
@@ -62,8 +57,6 @@ const fetchToCache = async (photo, cacheFileUri) => {
   console.log(cached.msg)
 }
 
-// Returns a local file uri for a remote photo, downloading it into the cache dir if needed.
-// Returns undefined when the download fails.
 export const loadImage = async (photo, photoExtension) => {
   const newUri = /[^=]*$/.exec(photo)[0];
   const cacheFileUri = `${FileSystem.cacheDirectory}${newUri}.${photoExtension}`;

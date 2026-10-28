@@ -3,10 +3,6 @@ import { getFirestore, doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { notify } from '../shared/notify';
 
-// The settings live in the user's own document (Users/{uid}.settings) because other people's phones need
-// to read them: pushes are sent from the sender's phone (it skips people who turned a category off), and
-// the friend-request rules look at `friendRequests`. A missing field means the default below, so existing
-// accounts need no migration.
 export const DEFAULT_SETTINGS = {
   notifyConversations: true, // pushes for new messages
   notifyFriends: true,       // pushes for friend requests
@@ -31,7 +27,6 @@ export default function useUserSettings() {
     }, err => { console.log(err); setLoaded(true); });
   }, [])
 
-  // optimistic: the switch moves at once, and goes back if the write is refused
   const update = useCallback(async (key, value) => {
     const previous = current.current[key];
     setSettings(s => ({ ...s, [key]: value }));

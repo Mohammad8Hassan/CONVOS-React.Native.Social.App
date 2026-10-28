@@ -56,8 +56,6 @@ export async function registerForPushNotificationsAsync() {
   return token;
 }
 
-// Does this user (a Users document, or null when unknown) want pushes of this kind? `key` is one of the
-// notify* settings of hooks/useUserSettings.js. No settings saved yet means yes.
 export const wantsPush = (userData, key) =>
   !userData || !userData.settings || userData.settings[key] !== false;
 
@@ -73,8 +71,6 @@ export async function sendPush(message) {
     body: JSON.stringify(message),
   });
 
-  // Expo answers 200 even when a push fails; the reason is in the tickets (e.g. InvalidCredentials when
-  // the FCM v1 key is missing in EAS, DeviceNotRegistered for a stale token). Only logged in dev.
   if (__DEV__) {
     try {
       const body = await response.json();
