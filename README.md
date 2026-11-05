@@ -64,8 +64,9 @@ firestore.rules           Firestore security rules
 - **Firestore rules are per collection and strict:** users can be read one at a time but not listed;
   conversations, participants and comments are only readable by the people in them; cross-user writes are limited
   to friend requests and unread counters.
-- The Firebase web API key in `App.js` is a public identifier, not a secret. Access is controlled by the rules
-  and by the API restrictions set on the key in Google Cloud.
+- The Firebase config is read from a git-ignored `.env` file. A Firebase web API key is a public identifier that
+  ships inside every build of the app, not a secret: access is controlled by the rules and by the API
+  restrictions set on the key in Google Cloud.
 
 ## Running it yourself
 
@@ -77,7 +78,7 @@ Requirements: Node 22.13 or newer, yarn 1.x, JDK 17+, Android SDK / emulator.
    `ios.bundleIdentifier` in `app.json`. Then create a Firebase project with Authentication (email/password),
    Firestore and Storage, and register an Android app in it with that same package name.
 2. Download its `google-services.json` to the project root (see `google-services.example.json` for the shape) and put
-   your web config into the `firebaseConfig` object in `App.js`.
+   copy `.env.example` to `.env` and fill in your web app config (Firebase console, Project settings, Your apps).
 3. Deploy the backend from the project root:
    ```
    cd functions && npm install && cd ..

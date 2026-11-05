@@ -26,7 +26,7 @@ import { joinConversation as joinConversationOnServer, joinErrorMessage } from '
 
 export default function Friends({ navigation }) {
 
- const AdID = (!Device.isDevice || __DEV__)? TestIds.BANNER : "ca-app-pub-4623463929646643/6389070912";
+ const AdID = (!Device.isDevice || __DEV__)? TestIds.BANNER : (process.env.EXPO_PUBLIC_ADMOB_INVITES_BANNER_ID || TestIds.BANNER);
 
  const db = getFirestore();
 

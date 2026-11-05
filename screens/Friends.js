@@ -22,7 +22,7 @@ import AddFriendModal from '../components/friends/AddFriendModal';
 
 export default function Friends({ navigation, route }) {
 
-  const AdID = (!Device.isDevice || __DEV__)? TestIds.BANNER : "ca-app-pub-4623463929646643/6113738748";
+  const AdID = (!Device.isDevice || __DEV__)? TestIds.BANNER : (process.env.EXPO_PUBLIC_ADMOB_FRIENDS_BANNER_ID || TestIds.BANNER);
 
   const db = getFirestore();
   const user = getAuth().currentUser;

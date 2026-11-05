@@ -45,7 +45,7 @@ export default function Home({ route, navigation }) {
     }),
   });
 
-  const AdID = (!Device.isDevice || __DEV__)? TestIds.BANNER : "ca-app-pub-4623463929646643/1541905082";
+  const AdID = (!Device.isDevice || __DEV__)? TestIds.BANNER : (process.env.EXPO_PUBLIC_ADMOB_HOME_BANNER_ID || TestIds.BANNER);
   
   const [modalVisible, setModalVisible] = useState(false);
   const [conversations, setConversations] = useState([]);
